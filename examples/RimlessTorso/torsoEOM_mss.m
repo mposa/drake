@@ -1,4 +1,6 @@
 function [H,C,B,phi,phidot,psi,J,J_f,K,S,U] = torsoEOM_mss(q,v,s_vec,c_vec)
+warning('off','Drake:RigidBody:SimplifiedCollisionGeometry');
+warning('off', 'Drake:RigidBodyManipulator:UnsupportedContactPoints');
 p = PlanarRigidBodyManipulator('TorsoBalance.urdf');
 
 x = q(1);
@@ -24,59 +26,9 @@ C = getmsspoly(C);
 %crude cleanup of H--NEED TO CHECK FOR S^2 IN THE COEFFICIENTS RET VAL
 for i=1:4,
   for j=1:4,
-    H(i,j) = trimTrigPoly(H(i,j),c_th,s_th);
-    H(i,j) = trimTrigPoly(H(i,j),c,s);   
+    H(i,j) = trigExprReduction(H(i,j),[s;s_th],[c;c_th]);
   end
-  C(i) = trimTrigPoly(C(i),c_th,s_th);
-  C(i) = trimTrigPoly(C(i),c,s);
-end
-
-function f = trimTrigPoly(f,s_var,c_var)
-%   [Rs,ps] = pdecomp(f,s_var)
-%   [Rc,pc] = pdecomp(f,c_var);
-%   
-%   s_ind = find(ps == 2);
-%   c_ind = find(pc == 2);
-%   
-%   if ~isempty(s_ind) && ~isempty(c_ind)
-%     
-%   end
-  [vars,pows,coeffs]=decomp(f);
-  c_ind = find(msseq(vars,c_var));
-  s_ind = find(msseq(vars,s_var));
-  
-  if ~isempty(s_ind) && ~isempty(c_ind)
-    %terms quadratic in s
-    s_quad_ind = find(pows(:,s_ind) >= 2);
-    s_quad_coeff = coeffs(s_quad_ind);
-    s_quad_pows = pows(s_quad_ind,:);
-    s_quad_pows(:,s_ind) = s_quad_pows(:,s_ind) - 2;
-    
-    s_mat = [s_quad_pows s_quad_coeff'];
-    
-    c_quad_ind = find(pows(:,c_ind) >= 2);
-    c_quad_coeff = coeffs(c_quad_ind);
-    c_quad_pows = pows(c_quad_ind,:);
-    c_quad_pows(:,c_ind) = c_quad_pows(:,c_ind) - 2;
-    
-    c_mat = [c_quad_pows c_quad_coeff'];
-    
-    [match,indx] = ismember(s_mat,c_mat,'rows');
-    
-    inds = find(match,1);
-    
-    if isempty(inds)
-      return
-    end
-    
-    elems = vars'.^s_mat(inds,1:end-1);
-    m = s_mat(inds,end);
-    for loopv=1:length(elems),
-      m = m*elems(loopv);
-    end
-    f = f + m - m*s_var^2 - m*c_var^2;
-    f = trimTrigPoly(f,s_var,c_var);
-  end
+  C(i) = trigExprReduction(C(i),[s;s_th],[c;c_th]);
 end
 
 
@@ -109,15 +61,15 @@ J_f = [1 0 ((8321567036706119*c)/9007199254740992 - (215431620425035*s)/56294995
 
 
 %potential energy
-doKinematics(p.model,q_trig);
-g = -p.model.gravity(2);
+kinsol = p.doKinematics(q_trig);
+% doKinematics(p.model,q_trig);
+g = -p.gravity;
 U = 0;
-for i=1:length(p.model.body),
-  T=p.model.body(i).T;
-  I = p.model.body(i).I;
-  if I(3,3) ~= 0
-    tmp = T*[I(1,3)/I(3,3);-I(1,2)/I(3,3);1];
-    U = U + tmp(2)*g*I(3,3);
+for i=1:length(p.body),
+  m = p.body(i).mass;
+  if m > 0
+    com = p.forwardKin(kinsol,i,p.body(i).com);
+    U = U + com'*g;
   end
 end
 U = getmsspoly(U);
