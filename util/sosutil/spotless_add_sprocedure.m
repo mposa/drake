@@ -1,11 +1,11 @@
 function [prog, eqn, mult, coefmult ] = spotless_add_sprocedure(prog, eqn, h, vars, degree,sos_option)
 %SPOTLESS_ADD_SPROCEDURE Summary of this function goes here
 
-eqn_deg = full(deg(eqn,vars));
-if ~even(eqn_deg)
-  eqn_deg = eqn_deg + 1;
-end
-degree = max(2,min(degree, 2*floor((eqn_deg - deg(h))/2)));
+% eqn_deg = full(deg(eqn,vars));
+% if ~even(eqn_deg)
+%   eqn_deg = eqn_deg + 1;
+% end
+% degree = max(2,min(degree, 2*floor((eqn_deg - deg(h))/2)));
 
 if nargin < 6
   sos_option = 1;
