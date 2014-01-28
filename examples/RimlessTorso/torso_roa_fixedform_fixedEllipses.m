@@ -15,8 +15,8 @@ switch sos_option
 end
 
 % degree = 4;
-b_degree = 3;
-u_degree = 6;
+b_degree = 1;
+u_degree = 4;
 
 Ao = 1000*eye(9);
 
@@ -115,7 +115,7 @@ prog_bkp = prog;
 prog = prog_bkp;
 
 
-const_deg = 6;
+const_deg = 4;
 sig = {};
 coefsig = {};
 
@@ -125,8 +125,8 @@ ball_vec = [z;s;1-c;s_th;1-c_th;qd];
 % h_Bo = 1 - ball_vec'*Ao*ball_vec;
 % h_Bi = 1 - ball_vec'*Ai*ball_vec;
 
-rho_i = .5;
-rho_o = 2;
+rho_i = .4;
+rho_o = 1.5;
 
 % Ao2 = Ao;
 Ao2 = zeros(9)*z;
@@ -139,8 +139,8 @@ Ao2 = zeros(9)*z;
 Ao2(1,1) = 100;
 Ao2(2,2) = 5;
 Ao2(3,3) = 5;
-Ao2(4,4) = 2/2;
-Ao2(5,5) = 2/2;
+Ao2(4,4) = 2;
+Ao2(5,5) = 2;
 
 Ao2(6:9,6:9) = .25*H;
 % Ao2(6,6) = 0;
@@ -158,7 +158,7 @@ h_Bo2 = rho_o - ball_vec'*Ao2*ball_vec;
 %  failed .5/2
 %  failed .5/1.5
 
-% Set Ao2 to 100,5,5,11,1,.25H
+% Set Ao2 to 100,5,5,1,1,.25H
 % K = 10
 %  failed .5/1.5
 %  worked .4/1.5

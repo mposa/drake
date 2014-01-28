@@ -59,6 +59,7 @@ addpath(fullfile(conf.root,'systems','visualizers'));
 addpath(fullfile(conf.root,'solvers'));
 addpath(fullfile(conf.root,'util'));
 addpath(fullfile(conf.root,'util','obstacles'));
+addpath(fullfile(conf.root,'util','sosutil'));
 addpath(fullfile(conf.root,'thirdParty'));
 addpath(fullfile(conf.root,'thirdParty','path'));
 addpath(fullfile(conf.root,'thirdParty','spatial'));

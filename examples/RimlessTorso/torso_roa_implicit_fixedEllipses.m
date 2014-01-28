@@ -16,7 +16,7 @@ end
 
 % degree = 4;
 % b_degree = 3;
-V_degree = 2;
+V_degree = 4;
 
 prog = spotsosprog();
 
@@ -117,8 +117,8 @@ ball_vec = [z;s;1-c;s_th;1-c_th;qd];
 % h_Bo = 1 - ball_vec'*Ao*ball_vec;
 % h_Bi = 1 - ball_vec'*Ai*ball_vec;
 
-rho_i = .1;
-rho_o = 1;
+rho_i = .4;
+rho_o = 1.5;
 
 % Ao2 = Ao;
 Ao2 = zeros(9)*z;
