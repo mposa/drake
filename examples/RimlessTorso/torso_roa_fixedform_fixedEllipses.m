@@ -64,7 +64,8 @@ prog = prog.withIndeterminate(lx);
 
 %% Dynamics
 [H,C,B,phi,phidot,psi,J,J_f,K,S,U] = torsoEOM_mss(q,qd,s_vec,c_vec);
-
+H = clean(H);
+C = clean(C);
 K = [10 1];
 u = -K*[s_th;thetad];
 U = U + K(1)*(1-c_th);
