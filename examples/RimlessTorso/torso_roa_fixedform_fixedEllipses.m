@@ -126,7 +126,7 @@ ball_vec = [z;s;1-c;s_th;1-c_th;qd];
 % h_Bo = 1 - ball_vec'*Ao*ball_vec;
 % h_Bi = 1 - ball_vec'*Ai*ball_vec;
 
-rho_i = .4;
+rho_i = .5;
 rho_o = 1.5;
 
 % Ao2 = Ao;
@@ -221,6 +221,7 @@ if doSOS(3)
   [prog, sos_3, sig{end+1}, coefsig{end+1}] = spotless_add_eq_sprocedure(prog, sos_3, (lzsq(2)^2 - lx(2)^2)*psi(2), [x_vars;lx(2)], const_deg);  %should this be psi^2?
   [prog, sos_3, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_3, h_Bo2, [x_vars;lx(2)], const_deg, sos_option);
   prog = withSOS_fun(prog,sos_3);
+  
 end
 
 if doSOS(4)
