@@ -525,11 +525,16 @@ classdef RigidBody < RigidBodyElement
           case 'sphere'
             r = parseParamString(model,robotnum,char(thisNode.getAttribute('radius')));
             shape = struct('type',RigidBody.SPHERE,'T',T,'params',r);
-            if (r~=0)
-              warning('Drake:RigidBody:SimplifiedCollisionGeometry','for efficiency, 3D sphere geometry will be treated like a point (at the center of the sphere)');
-            end
-            cx=0; cy=0; cz=0;
-            pts = T(1:end-1,:)*[0;0;0;1];
+%             if (r~=0)
+%               warning('Drake:RigidBody:SimplifiedCollisionGeometry','for efficiency, 3D sphere geometry will be treated like a point (at the center of the sphere)');
+%             end
+%             cx=0; cy=0; cz=0;
+%             pts = T(1:end-1,:)*[0;0;0;1];
+            [THETA, PHI] = meshgrid(0:.2:pi,-pi:.2:pi);
+            cx = r*sin(THETA(:)).*cos(PHI(:));
+            cy = r*sin(THETA(:)).*sin(PHI(:));
+            cz = r*cos(THETA(:));
+            pts = T(1:end-1,:)*[cx';cy';cz';ones(1,length(cx))];
             x=pts(1,:)';y=pts(2,:)'; z=pts(3,:)';
 
           case 'mesh'
