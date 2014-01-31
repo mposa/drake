@@ -9,6 +9,7 @@ xf_vec = zeros(8,N_trials);
 x_vec = zeros(8,N,N_trials);
 
 p = PlanarRigidBodyManipulator('TorsoBalance.urdf');
+r = TimeSteppingRigidBodyManipulator(p,h);
 v = p.constructVisualizer;
 v.playback_speed = 1/2;
 v.axis = [-1 1 -.1 1.5];
@@ -40,7 +41,7 @@ x0 = [0;.00;.0;.87;zeros(4,1)];
 %     phi(2) =  z - (2^(1/2)*((8321567036706119*c)/9007199254740992 - (215431620425035*s)/562949953421312))/2 - (2^(1/2)*((215431620425035*c)/562949953421312 + (8321567036706119*s)/9007199254740992))/2 + 1040195879588265/1125899906842624;
 %   end
 %   x0
-  visualizeState(v,x0)
+  v.draw(0,x0);
   
   t0 = 0.0;
   x = zeros(8,N);
@@ -50,11 +51,14 @@ x0 = [0;.00;.0;.87;zeros(4,1)];
 %     u = 0;
 %     K = [0 0 0 -10 0 0 0 -1];
     u = -[10 1]*[sin(x(4,i-1)); x(8,i-1)];
-    [x(:,i), ~] = p.singleStepUpdate(t(i-1),x(:,i-1),u,h);
+    
+%     [x(:,i), ~] = p.singleStepUpdate(t(i-1),x(:,i-1),u,h);
+    [x(:,i)] = r.update(t(i-1),x(:,i-1),u);
   end
   
 %   v = p.constructVisualizer;
   xtraj = PPTrajectory(foh(t,x));
+  xtraj = xtraj.setOutputFrame(r.getStateFrame);
   v.playback(xtraj);
   
   x0_vec(:,trial_ind) = x0;

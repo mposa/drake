@@ -1,6 +1,6 @@
 % clear all
 megaclear
-iter = 3;
+iter = 2;
 sos_option = 1;
 do_backoff = 0;
 do_clean = 0;
@@ -146,12 +146,19 @@ if iter==0,
 else
 %   [prog,rho] = prog.newFree(1);
 %   cost = -rho;
+
 %   Ai = Ao2;
 %   [prog, Ai] = PSD_fun(prog,6);
-  [prog,Ai_diag] = prog.newPos(6);
-  Ai = diag(Ai_diag);
+
+%   [prog,Ai_diag] = prog.newPos(6);
+%   Ai = diag(Ai_diag);
+% cost = Ai(1,1) + .1*trace(Ai);
+
+  [prog,Ascale] = prog.newFree(1);
+  cost = Ascale;
+  Ai = Ascale*diag([10;1;1;2;2;2]);  
+  
   rho = .1;
-  cost = Ai(1,1) + .1*trace(Ai);
 end
 
 rho_i = rho;
@@ -182,7 +189,7 @@ sos_5 = V - 1;
 if iter==0,
   sos_6 = (1 - V);
 else
-  sos_6 = -h_Bi*(1 + z^2 + qd'*qd + 1 - c)^2;
+  sos_6 = -h_Bi*(1 + z^2 + qd'*qd + 1 - c);
 end
 
 prog_bkp = prog;
@@ -199,7 +206,7 @@ doSOS = [1 1 1 1 1 1];
 if ~even(iter)
   [prog, sos_6, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_6, phi(1), x_vars, const_deg, sos_option);
   [prog, sos_6, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_6, phi(2), x_vars, const_deg, sos_option);
-  [prog, sos_6, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_6, phi(1)*phi(2), x_vars, const_deg, sos_option);
+%   [prog, sos_6, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_6, phi(1)*phi(2), x_vars, const_deg, sos_option);
   [prog, sos_6, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_6, V - 1, x_vars, const_deg, sos_option);
   prog = withSOS_fun(prog,sos_6);
   
@@ -282,7 +289,7 @@ else
   if doSOS(6)
     [prog, sos_6, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_6, phi(1), x_vars, const_deg, sos_option);
     [prog, sos_6, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_6, phi(2), x_vars, const_deg, sos_option);
-    [prog, sos_6, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_6, phi(1)*phi(2), x_vars, const_deg, sos_option);
+%     [prog, sos_6, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_6, phi(1)*phi(2), x_vars, const_deg, sos_option);
     
     if iter==0,
       [prog, sos_6, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_6, h_Bi, x_vars, const_deg, sos_option);
@@ -306,7 +313,6 @@ end
 
 
 options = spotprog.defaultOptions;
-options.verbose = 1;
 options.verbose = 1;
 options.trig.enable = true;
 options.trig.sin = s;
@@ -332,7 +338,7 @@ else
   
   if do_backoff
     costval = double(sol.eval(cost));
-    prog = prog.withPos(costval + 1*abs(costval) - cost);
+    prog = prog.withPos(costval + .1*abs(costval) - cost);
     cost = 0;
     sol = prog.minimize(cost,sos_fun,options);
   end

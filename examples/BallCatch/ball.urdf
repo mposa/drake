@@ -1,0 +1,156 @@
+<robot name="Ball">
+
+  <link name="world"/>
+  <link name="float_base_1_x"/>
+  <link name="float_base_1_z"/>
+
+  <link name="float_base_2_x"/>
+  <link name="float_base_2_z"/>
+
+  <link name="float_base_3_x"/>
+  <link name="float_base_3_z"/>
+
+  <link name="ball_1" >
+    <inertial>
+      <mass value="4"/>
+      <inertia ixx="0"  ixy="0"  ixz="0" iyy=".02" iyz="0" izz="0" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0"/>
+      <geometry>
+        <sphere radius="0.1"/>
+      </geometry>
+      <material>
+        <color rgba=".7 .7 .7 1"/>
+      </material>
+    </visual>
+  </link>
+
+  <link name="ball_2" >
+    <inertial>
+      <mass value="1"/>
+      <inertia ixx="0"  ixy="0"  ixz="0" iyy=".00125" iyz="0" izz="0" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0"/>
+      <geometry>
+        <sphere radius="0.05"/>
+      </geometry>
+      <material>
+        <color rgba=".7 .7 .7 1"/>
+      </material>
+    </visual>
+  </link>
+
+  <link name="ball_3" >
+    <inertial>
+      <mass value="1"/>
+      <inertia ixx="0"  ixy="0"  ixz="0" iyy=".00125" iyz="0" izz="0" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0"/>
+      <geometry>
+        <sphere radius="0.05"/>
+      </geometry>
+      <material>
+        <color rgba=".7 .7 .7 1"/>
+      </material>
+    </visual>
+  </link>
+
+  <joint name="float_1_x" type="prismatic">
+    <parent link="world" />
+    <child link="float_base_1_x" />
+    <axis xyz="1 0 0" />    
+  </joint>
+
+  <joint name="float_1_z" type="prismatic">
+    <parent link="float_base_1_x" />
+    <child link="float_base_1_z" />
+    <axis xyz="0 0 1" />
+    <origin xyz="0 0 0" rpy="0 0 0" />
+  </joint>
+
+  <joint name="pitch_joint_1" type="continuous">
+    <parent link="float_base_1_z" />
+    <child link="ball_1" />
+    <axis xyz="0 1 0" />    
+    <origin xyz="0 0 0" rpy="0 0 0" />
+  </joint>
+
+  <joint name="float_2_x" type="prismatic">
+    <parent link="world" />
+    <child link="float_base_2_x" />
+    <axis xyz="1 0 0" />    
+  </joint>
+
+  <joint name="float_2_z" type="prismatic">
+    <parent link="float_base_2_x" />
+    <child link="float_base_2_z" />
+    <axis xyz="0 0 1" />
+    <origin xyz="0 0 0" rpy="0 0 0" />
+  </joint>
+
+  <joint name="pitch_joint_2" type="continuous">
+    <parent link="float_base_2_z" />
+    <child link="ball_2" />
+    <axis xyz="0 1 0" />    
+    <origin xyz="0 0 0" rpy="0 0 0" />
+  </joint>
+
+  <joint name="float_3_x" type="prismatic">
+    <parent link="world" />
+    <child link="float_base_3_x" />
+    <axis xyz="1 0 0" />    
+  </joint>
+
+  <joint name="float_3_z" type="prismatic">
+    <parent link="float_base_3_x" />
+    <child link="float_base_3_z" />
+    <axis xyz="0 0 1" />
+    <origin xyz="0 0 0" rpy="0 0 0" />
+  </joint>
+
+  <joint name="pitch_joint_3" type="continuous">
+    <parent link="float_base_3_z" />
+    <child link="ball_3" />
+    <axis xyz="0 1 0" />    
+    <origin xyz="0 0 0" rpy="0 0 0" />
+  </joint>
+
+  <transmission type="SimpleTransmission">
+    <actuator name="act_2_x" />
+    <joint name="float_2_x" />
+    <mechanicalReduction>1</mechanicalReduction>    
+  </transmission>
+
+  <transmission type="SimpleTransmission">
+    <actuator name="act_2_z" />
+    <joint name="float_2_z" />
+    <mechanicalReduction>1</mechanicalReduction>    
+  </transmission>
+
+  <transmission type="SimpleTransmission">
+    <actuator name="act_2_rot" />
+    <joint name="pitch_joint_2" />
+    <mechanicalReduction>1</mechanicalReduction>    
+  </transmission>
+
+  <transmission type="SimpleTransmission">
+    <actuator name="act_3_x" />
+    <joint name="float_3_x" />
+    <mechanicalReduction>1</mechanicalReduction>    
+  </transmission>
+
+  <transmission type="SimpleTransmission">
+    <actuator name="act_3_z" />
+    <joint name="float_3_z" />
+    <mechanicalReduction>1</mechanicalReduction>    
+  </transmission>
+
+  <transmission type="SimpleTransmission">
+    <actuator name="act_3_rot" />
+    <joint name="pitch_joint_3" />
+    <mechanicalReduction>1</mechanicalReduction>    
+  </transmission>
+</robot>
