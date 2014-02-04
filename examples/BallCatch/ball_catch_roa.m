@@ -33,11 +33,15 @@ x = q(1:3:end);
 z = q(2:3:end);
 theta = q(3:3:end);
 
+xd = qd(1:3:end);
+zd = qd(2:3:end);
+thetad = qd(3:3:end);
+
 lx = msspoly('lx',3);
 u = msspoly('u',6);
 lzsq = [1;1;1];
 
-v_vars = [q;qd];
+v_vars = [q(1:2);q(4:end);qd];
 x_vars = v_vars;
 
 prog = prog.withIndeterminate([q;qd;lx]);
@@ -46,16 +50,19 @@ m = [4;1;1];
 R = [.1;.05;.05];
 I = 2/4*m.*R.^2;
 
-f_free = [0;0;-g;0;0;-g;0;0;-g] + [zeros(3,1);u];
+f_free = [0;-g;0;0;-g;0;0;-g;0] + [zeros(3,1);u];
+
+% xnom =  [0;.14;0;-.05;0;0;.05;0;0;zeros(9,1)];
+xnom =  [0;.12;0;-.09;0;0;.09;0;0;zeros(9,1)];
 
 K = zeros(6,18);
-K(1:3,4:6) = diag([500;500;30]);
-K(1:3,13:15) = 10*eye(3);
-K(4:6,7:9) = diag([500;500;30]);
-K(4:6,16:18) = 10*eye(3);
-u_control = -K*([q;qd] - [zeros(3,1);-.05;0;0;.05;0;0;zeros(9,1)]);
+K(1:3,4:6) = diag([50000;50000;.01]);
+K(1:3,13:15) = diag([10;10;.1]);
+K(4:6,7:9) = diag([50000;50000;.01]);
+K(4:6,16:18) = diag([10;10;.1]);
+u_control = -K*([q;qd] - xnom) + [0;g;0;0;g;0];
 
-f_free = subs(f_free,u,u_control);
+f_free = subs(f_free,u,u_control.*(1./[m(2);m(2);I(2);m(3);m(3);I(2)]));
 
 r_perp_1_2 = [x(2) - x(1); z(2) - z(1)];
 r_perp_2_3 = [x(3) - x(2); z(3) - z(2)];
@@ -84,17 +91,25 @@ f_impact_3_1 = [
   (-r_perp_3_1 - lx(3)*r_fric_3_1)/m(3);...
   -R(3)/I(3)*lx(3)];
 
-phi = [r_perp_1_2'*r_perp_1_2 - (R(1) + R(2))^2;...
+phi = 100*[r_perp_1_2'*r_perp_1_2 - (R(1) + R(2))^2;...
   r_perp_2_3'*r_perp_2_3 - (R(2) + R(3))^2;...
   r_perp_3_1'*r_perp_3_1 - (R(3) + R(1))^2];
 
 phidot = diff(phi,q)*qd;
 
-psi = [(qd(1:2) - qd(4:5) + (R(1)*qd(3) + R(2)*qd(6))*r_fric_1_2)'*r_fric_1_2;...
-  (qd(4:5) - qd(7:8) + (R(2)*qd(6) + R(3)*qd(9))*r_fric_2_3)'*r_fric_2_3;...
-  (qd(7:8) - qd(1:2) + (R(3)*qd(9) + R(1)*qd(3))*r_fric_3_1)'*r_fric_3_1];
+% psi = [(qd(4:5) - qd(1:2) + (R(1)*qd(3) + R(2)*qd(6))*r_fric_1_2)'*r_fric_1_2;...
+%   (qd(7:8) - qd(4:5) + (R(2)*qd(6) + R(3)*qd(9))*r_fric_2_3)'*r_fric_2_3;...
+%   (qd(1:2) - qd(7:8) + (R(3)*qd(9) + R(1)*qd(3))*r_fric_3_1)'*r_fric_3_1];
+
+psi = 100*[(qd(4:5) - qd(1:2))'*r_fric_1_2 - R(1)*qd(3) - R(2)*qd(6);...
+  (qd(7:8) - qd(4:5))'*r_fric_2_3 - R(2)*qd(6) - R(3)*qd(9);...
+  (qd(1:2) - qd(7:8))'*r_fric_3_1 - R(3)*qd(9) - R(1)*qd(3)];
+
+E = sum(m(1)*g.*z(1)) + sum(.5*m.*(xd.^2 + zd.^2) + .5*I.*thetad.^2) + sum(.5*K(:,1:9)*(q-xnom(1:9)).^2);
+E = E - subs(E,x_vars,xnom([1 2 4:end]));
 
 %% Lyapunov function
+% V = 10*E;
 if iter==0,
   [prog,V,coefv] = prog.newFreePoly(monomials(v_vars,1:V_degree));
 elseif iter==1,
@@ -103,7 +118,7 @@ elseif iter==1,
 elseif ~even(iter),
   load iter_2
   V = Vsol;
-else
+  elses
   load iter_1
   [prog,V,coefv] = prog.newFreePoly(monomials(v_vars,1:V_degree));
 end
@@ -116,21 +131,26 @@ Vdot_impact_3_1 = diff(V,qd)*f_impact_3_1;
 
 %% Ball constraints
 ball_vec = x_vars;
-Ao2 = 5*eye(18);
+% Ao2 = 20*eye(18);
+
+Ao2 = zeros(17);
+Ao2(1:2,1:2) = diag([10000;10000]);
+Ao2(3:8,3:8) = K(:,4:9);
+Ao2(9:17,9:17) = diag([4;4;.02;1;1;.0013;1;1;.0013]);
 
 if iter==0,
   cost = 0;
-  rho = .1;
+  rho = .005;
   Ai = Ao2;
 else
 %   [prog,rho] = prog.newFree(1);
 %   cost = -rho;
 
 %   Ai = Ao2;
-  [prog, Ai] = PSD_fun(prog,6);
+%   [prog, Ai] = PSD_fun(prog,6);
 
-%   [prog,Ai_diag] = prog.newPos(6);
-%   Ai = diag(Ai_diag);
+  [prog,Ai_diag] = prog.newPos(17);
+  Ai = diag(Ai_diag);
   cost = trace(Ai);
 
   rho = .1;
@@ -140,19 +160,23 @@ rho_i = rho;
 rho_o = 1;
 
 
-xnom =  [0;.15;0;-.05;0;0;.05;0;0;zeros(9,1)];
 
-h_Bo2 = rho_o - ball_vec'*Ao2*ball_vec;
+h_Bo2 = rho_o - (ball_vec-xnom([1 2 4:end]))'*Ao2*(ball_vec-xnom([1 2 4:end]));
 
-h_Bi = rho_i - (ball_vec-xnom)'*Ai*(ball_vec-xnom);
+h_Bi = rho_i - (ball_vec-xnom([1 2 4:end]))'*Ai*(ball_vec-xnom([1 2 4:end]));
 
 %% SOS functions
 % (1) -Vdot_free(x) >= 0 for x admissable in B_o
 % (2) -Vdot_impact_1_2(x,l) >= 0 for (x,l) admissable and x in B_o
 % (3) -Vdot_impact_2_3(x,l) >= 0 for (x,l) admissable and x in B_o
 % (4) -Vdot_impact_3_1(x,l) >= 0 for (x,l) admissable and x in B_o
-% (5) V(x) - 1 >= 0 for z = 0;
+% (5) V(x) - 1 >= 0 for x in bnd(B_o);
 % (6) 1 - V(x) >= 0 for x in B_i
+
+%1) try energy, pick a better x0
+
+% [prog,d] = prog.newFree(1);
+% cost = d;
 
 sos_1 = -Vdot_free;
 sos_2 = -Vdot_impact_1_2;
@@ -178,6 +202,7 @@ coefsig = {};
 
 
 doSOS = [1 1 1 1 1 1];
+% doSOS = [0 0 0 0 1 0];
 
 if doSOS(1)
   % non-penetration (admissability of x)
@@ -234,7 +259,7 @@ if doSOS(5)
   [prog, sos_5, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_5, phi(1), x_vars, const_deg, sos_option);
   [prog, sos_5, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_5, phi(2), x_vars, const_deg, sos_option);
   [prog, sos_5, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_5, phi(3), x_vars, const_deg, sos_option);
-  [prog, sos_5, sig{end+1}, coefsig{end+1}] = spotless_add_eq_sprocedure(prog, sos_5, q(2), x_vars, const_deg);
+  [prog, sos_5, sig{end+1}, coefsig{end+1}] = spotless_add_eq_sprocedure(prog, sos_5, h_Bo2, x_vars, const_deg);
   prog = withSOS_fun(prog,sos_5);
 end
 
