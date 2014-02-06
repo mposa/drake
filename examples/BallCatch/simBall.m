@@ -23,7 +23,7 @@ v = p.constructVisualizer;
 xnom =  [0;.12;0;-.09;0;0;.09;0;0;zeros(9,1)];
 xnom_frame = kron(eye(2),T')*xnom;
 x0 = xnom_frame;
-N = 2;
+N = 5000;
 
 x = zeros(18,N);
 x(:,1) = x0;

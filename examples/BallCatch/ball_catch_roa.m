@@ -1,5 +1,5 @@
 megaclear
-iter = 0;
+iter = 2;
 sos_option = 1;
 do_backoff = 0;
 do_clean = 0;
@@ -118,7 +118,7 @@ elseif iter==1,
 elseif ~even(iter),
   load iter_2
   V = Vsol;
-  elses
+else
   load iter_1
   [prog,V,coefv] = prog.newFreePoly(monomials(v_vars,1:V_degree));
 end

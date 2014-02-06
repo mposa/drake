@@ -1,4 +1,5 @@
 clear all
+iter = 2;
 sos_option = 1;
 
 switch sos_option
@@ -18,11 +19,8 @@ end
 b_degree = 1;
 u_degree = 4;
 
-Ao = 1000*eye(9);
+% Ao = 1000*eye(9);
 
-rho = .1;
-Ai = 100*eye(9);
-Ai = Ai/rho;
 
 g = 9.81;
 
@@ -70,10 +68,27 @@ K = [10 1];
 u = -K*[s_th;thetad];
 U = U + K(1)*(1-c_th);
 
+if even(iter)
 %% Lyapunov function
-[prog,b,coefb] = prog.newFreePoly(monomials([z;s;c;s_th;c_th],0:b_degree),4);
-[prog,Uq,coefu] = prog.newFreePoly(monomials([z;s;c;s_th;c_th],0:u_degree));
-[prog,vm]=prog.newFree(1);
+  [prog,b,coefb] = prog.newFreePoly(monomials([z;s;c;s_th;c_th],0:b_degree),4);
+  [prog,Uq,coefu] = prog.newFreePoly(monomials([z;s;c;s_th;c_th],0:u_degree));
+  [prog,vm]=prog.newFree(1);
+elseif iter==1,
+  load iter_0
+  b = bsol;
+  Uq = Usol;
+  vm = vmsol;
+else
+  load iter_2
+  b = bsol;
+  Uq = Usol;
+  vm = vmsol;
+end
+
+if even(iter) && iter > 0
+  load iter_1
+end
+
 % b = 0;
 % Uq = U;
 % load torso_data_new0_125
@@ -91,24 +106,6 @@ E = .5*qd'*H*qd + U;
 Vdot_free = diff(V,[x;z;s;c;s_th;c_th])*[qd(1:2);c*pitchd;-s*pitchd;c_th*thetad;-s_th*thetad] + (vm*qd + b)'*(-C + B*u);
 Vdot_impact_1 = (vm*qd + b)'*(J(1,:)'*lzsq(1) + J_f(1,:)'*lx(1));
 Vdot_impact_2 = (vm*qd + b)'*(J(2,:)'*lzsq(2) + J_f(2,:)'*lx(2));
-
-
-%% SOS functions
-% (1) -Vdot_free(x) >= 0 for x admissable in B_o
-% (2) -Vdot_impact_1(x,l) >= 0 for (x,l) admissable and x in B_o
-% (3) -Vdot_impact_2(x,l) >= 0 for (x,l) admissable and x in B_o
-% (4) V(x) >= 0 for x admissable and in B_o
-% (5) V(x) - 1 >= 0 for x on bdry(B_o)
-% (6) 1 - V(x) >= 0 for x in B_i
-
-sos_1 = -Vdot_free;
-sos_2 = -Vdot_impact_1;
-sos_3 = -Vdot_impact_2;
-sos_4 = V;
-sos_5 = V - 1;
-% sos_5 = .5*vm*qd'*H*qd - 1;
-% sos_5 = 10*U - .01;
-sos_6 = 1 - V;
 
 
 prog_bkp = prog;
@@ -144,6 +141,8 @@ Ao2(4,4) = 2;
 Ao2(5,5) = 2;
 
 Ao2(6:9,6:9) = .25*H;
+%Ao2(6:9,6:9) = diag([3;3;.5;.25]);
+
 % Ao2(6,6) = 0;
 % Ao2(7,7) = 0;
 % Ao2(8,8) = 0;
@@ -183,14 +182,56 @@ h_Bo2 = rho_o - ball_vec'*Ao2*ball_vec;
 %with SDSOS, worked .02, unk .04, .03
 %searched for V with .01,.02,.03,.05,.06, .0625 worked unk with .07,
 %.065,.6375
-h_Bi = rho_i - ball_vec'*Ao2*ball_vec; %worked with .01 and E, but failed sdsos
+
+if iter==0
+  cost=0;
+  rho_i = .4;
+  Ai = Ao2;
+else 
+  [prog,Ai_diag] = prog.newPos(9);
+  Ai = Ao2*diag(Ai_diag);
+  cost = sum(Ai_diag);
+%   [prog,rho] = prog.newFree(1);
+%   cost = rho;
+  
+%   Ai = Ao2;
+%   cost = 0;
+  rho_i = .4;
+end
+
+h_Bi = rho_i - ball_vec'*Ai*ball_vec; %worked with .01 and E, but failed sdsos
 
 
 % changed hbo to hbo2
 % ugh, been using the wrong hbo all along, for V>=1 and vdot <= 0
 % FAILED K=20, A/5, bi=.05,bo=.15
 
+
+%% SOS functions
+% (1) -Vdot_free(x) >= 0 for x admissable in B_o
+% (2) -Vdot_impact_1(x,l) >= 0 for (x,l) admissable and x in B_o
+% (3) -Vdot_impact_2(x,l) >= 0 for (x,l) admissable and x in B_o
+% (4) V(x) >= 0 for x admissable and in B_o
+% (5) V(x) - 1 >= 0 for x on bdry(B_o)
+% (6) 1 - V(x) >= 0 for x in B_i
+
+sos_1 = -Vdot_free;
+sos_2 = -Vdot_impact_1;
+sos_3 = -Vdot_impact_2;
+sos_4 = V;
+sos_5 = V - 1;
+% sos_5 = .5*vm*qd'*H*qd - 1;
+% sos_5 = 10*U - .01;
+if iter==0
+  sos_6 = 1 - V;
+else
+  sos_6 = -h_Bi*(1 + z^2 + qd'*qd + 2 - c - c_th);
+end
+
+
+
 doSOS = [1 1 1 1 1 1];
+% doSOS = [0 0 0 0 0 1];
 
 if doSOS(1)
   % non-penetration (admissability of x)
@@ -241,7 +282,13 @@ end
 if doSOS(6)
   [prog, sos_6, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_6, phi(1), x_vars, const_deg, sos_option);
   [prog, sos_6, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_6, phi(2), x_vars, const_deg, sos_option);
-  [prog, sos_6, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_6, h_Bi, x_vars, const_deg, sos_option);
+  if iter==0,
+    [prog, sos_6, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_6, h_Bi, x_vars, const_deg, sos_option);
+  elseif ~even(iter)
+    [prog, sos_6, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_6, V - 1, x_vars, const_deg, sos_option);
+  else
+    sos_6 = sos_6 - (V-1)*sos6_mult;
+  end
   prog = withSOS_fun(prog,sos_6);
 end
 
@@ -255,9 +302,20 @@ options.verbose = 1;
 options.trig.enable = true;
 options.trig.sin = [s;s_th];
 options.trig.cos = [c;c_th];
-sol = prog.minimize(0,sos_fun,options);
+sol = prog.minimize(cost,sos_fun,options);
 
 Vsol = sol.eval(V);
 bsol = sol.eval(b);
 Usol = sol.eval(Uq);
 vmsol = sol.eval(vm);
+AI = sol.eval(Ai);
+R = double(sol.eval(rho_i));
+if iter==0,
+  save iter_0 Vsol bsol vmsol Usol Ao2 AI R
+elseif ~even(iter)
+  sos6_mult = sol.eval(sig{end});
+  save iter_1 Vsol bsol vmsol Usol sos6_mult R Ao2 AI
+else
+  save iter_2 Vsol bsol vmsol Usol Ao2 AI R
+end
+

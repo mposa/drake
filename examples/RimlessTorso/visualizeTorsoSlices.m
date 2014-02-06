@@ -16,9 +16,13 @@ c_th = c_vec(4);
 
 
 %%
+load iter_1
+rho_i = R;
+rho_o = 1;
+Ai = subs(AI,[s;s_th;c;c_th],[0;0;1;1]);
 % rho_o = .15;
 % rho = .125;
-load torso_data_fixed_4_2
+% load torso_data_fixed_4_2
 % load torso_data_sd_0_04
 % ball_vec = [z;s;1-c;s_th;1-c_th;qd];
 ball_vec = [z;s;1-c;0;0;zeros(4,1)];
@@ -34,7 +38,7 @@ h_Bo = ball_vec'*Ao2*ball_vec;
 % h_Bo2 = .1 - (2-c-c_th) - z^2 - .05*.5*qd'*H*qd;
 
 %searched for V with .01, worked
-h_Bi = ball_vec'*Ao2*ball_vec; %worked with .01 and E, but failed sdsos
+h_Bi = ball_vec'*Ai*ball_vec; %worked with .01 and E, but failed sdsos
 Vsub = subs(Vsol,[s_th;c_th;qd],[0;1;zeros(4,1)]);
 
 pitch =  -.5:.02:.5;
@@ -143,3 +147,4 @@ z_phi = -( - (8321567036706119*cos(pitch))/9007199254740992 - (215431620425035*s
 Z_PHI= repmat(z_phi',1,length(theta));
 
 surf(PITCH_PHI,THETA_PHI,Z_PHI')
+alpha(.3);
