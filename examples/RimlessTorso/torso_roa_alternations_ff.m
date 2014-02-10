@@ -185,12 +185,12 @@ h_Bo2 = rho_o - ball_vec'*Ao2*ball_vec;
 
 if iter==0
   cost=0;
-  rho_i = .4;
+  rho_i = .3;
   Ai = Ao2;
 else 
   [prog,Ai_diag] = prog.newPos(9);
   Ai = Ao2*diag(Ai_diag);
-  cost = sum(Ai_diag);
+  cost = Ai_diag(1) + .1*sum(Ai_diag);
 %   [prog,rho] = prog.newFree(1);
 %   cost = rho;
   

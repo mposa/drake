@@ -12,7 +12,7 @@ c = c_vec(3);
 
 %%
 
-load iter_1
+load iter_2
 rho_i = R;
 rho_o = 1;
 ball_vec = [z;s;1-c;zeros(3,1)];

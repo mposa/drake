@@ -1,4 +1,4 @@
-clear all
+megaclear
 sos_option = 1;
 
 switch sos_option
@@ -63,9 +63,9 @@ u = -K*[s_th;thetad];
 U = U + K(1)*(1-c_th);
 
 %% Lyapunov function
-% [prog,b,coefb] = prog.newFreePoly(monomials([z;s;c;s_th;c_th],0:b_degree),4);
-[prog,V,coefv] = prog.newFreePoly(monomials(v_vars,0:V_degree));
-% [prog,vm]=prog.newFree(1);
+% [prog,V,coefv] = prog.newFreePoly(monomials(v_vars,0:V_degree));
+% [prog, equil_eqn] = prog.withEqs(subs(V,[z;s;c;s_th;c_th;qd],[0;0;1;0;1;0;0;0;0]));
+
 % b = 0;
 % Uq = U;
 % load torso_data_new0_125
@@ -75,10 +75,11 @@ U = U + K(1)*(1-c_th);
 % V = .5*vm*qd'*H*qd + b'*H*qd + Uq;
 % V = .5*vm*qd'*H*qd + vm*U;
 E = .5*qd'*H*qd + U;
+V = E;
 % vm = 1; V = .5*vm*qd'*H*qd + vm*U; b = 0;
 
 
-[prog, equil_eqn] = prog.withEqs(subs(V,[z;s;c;s_th;c_th;qd],[0;0;1;0;1;0;0;0;0]));
+
 
 Vdot_free = diff(V,[x;z;s;c;s_th;c_th])*[qd(1:2);c*pitchd;-s*pitchd;c_th*thetad;-s_th*thetad] + diff(V,qd)*qdd;
 Vdot_impact_1 = diff(V,qd)*qdd;
@@ -107,7 +108,7 @@ prog_bkp = prog;
 prog = prog_bkp;
 
 
-const_deg = 2;
+const_deg = 4;
 sig = {};
 coefsig = {};
 
@@ -117,7 +118,7 @@ ball_vec = [z;s;1-c;s_th;1-c_th;qd];
 % h_Bo = 1 - ball_vec'*Ao*ball_vec;
 % h_Bi = 1 - ball_vec'*Ai*ball_vec;
 
-rho_i = .4;
+rho_i = .1;
 rho_o = 1.5;
 
 % Ao2 = Ao;
@@ -181,7 +182,7 @@ h_Bi = rho_i - ball_vec'*Ao2*ball_vec; %worked with .01 and E, but failed sdsos
 % ugh, been using the wrong hbo all along, for V>=1 and vdot <= 0
 % FAILED K=20, A/5, bi=.05,bo=.15
 
-doSOS = [1 1 1 1 1 1];
+doSOS = [1 0 0 0 0 0];
 
 if doSOS(1)
   % non-penetration (admissability of x)
@@ -216,7 +217,7 @@ if doSOS(3)
   [prog, sos_3, sig{end+1}, coefsig{end+1}] = spotless_add_eq_sprocedure(prog, sos_3, (lzsq(2)^2 - lx(2)^2)*psi(2), [x_vars;qdd;lx(2)], const_deg);  %should this be psi^2?
   [prog, sos_3, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_3, h_Bo2, [x_vars;qdd;lx(2)], const_deg, sos_option);
   
-  [prog, sos_3, sig{end+1}, coefsig{end+1}] = spotless_add_eq_sprocedure(prog, sos_3, H*qdd - (J(2,:)'*lzsq(2) + J_f(2,:)'*lx(2)), [x_vars;qdd;lx(1)], const_deg);  %should this be psi^2?
+  [prog, sos_3, sig{end+1}, coefsig{end+1}] = spotless_add_eq_sprocedure(prog, sos_3, H*qdd - (J(2,:)'*lzsq(2) + J_f(2,:)'*lx(2)), [x_vars;qdd;lx(2)], const_deg);  %should this be psi^2?
   
   prog = withSOS_fun(prog,sos_3);
 end
@@ -247,7 +248,6 @@ end
 
 
 options = spotprog.defaultOptions;
-options.verbose = 1;
 options.verbose = 1;
 options.trig.enable = true;
 options.trig.sin = [s;s_th];

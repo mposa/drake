@@ -79,7 +79,7 @@ h_Bo = ball_vec'*Ao2*ball_vec;
 % h_Bo2 = .1 - (2-c-c_th) - z^2 - .05*.5*qd'*H*qd;
 
 %searched for V with .01, worked
-h_Bi = ball_vec'*Ao2*ball_vec; %worked with .01 and E, but failed sdsos
+h_Bi = ball_vec'*Ai*ball_vec; %worked with .01 and E, but failed sdsos
 Vsub = subs(Vsol,[s;c;qd],[0;1;zeros(4,1)]);
 
 theta =  -1:.02:1;
@@ -111,7 +111,7 @@ clabel(cl,h);
 ball_vec = [z;s;1-c;s_th;1-c_th;zeros(4,1)];
 
 h_Bo = ball_vec'*Ao2*ball_vec;
-h_Bi = ball_vec'*Ao2*ball_vec;
+h_Bi = ball_vec'*Ai*ball_vec;
 Vsub = subs(Vsol,qd,zeros(4,1));
 
 % theta =  -.5:.05:.5;
