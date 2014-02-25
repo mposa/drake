@@ -1,4 +1,4 @@
-clear all
+megaclear
 sos_option = 1;
 
 switch sos_option
@@ -14,107 +14,66 @@ switch sos_option
     withSOS_fun = @withDSOS;
 end
 
-% degree = 4;
-b_degree = 1;
-u_degree = 4;
+V_degree = 4;
 
-change_variables = true;
-
-Ao = 1000*eye(9);
-
-rho = .1;
 g = 9.81;
 
 prog = spotsosprog();
 
 %% Add indeterminate variables
 q = msspoly('q',4);
-qd = msspoly('qd',4);
-s_vec = msspoly('s',4);
-c_vec = msspoly('c',4);
+qd = msspoly('v',4);
 lx = msspoly('lx',2);
+lz = msspoly('lz',2);
 lzsq = [1;1];
+
+u = msspoly('u',1);
 
 x = q(1);
 z = q(2);
-
-s = s_vec(3);
-s_th = s_vec(4);
-
-c = c_vec(3);
-c_th = c_vec(4);
+pitch = q(3);
+theta = q(4);
 
 xd = qd(1);
 zd = qd(2);
 pitchd = qd(3);
 thetad = qd(4);
 
-v_vars = [q(2);s_vec(3:4);c_vec(3:4);qd];
+v_vars = [q(2:4);qd];
 x_vars = v_vars;
 
-prog = prog.withIndeterminate(q(2));
-prog = prog.withIndeterminate(s_vec(3:4));
-prog = prog.withIndeterminate(c_vec(3:4));
+prog = prog.withIndeterminate(q(2:4));
 prog = prog.withIndeterminate(qd);
 prog = prog.withIndeterminate(lx);
 
-
-
-
 %% Dynamics
-[H,C,B,phi,phidot,psi,J,J_f,K,S,U] = torsoEOM_mss(q,qd,s_vec,c_vec);
+% [H,C,B,phi,phidot,psi,J,J_f,K,S,U] = torsoEOM_mss(q,qd,s_vec,c_vec);
 
-% do variable change
-if change_variables
-  T = [1 0 0 0;0 1 0 0; 0 0 1 0; 0 0 1 1];
-  H = inv(T)'*H*inv(T);
-  C = inv(T)'*C;
-  B = inv(T)'*B;
-  H=prog.trigExprReduction(reshape(subs(H(:),[s_th;c_th],[s_th*c - c_th*s; c_th*c+s_th*s]),4,[]),[s;s_th],[c;c_th]);
-  C=prog.trigExprReduction(reshape(subs(C(:),[s_th;c_th;thetad],[s_th*c - c_th*s; c_th*c+s_th*s;thetad - pitchd]),4,[]),[s;s_th],[c;c_th]);
-  U=prog.trigExprReduction(subs(U,[s_th;c_th],[s_th*c - c_th*s; c_th*c+s_th*s]),[s;s_th],[c;c_th]);
-  
-  K = [10 1];
-  u = -K(1)*(s_th*c - c_th*s) - K(2)*(thetad - pitchd);  %TODO: ADD POTENTIAL ENERGY HERE
-  U = U + K(1)*(1-s_th*s-c_th*c);
-  
-%   u = -K*[s_th;thetad];
-%   U = U + K(1)*(1-c_th);
-else
-  K = [10 1];
-  u = -K*[s_th;thetad];
-  U = U + K(1)*(1-c_th);
-end
+% [phi_poly,phidot_poly,psi_poly,f_free_poly,f_impact_poly,E_poly,q,qd] = torsoPolyEOM(taylor_deg);
+load torso_eom_poly
 
-H = clean(H);
-C = clean(C);
+K = [10 1];
+% u = -K*[s_th;thetad];
+% U = U + K(1)*(1-c_th);
+phi_poly = clean(phi_poly);
+f_free_poly = clean(f_free_poly);
+f_impact_poly = clean(f_impact_poly);
 
+f_free_poly = subs(f_free_poly,u, -K*[q(4);qd(4)]);
 
+phi = phi_poly;
+psi = psi_poly;
+phidot = phidot_poly;
 
 %% Lyapunov function
-[prog,b,coefb] = prog.newFreePoly(monomials([z;s;c;s_th;c_th],0:b_degree),4);
-[prog,Uq,coefu] = prog.newFreePoly(monomials([z;s;c;s_th;c_th],0:u_degree));
-[prog,vm]=prog.newFree(1);
+[prog,V,coefv] = prog.newFreePoly(monomials(v_vars,1:4));
+% V = E_poly + .5*K(1)*q(4)^2;
 
-% b = 0;
-% Uq = U;
-% load torso_data_new0_125
-% vm = vmsol;
-% Uq = Usol;
-% b = bsol;
-V = .5*vm*qd'*H*qd + b'*H*qd + Uq;
-[prog, equil_eqn] = prog.withEqs(subs(V,[z;s;c;s_th;c_th;qd],[0;0;1;0;1;0;0;0;0]));
+% [prog, equil_eqn] = prog.withEqs(subs(V,[z;s;c;s_th;c_th;qd],[0;0;1;0;1;0;0;0;0]));
 
-% V = .5*vm*qd'*H*qd + vm*U;
-E = .5*qd'*H*qd + U;
-% V = E;
-% vm = 1; V = .5*vm*qd'*H*qd + vm*U; b = 0;
-
-
-
-Vdot_free = diff(V,[x;z;s;c;s_th;c_th])*[qd(1:2);c*pitchd;-s*pitchd;c_th*thetad;-s_th*thetad] + (vm*qd + b)'*(-C + B*u);
-Vdot_impact_1 = (vm*qd + b)'*(J(1,:)'*lzsq(1) + J_f(1,:)'*lx(1));
-Vdot_impact_2 = (vm*qd + b)'*(J(2,:)'*lzsq(2) + J_f(2,:)'*lx(2));
+Vdot_free = diff(V,[q;qd])*[qd;f_free_poly];
+Vdot_impact_1 = diff(V,qd)*subs(f_impact_poly,[lx;lz],[lx(1);0;1;0]);
+Vdot_impact_2 = diff(V,qd)*subs(f_impact_poly,[lx;lz],[0;lx(2);0;1]);
 
 
 %% SOS functions
@@ -128,7 +87,7 @@ Vdot_impact_2 = (vm*qd + b)'*(J(2,:)'*lzsq(2) + J_f(2,:)'*lx(2));
 sos_1 = -Vdot_free;
 sos_2 = -Vdot_impact_1;
 sos_3 = -Vdot_impact_2;
-sos_4 = V;
+sos_4 = V + .1;
 sos_5 = V - 1;
 % sos_5 = .5*vm*qd'*H*qd - 1;
 % sos_5 = 10*U - .01;
@@ -146,78 +105,24 @@ coefsig = {};
 
 
 % Ball constraints
-ball_vec = [z;s;1-c;s_th;1-c_th;qd];
-% h_Bo = 1 - ball_vec'*Ao*ball_vec;
-% h_Bi = 1 - ball_vec'*Ai*ball_vec;
+ball_vec = x_vars;
 
-rho_i = .4;
-rho_o = 1;
+rho_i = .01;
+rho_o = .05;
 
 % Ao2 = Ao;
-Ao2 = zeros(9)*z;
-% Ao2(1,1) = 10;
-% Ao2(2,2) = .5;
-% Ao2(3,3) = .5;
-% Ao2(4,4) = 2.5/5;
-% Ao2(5,5) = 2.5/5;
-
+Ao2 = zeros(7)*z;
 Ao2(1,1) = 100;
 Ao2(2,2) = 5;
-Ao2(3,3) = 5;
-Ao2(4,4) = 2;
-Ao2(5,5) = 2;
+Ao2(3,3) = 2;
 
-Ao2(6:9,6:9) = .25*H;
-% Ao2(6,6) = 0;
-% Ao2(7,7) = 0;
-% Ao2(8,8) = 0;
-% Ao2(9,9) = 0;
+% Ao2(4:7,4:7) = .25*diff(diff(E_poly,qd)',qd);
+Ao2(4:7,4:7) = eye(4);
+
 h_Bo2 = rho_o - ball_vec'*Ao2*ball_vec;
-%START COMMENTS, 1/27
-% Set Ao2 to 100,5,5,2,2,.25H
-% K = 10
-%  worked .4/1.5
-%  failed .6/1.5
-%  failed .6/1
-%  failed .6/2
-%  failed .5/2
-%  failed .5/1.5
 
-% Set Ao2 to 100,5,5,1,1,.25H
-% K = 10
-%  failed .5/1.5
-%  worked .4/1.5
+h_Bi = rho_i - ball_vec'*Ao2*ball_vec;
 
-% IGNORE COMMENTS BELOW THIS LINE
-
-% h_Bo2 = .1 - (2-c-c_th) - z^2 - .05*.5*qd'*H*qd;
-
-% divided th by 2, worked with .03, .045, unk .06, .055
-
-% set K=10, worked .05, unk .07, .06
-
-% set K=10, divided A_th by 5, changed Bo2 to .15 (from .1)
-% worked .05, .1, .125, failed .2, .15
-
-% as above, but K=50, failed .15, .1 trying and .05
-% as above, divided A_th by 2 only, trying .1, failed
-
-%K=20, A/5, worked .05
-
-%with SDSOS, worked .02, unk .04, .03
-%searched for V with .01,.02,.03,.05,.06, .0625 worked unk with .07,
-%.065,.6375
-h_Bi = rho_i - ball_vec'*Ao2*ball_vec; %worked with .01 and E, but failed sdsos
-
-
-% changed hbo to hbo2
-% ugh, been using the wrong hbo all along, for V>=1 and vdot <= 0
-% FAILED K=20, A/5, bi=.05,bo=.15
-
-if change_variables
-%   h_Bi=prog.trigExprReduction(subs(h_Bi,[s_th;c_th;thetad],[s_th*c - c_th*s; c_th*c+s_th*s;thetad - pitchd]),[s;s_th],[c;c_th]);
-%   h_Bo2=prog.trigExprReduction(subs(h_Bo2,[s_th;c_th;thetad],[s_th*c - c_th*s; c_th*c+s_th*s;thetad - pitchd]),[s;s_th],[c;c_th]);
-end
 
 doSOS = [1 1 1 1 1 1];
 
@@ -250,7 +155,6 @@ if doSOS(3)
   [prog, sos_3, sig{end+1}, coefsig{end+1}] = spotless_add_eq_sprocedure(prog, sos_3, (lzsq(2)^2 - lx(2)^2)*psi(2), [x_vars;lx(2)], const_deg);  %should this be psi^2?
   [prog, sos_3, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_3, h_Bo2, [x_vars;lx(2)], const_deg, sos_option);
   prog = withSOS_fun(prog,sos_3);
-  
 end
 
 if doSOS(4)
@@ -275,18 +179,13 @@ if doSOS(6)
 end
 
 
-% Solve program
+%% Solve program
 
 
 options = spotprog.defaultOptions;
 options.verbose = 1;
 options.verbose = 1;
-options.trig.enable = true;
-options.trig.sin = [s;s_th];
-options.trig.cos = [c;c_th];
+
 sol = prog.minimize(0,sos_fun,options);
 
 Vsol = sol.eval(V);
-bsol = sol.eval(b);
-Usol = sol.eval(Uq);
-vmsol = sol.eval(vm);

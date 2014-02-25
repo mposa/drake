@@ -12,12 +12,12 @@ c = c_vec(3);
 
 %%
 
-load iter_2
-rho_i = R;
-rho_o = 1;
+load lowmu_flex_iter_24
+rho_i = R
+rho_o = D
 ball_vec = [z;s;1-c;zeros(3,1)];
 
-h_Bo = ball_vec'*Ao2*ball_vec;
+h_Bo = ball_vec'*AO*ball_vec;
 % h_Bo2 = .1 - (2-c-c_th) - z^2 - .05*.5*qd'*H*qd;
 
 %searched for V with .01, worked
@@ -40,14 +40,16 @@ BOval = reshape(BOval,size(C,1),[]);
 
 figure(1)
 hold off
-[cl, h] = contour(PITCH,Z,Vval,[1 1]);
-clabel(cl,h);
+[cl, h] = contour(PITCH,Z,Vval,[1 1],'b','Linewidth',3);
+xlabel('{\theta} (rad)','FontSize',14)
+ylabel('z (m)','FontSize',14)
+% clabel(cl,h);
 hold on
 [cl, h] = contour(PITCH,Z,BIval,[rho_i rho_i]);
 clabel(cl,h);
 
-% [cl, h] = contour(PITCH,Z,BOval,[rho_o rho_o]);
-% clabel(cl,h);
+[cl, h] = contour(PITCH,Z,BOval,[rho_o rho_o]);
+clabel(cl,h);
 
 cpi8 = cos(pi/8);
 spi8 = sin(pi/8);

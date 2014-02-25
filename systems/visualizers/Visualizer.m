@@ -265,6 +265,10 @@ classdef Visualizer < DrakeSystem
         if (obj.draw_axes)
           f=gcf;
         else
+          set(gca,'XTick',[])
+          set(gca,'YTick',[])
+          set(gca,'XColor',[1 1 1])
+          set(gca,'YColor',[1 1 1])
           f=gca;
         end
         if (isempty(width))

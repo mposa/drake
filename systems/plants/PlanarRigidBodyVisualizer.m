@@ -83,7 +83,9 @@ classdef PlanarRigidBodyVisualizer < Visualizer
       
       if (~isempty([obj.model.body.contact_pts]))
         v=axis;
-        line([v(1)-.1*(v(2)-v(1)),v(2)+.1*(v(2)-v(1))],[0 0],'Color','k');
+%         line([v(1)-.1*(v(2)-v(1)),v(2)+.1*(v(2)-v(1))],[0 0],'Color','k');
+%         rectangle('Position',[(v(1)+v(2))/2, v(3)/2 - .1,v(2)-v(1)+.2, v(3)+.2],'FaceColor','g');
+        rectangle('Position',[v(1)-.1,v(3) - .2, v(2)-v(1)+.2, -v(3)+.2],'FaceColor','k');
       end
       
       title(['t = ', num2str(t,'%.2f') ' sec']);

@@ -1,4 +1,4 @@
-function [phi_poly,phidot_poly,psi_poly,f_free_poly,f_impact_poly,E_poly,q,qd,lambda_x,lambda_z,u,invHJ] = torsoPolyEOM(degree)
+function [phi_poly,phidot_poly,psi_poly,f_free_poly,f_impact_poly,E_poly,q,qd,lambda_x,lambda_z,u,invHJ,invH] = torsoPolyEOM(degree)
 %need phi, phidot, psi, H^-1(Bu-C), H^-1*J'*lambda, 
 % lambda is ordered xp;xm;z;xp;xm;z;...
 
@@ -13,13 +13,15 @@ u=msspoly('u',1);
 lambda_x=msspoly('lx',2);
 lambda_z=msspoly('lz',2);
 lambda = [lambda_x(1);lambda_z(1);lambda_x(2);lambda_z(2)];
-B = p.model.B;
+[H,C,B] = p.manipulatorDynamics(xu(1:4),xu(5:8))
+% B = p.model.B;
 
-H=p.getH(xu(1:4));
+% H=p.getH(xu(1:4));
 invH = inv(H);
-C=p.getC(xu(1:4),xu(5:8));
+% C=p.getC(xu(1:4),xu(5:8));
 
-doKinematicsAndVelocities(p.model,xu(1:4),xu(5:8));
+kinsol = p.doKinematics(xu(1:4));
+% doKinematicsAndVelocities(p.model,xu(1:4),xu(5:8));
 [phi, psi, dPhi, dPsi, J, dJ,psi_full]  = p.contactPositionsAndVelocities(xu(1:4),xu(5:8));
 % J_exp = [1 0 0 0;0 1 0 0; 0 -1 0 0; 0 0 1 0; 0 0 0 1; 0 0 0 -1] *J;
 % J_exp = [1 0 0 0;-1 0 0 0; 0 1 0 0; 0 0 1 0; 0 0 -1 0; 0 0 0 1] *J;
@@ -40,6 +42,7 @@ phidot_poly = getmsspoly(psi_full([2 4]),[q;qd;u]);
 % J2_exp = [1 0 0 0;0 1 0 0; 0 -1 0 0; 0 0 1 0; 0 0 0 1; 0 0 0 -1] *J2;
 % f_impact_poly = getmsspoly(inv(H2)*J2_exp',q)*lambda;
 invHJ = getmsspoly(invH*J_exp',[q;qd;u]);
+invH = getmsspoly(invH,[q;qd;u]);
 f_impact_poly = invHJ*lambda;
 
 K = .5*xu(5:8)'*H*xu(5:8);

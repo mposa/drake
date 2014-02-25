@@ -10,6 +10,6 @@ pos = [contact_pos(1:2,:);z];
 
 n = size(contact_pos,2);
 vel = zeros(3,n); % static world assumption (for now)
-mu = ones(1,n);
+mu = .1*ones(1,n);
 
 end

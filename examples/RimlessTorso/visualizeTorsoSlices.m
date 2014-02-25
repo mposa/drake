@@ -3,7 +3,8 @@ q = msspoly('q',4);
 qd = msspoly('qd',4);
 s_vec = msspoly('s',4);
 c_vec = msspoly('c',4);
-[H,C,B,phi,phidot,psi,J,J_f,K,S,U] = torsoEOM_mss(q,qd,s_vec,c_vec);
+% [H,C,B,phi,phidot,psi,J,J_f,K,S,U] = torsoEOM_mss(q,qd,s_vec,c_vec);
+[H,C,B,phi,phidot,psi,J,J_f,K,S,U] = skinnyEOM_mss(q,qd,s_vec,c_vec);
 
 x = q(1);
 z = q(2);
@@ -16,10 +17,33 @@ c_th = c_vec(4);
 
 
 %%
-load iter_1
-rho_i = R;
-rho_o = 1;
+% load iter_4
+% rho_i = R;
+% rho_o = 1;
+
+% load torso_ff_03
+load skinny_ff_06
+% Ao2(1,1) = 200;
+% 
+% rho_o = .2;
+% rho_i = .1;
+
+% Ao2 = zeros(9)*z;
+% Ao2(1,1) = 100;
+% Ao2(2,2) = 5;
+% Ao2(3,3) = 5;
+% Ao2(4,4) = 2;
+% Ao2(5,5) = 2;
+% 
+% rho_o = .5;
+% rho_i = .01;
+% Vsol = 2;
+
+
+AI = Ao2;
+
 Ai = subs(AI,[s;s_th;c;c_th],[0;0;1;1]);
+Ao2 = subs(Ao2,[s;s_th;c;c_th],[0;0;1;1]);
 % rho_o = .15;
 % rho = .125;
 % load torso_data_fixed_4_2
@@ -41,7 +65,7 @@ h_Bo = ball_vec'*Ao2*ball_vec;
 h_Bi = ball_vec'*Ai*ball_vec; %worked with .01 and E, but failed sdsos
 Vsub = subs(Vsol,[s_th;c_th;qd],[0;1;zeros(4,1)]);
 
-pitch =  -.5:.02:.5;
+pitch =  -.25:.02:.25;
 [PITCH,Z] = meshgrid(pitch,0:.001:.15);
 C = cos(PITCH);
 S = sin(PITCH);
@@ -66,7 +90,8 @@ clabel(cl,h);
 [cl, h] = contour(PITCH,Z,BOval,[rho_o rho_o]);
 clabel(cl,h);
 
-z_phi = -( - (8321567036706119*cos(pitch))/9007199254740992 - (215431620425035*sin(abs(pitch)))/562949953421312 + 1040195879588265/1125899906842624);
+% z_phi = -( - (8321567036706119*cos(pitch))/9007199254740992 - (215431620425035*sin(abs(pitch)))/562949953421312 + 1040195879588265/1125899906842624);
+z_phi = max(-double(subs(msubs(phi,[s;c],[sin(pitch);cos(pitch)]),z,0)));
 plot(pitch,z_phi,'r','Linewidth',3)
 
 %%
@@ -138,12 +163,14 @@ xlabel('Pitch')
 ylabel('Theta')
 zlabel('z')
 hold on
-isosurface(PITCH,THETA,Z,BIval,rho_i);
-alpha(.5)
+% isosurface(PITCH,THETA,Z,BIval,rho_i);
+% alpha(.5)
 
 
 [PITCH_PHI,THETA_PHI] = meshgrid(pitch,theta);
-z_phi = -( - (8321567036706119*cos(pitch))/9007199254740992 - (215431620425035*sin(abs(pitch)))/562949953421312 + 1040195879588265/1125899906842624);
+% z_phi = -( - (8321567036706119*cos(pitch))/9007199254740992 - (215431620425035*sin(abs(pitch)))/562949953421312 + 1040195879588265/1125899906842624);
+z_phi = max(-double(subs(msubs(phi,[s;c],[sin(pitch);cos(pitch)]),z,0)));
+
 Z_PHI= repmat(z_phi',1,length(theta));
 
 surf(PITCH_PHI,THETA_PHI,Z_PHI')

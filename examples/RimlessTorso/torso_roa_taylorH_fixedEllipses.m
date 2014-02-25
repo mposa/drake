@@ -1,4 +1,4 @@
-clear all
+megaclear
 sos_option = 1;
 
 switch sos_option
@@ -14,15 +14,8 @@ switch sos_option
     withSOS_fun = @withDSOS;
 end
 
-% degree = 4;
-b_degree = 1;
-u_degree = 4;
+v_degree = 4;
 
-change_variables = true;
-
-Ao = 1000*eye(9);
-
-rho = .1;
 g = 9.81;
 
 prog = spotsosprog();
@@ -51,6 +44,7 @@ thetad = qd(4);
 
 v_vars = [q(2);s_vec(3:4);c_vec(3:4);qd];
 x_vars = v_vars;
+x0 = [0;0;0;1;1;zeros(4,1)];
 
 prog = prog.withIndeterminate(q(2));
 prog = prog.withIndeterminate(s_vec(3:4));
@@ -65,56 +59,61 @@ prog = prog.withIndeterminate(lx);
 [H,C,B,phi,phidot,psi,J,J_f,K,S,U] = torsoEOM_mss(q,qd,s_vec,c_vec);
 
 % do variable change
-if change_variables
+if 1 
   T = [1 0 0 0;0 1 0 0; 0 0 1 0; 0 0 1 1];
-  H = inv(T)'*H*inv(T);
-  C = inv(T)'*C;
-  B = inv(T)'*B;
-  H=prog.trigExprReduction(reshape(subs(H(:),[s_th;c_th],[s_th*c - c_th*s; c_th*c+s_th*s]),4,[]),[s;s_th],[c;c_th]);
+  H=prog.trigExprReduction(reshape(subs(H(:),[s_th;c_th],[s_th*c - c_th*s; c_th*c+s_th*s]),4,[]),[s;s_th],[c;c_th])*inv(T);
   C=prog.trigExprReduction(reshape(subs(C(:),[s_th;c_th;thetad],[s_th*c - c_th*s; c_th*c+s_th*s;thetad - pitchd]),4,[]),[s;s_th],[c;c_th]);
   U=prog.trigExprReduction(subs(U,[s_th;c_th],[s_th*c - c_th*s; c_th*c+s_th*s]),[s;s_th],[c;c_th]);
-  
-  K = [10 1];
-  u = -K(1)*(s_th*c - c_th*s) - K(2)*(thetad - pitchd);  %TODO: ADD POTENTIAL ENERGY HERE
-  U = U + K(1)*(1-s_th*s-c_th*c);
-  
-%   u = -K*[s_th;thetad];
-%   U = U + K(1)*(1-c_th);
-else
-  K = [10 1];
-  u = -K*[s_th;thetad];
-  U = U + K(1)*(1-c_th);
 end
 
 H = clean(H);
 C = clean(C);
+% K = [-10 -1 10 1];
+% u = -K*[s_th;thetad];
+u = -10*(s_th*c - c_th*s) - 1*(thetad - pitchd);
+U = U + K(1)*(1-c_th);
+
+detH = det(H);
+adjH = adjugate(H);
+detH0 = double(subs(detH,x_vars,x0));
+invH_0 = double(subs(adjH,x_vars,x0))/detH0;
+
+DadjDth = reshape(diff(adjH(:),s)*c + diff(adjH(:),c)*-s,4,4);
+DdetDth = diff(detH,s)*c + diff(detH,c)*-s;
+
+invH_1 = subs(adjH*-diff(detH,z)/detH0.^2 + reshape(diff(adjH(:),z),4,4),x_vars,x0)*z + ...
+  subs(DadjDth/detH0 - DdetDth*adjH/detH0^2,x_vars,x0)*s;
+
+% apriori know dH/dz = 0, so skipping all of those partials here
+
+D2adjDth2 = reshape(diff(DadjDth(:),s)*c + diff(DadjDth(:),c)*-s,4,4);
+D2detDth2 = diff(DdetDth,s)*c + diff(DdetDth,c)*-s;
+invH_2 = subs(D2adjDth2/detH0 -2*DadjDth*DdetDth/detH0^2  - D2detDth2*adjH/detH0^2 + 2*DdetDth^2*adjH/detH0^3,x_vars,x0)*2*(1-c);
+  
+invH = clean(invH_0 + invH_1 + invH_2);
 
 
 
 %% Lyapunov function
-[prog,b,coefb] = prog.newFreePoly(monomials([z;s;c;s_th;c_th],0:b_degree),4);
-[prog,Uq,coefu] = prog.newFreePoly(monomials([z;s;c;s_th;c_th],0:u_degree));
-[prog,vm]=prog.newFree(1);
-
+[prog,V,coefv] = prog.newFreePoly(monomials([z;s;c;s_th;c_th],0:v_degree));
+% [prog,vm]=prog.newFree(1);
 % b = 0;
 % Uq = U;
 % load torso_data_new0_125
 % vm = vmsol;
 % Uq = Usol;
 % b = bsol;
-V = .5*vm*qd'*H*qd + b'*H*qd + Uq;
-[prog, equil_eqn] = prog.withEqs(subs(V,[z;s;c;s_th;c_th;qd],[0;0;1;0;1;0;0;0;0]));
-
 % V = .5*vm*qd'*H*qd + vm*U;
 E = .5*qd'*H*qd + U;
-% V = E;
 % vm = 1; V = .5*vm*qd'*H*qd + vm*U; b = 0;
 
+% load torso_invh_poly2
 
+[prog, equil_eqn] = prog.withEqs(subs(V,x_vars,x0));
 
-Vdot_free = diff(V,[x;z;s;c;s_th;c_th])*[qd(1:2);c*pitchd;-s*pitchd;c_th*thetad;-s_th*thetad] + (vm*qd + b)'*(-C + B*u);
-Vdot_impact_1 = (vm*qd + b)'*(J(1,:)'*lzsq(1) + J_f(1,:)'*lx(1));
-Vdot_impact_2 = (vm*qd + b)'*(J(2,:)'*lzsq(2) + J_f(2,:)'*lx(2));
+Vdot_free = diff(V,[x;z;s;c;s_th;c_th])*[qd(1:2);c*pitchd;-s*pitchd;c_th*thetad;-s_th*thetad] + diff(V,qd)*invH*(-C + B*u);
+Vdot_impact_1 = diff(V,qd)*invH*(J(1,:)'*lzsq(1) + J_f(1,:)'*lx(1));
+Vdot_impact_2 = diff(V,qd)*invH*(J(2,:)'*lzsq(2) + J_f(2,:)'*lx(2));
 
 
 %% SOS functions
@@ -150,7 +149,7 @@ ball_vec = [z;s;1-c;s_th;1-c_th;qd];
 % h_Bo = 1 - ball_vec'*Ao*ball_vec;
 % h_Bi = 1 - ball_vec'*Ai*ball_vec;
 
-rho_i = .4;
+rho_i = .1;
 rho_o = 1;
 
 % Ao2 = Ao;
@@ -213,11 +212,6 @@ h_Bi = rho_i - ball_vec'*Ao2*ball_vec; %worked with .01 and E, but failed sdsos
 % changed hbo to hbo2
 % ugh, been using the wrong hbo all along, for V>=1 and vdot <= 0
 % FAILED K=20, A/5, bi=.05,bo=.15
-
-if change_variables
-%   h_Bi=prog.trigExprReduction(subs(h_Bi,[s_th;c_th;thetad],[s_th*c - c_th*s; c_th*c+s_th*s;thetad - pitchd]),[s;s_th],[c;c_th]);
-%   h_Bo2=prog.trigExprReduction(subs(h_Bo2,[s_th;c_th;thetad],[s_th*c - c_th*s; c_th*c+s_th*s;thetad - pitchd]),[s;s_th],[c;c_th]);
-end
 
 doSOS = [1 1 1 1 1 1];
 

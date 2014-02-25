@@ -1,6 +1,7 @@
 % clear all
+% incomplete, probably needs the flex modifications to work
 megaclear
-iter = 10;
+iter = 2;
 sos_option = 1;
 do_backoff = 0;
 do_clean = 0;
@@ -145,29 +146,23 @@ Ao2(4,4) = .5;
 Ao2(5,5) = .5;
 Ao2(6,6) = .1;
 
-cost_option = 3;
 
 if iter==0,
   cost = 0;
-  rho = .2;
+  rho_i = .2;
 %   Ai = Ao2;
   Ai = diag([100;2;2;.5;.5;.1]);
-%   Ai = diag([50;6;10;10;10;10]);
-%   Ai = diag([50;50;50;50;50;50]);
-% Ai = diag([10;.25;.005;.1;.1;.05]);
-% rho = .03;
-%   rho = .1;
 else
   switch cost_option
     case 1 % fix rho, diagonal Ai
-      rho = .1;
+      rho_i = .1;
       [prog,Ai_diag] = prog.newPos(6);
       cost = sum(Ai_diag);
       %   Ai_diag(1) = 100*Ai_diag(1);
       Ai = diag(Ai_diag);
     case 2 % minimize rho, fix trace, diagonal Ai
-      [prog,rho] = prog.newFree(1);
-      cost = -rho;
+      [prog,rho_i] = prog.newFree(1);
+      cost = -rho_i;
       [prog,Ai_diag] = prog.newPos(6);
       Ai_diag(1) = 100*Ai_diag(1);
       prog = prog.withEqs(sum(Ai_diag) - 6);
@@ -175,14 +170,17 @@ else
       [prog, Ai] = PSD_fun(prog,6);
       cost = trace(Ai);
 %       Ai(1,1) = Ai(1,1)*100;
-      rho = .1;
+      rho_i = .1;
   end
 end
 
-rho_i = rho;
+if even(iter)
+  rho_V = 1;
+else
+  rho_V = 1.0;
+end
+
 rho_o = 1;
-
-
 
 
 h_Bo2 = rho_o - ball_vec'*Ao2*ball_vec;
@@ -202,10 +200,10 @@ sos_1 = -Vdot_free;
 sos_2 = -Vdot_impact_1;
 sos_3 = -Vdot_impact_2;
 sos_4 = V;
-sos_5 = V - 1;
+sos_5 = V - rho_V;
 
 if iter==0,
-  sos_6 = (1 - V);
+  sos_6 = (rho_V - V);
 else
 %   sos_6 = -h_Bi*tmp_mult;
   sos_6 = -h_Bi*(1 + z^2 + qd'*qd + 1 - c);
@@ -225,7 +223,7 @@ doSOS = [1 1 1 1 1 1 0];
 % doSOS = [1 1 1 1 1 0 1];
 
 if ~even(iter) && 1
-  doSOS = [0 0 0 0 0 1 0];
+  doSOS = [0 0 0 0 1 1 0];
 end
 
 if doSOS(1)
@@ -312,11 +310,11 @@ if doSOS(6)
   elseif ~even(iter),
     %     [prog, sos_6, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_6, (V - 1)*phi(1), x_vars, const_deg, sos_option);
     %     [prog, sos_6, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_6, (V - 1)*phi(2), x_vars, const_deg, sos_option);
-    [prog, sos_6, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_6, V - 1, x_vars, const_deg, sos_option);
+    [prog, sos_6, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_6, V - rho_V, x_vars, const_deg, sos_option);
   else
     %     sos_6 = sos_6 - (V-1)*phi(1)*sos6_mult_3;
     %     sos_6 = sos_6 - (V-1)*phi(2)*sos6_mult_2;
-    sos_6 = sos_6 - (V-1)*sos6_mult;
+    sos_6 = sos_6 - (V-rho_V)*sos6_mult;
   end
   
   prog = withSOS_fun(prog,sos_6);
@@ -343,7 +341,7 @@ options.trig.sin = s;
 options.trig.cos = c;
 sol = prog.minimize(cost,sos_fun,options);
 
-sqrt(1/double(sol.eval(Ai(1,1)/double(sol.eval(rho)))))
+sqrt(1/double(sol.eval(Ai(1,1)/double(sol.eval(rho_i)))))
 
 do_backoff = do_backoff && ~isequal(cost,0);
 
@@ -396,7 +394,7 @@ else
 end
 
 Vsol = sol.eval(V);
-R = double(sol.eval(rho));
+R = double(sol.eval(rho_i));
 AI = double(sol.eval(Ai));
 if iter==0,
   save iter_0 Vsol R Ao2 AI

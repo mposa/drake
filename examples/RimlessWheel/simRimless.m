@@ -1,7 +1,7 @@
 N_trials = 1;
 
 h = 1e-3;
-T = 1;
+T = 3;
 N = floor(T/h);
 
 x0_vec = zeros(6,N_trials);
@@ -11,8 +11,8 @@ x_vec = zeros(6,N,N_trials);
 p = PlanarRigidBodyManipulator('RimlessWheel.urdf',struct('floating',true));
 r = TimeSteppingRigidBodyManipulator(p,h);
 v = p.constructVisualizer;
-v.playback_speed = 1/2;
-v.axis = [-1 1 -.1 1.5];
+v.playback_speed = 2;
+v.axis = [-1.5 1.5 -.1 2];
 % A = [0;.4;1;1;1;1;.5;.5];
 
 for trial_ind=1:N_trials,
@@ -22,7 +22,16 @@ for trial_ind=1:N_trials,
 % x0 = [0;.055;.05;.4;zeros(4,1)]*2;
 % x0 = [0;.09;.06;.29;zeros(4,1)]*3;
 % x0 = [0;.00;.0;.87;zeros(4,1)];
-x0 = [0;.075 + cos(pi/8);.44 - pi/8;zeros(3,1)];
+% x0 = [0;.089 + cos(pi/8);.18 - pi/8;zeros(3,1)];
+x0 = [0;.076 + cos(pi/8);.11 - pi/8;zeros(3,1)];
+
+% x0 = [0;.08 + cos(pi/8);.18 - pi/8;-1;0;0];
+% x0 = [   -0.2571
+%     0.9417
+%    -0.4422
+%    -0.4800
+%     0.1716
+%    -0.5098];
 % x0 = [0;.066;.23;0;zeros(4,1)]*2;
 %   %check feasibility
 %   s = sin(x0(3));
@@ -64,12 +73,21 @@ x0 = [0;.075 + cos(pi/8);.44 - pi/8;zeros(3,1)];
   
   x_vec(:,:,trial_ind) = x;
   
-  X = zeros(6,N);
-  X(1,:) = x(2,:) - cos(pi/8);
-  X(2,:) = -sin(x(3,:) + pi/8);
-  X(3,:) = cos(x(3,:) + pi/8);
-  X(4,:) = x(4,:);
-  X(5,:) = x(5,:);
-  X(6,:) = -x(6,:);
-  save torso_tmp_data xf_vec x0_vec x_vec
+%   X = zeros(6,N);
+%   X(1,:) = x(2,:) - cos(pi/8);
+%   X(2,:) = -sin(x(3,:) + pi/8);
+%   X(3,:) = cos(x(3,:) + pi/8);
+%   X(4,:) = x(4,:);
+%   X(5,:) = x(5,:);
+%   X(6,:) = -x(6,:);
+%   save torso_tmp_data xf_vec x0_vec x_vec
 end
+
+% simulation adds energy, calculate energyless thing here
+% E0 = 9.81*X(1,1) + .5*X(4,1)^2 + .5*X(5,1)^2 + .125*X(6,1)^2;
+% XX(1,:) = X(1,:);
+% XX(2,:) = sin(acos(XX(1,:) + cos(pi/8)) - pi/8);
+% XX(3,:) = cos(acos(XX(1,:) + cos(pi/8)) - pi/8);
+% XX(5,:) = X(5,:);
+% XX(6,:) = -X(5,:)./sqrt(1-(X(1,:)+cos(pi/8)).^2);
+% XX(4,:) = sqrt(2)*sqrt(E0 - 9.81*X(1,:) - .5*X(5,:).^2 - .125*X(6,:).^2);

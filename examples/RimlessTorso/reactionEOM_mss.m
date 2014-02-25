@@ -1,7 +1,7 @@
-function [H,C,B,phi,phidot,psi,J,J_f,K,S,U] = torsoEOM_mss(q,v,s_vec,c_vec)
+function [H,C,B,phi,phidot,psi,J,J_f,K,S,U] = reactionEOM_mss(q,v,s_vec,c_vec)
 warning('off','Drake:RigidBody:SimplifiedCollisionGeometry');
 warning('off', 'Drake:RigidBodyManipulator:UnsupportedContactPoints');
-p = PlanarRigidBodyManipulator('TorsoBalance.urdf');
+p = PlanarRigidBodyManipulator('ReactionRimless.urdf');
 
 x = q(1);
 z =  q(2);
