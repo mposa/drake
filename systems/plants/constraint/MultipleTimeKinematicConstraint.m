@@ -1,32 +1,10 @@
 classdef MultipleTimeKinematicConstraint < RigidBodyConstraint
   % A abstract class, that its eval function takes multiple time points as
   % the input, instead of being evluated at a single time.
-  properties(SetAccess = protected)
-    tspan % a 1x2 vector
-    robot
-    mex_ptr
-  end
-  
-  properties(Constant)
-    WorldFixedPositionConstraint = 1;
-    WorldFixedOrientConstraint = 2;
-    WorldFixedBodyPoseConstraint = 3;
-  end
     
   methods
     function obj = MultipleTimeKinematicConstraint(robot,tspan)
-      obj = obj@RigidBodyConstraint(RigidBodyConstraint.MultipleTimeKinematicConstraintType);
-      if(nargin<2)
-        tspan = [-inf,inf];
-      end
-      if(isempty(tspan))
-        tspan = [-inf,inf];
-      end
-      if(tspan(1)>tspan(end))
-        error('tspan(1) should be no larger than tspan(end)')
-      end
-      obj.tspan = [tspan(1) tspan(end)];
-      obj.robot = robot;
+      obj = obj@RigidBodyConstraint(RigidBodyConstraint.MultipleTimeKinematicConstraintCategory,robot,tspan);
     end
     
     function flag = isTimeValid(obj,t)
@@ -59,6 +37,11 @@ classdef MultipleTimeKinematicConstraint < RigidBodyConstraint
         dc = [];
       end
     end
+    
+    function obj = updateRobot(obj,robot)
+      obj.robot = robot;
+      obj.mex_ptr = updatePtrRigidBodyConstraintmex(obj.mex_ptr,'robot',robot.getMexModelPtr);
+    end
   end
   
   methods(Abstract)
@@ -67,6 +50,5 @@ classdef MultipleTimeKinematicConstraint < RigidBodyConstraint
     [c,dc] = eval_valid(obj,valid_t,valid_q);
     [lb,ub] = bounds(obj,t)
     name_str = name(obj,t)
-    ptr = constructPtr(varargin);
   end
 end

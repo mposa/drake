@@ -74,8 +74,13 @@ classdef TimeSteppingRigidBodyManipulator < DrakeSystem
       if ~isDirectFeedthrough(obj)
         u=[];
       end
-      cv = obj.getStateFrame().splitCoordinates(x);
-      y = obj.manip.output(t,cv{1},u);
+      if isa(obj.getStateFrame(),'MultiCoordinateFrame')
+        cv = obj.getStateFrame().splitCoordinates(x);
+        x_manip = cv{1};
+      else
+        x_manip = x;
+      end
+      y = obj.manip.output(t,x_manip,u);
       for i=1:length(obj.sensor)
         y = [y; obj.sensor{i}.output(obj,i+1,t,x,u)];
       end
@@ -846,6 +851,10 @@ classdef TimeSteppingRigidBodyManipulator < DrakeSystem
       c = obj.manip.body(body_idx).contact_pts;
     end
     
+    function obj = replaceContactShapesWithCHull(obj,body_indices,varargin)
+      obj.manip = replaceContactShapesWithCHull(obj.manip,body_indices,varargin{:});
+    end
+    
     function groups = getCollisionGroups(obj)
       groups = getCollisionGroups(obj.manip);
     end
@@ -910,6 +919,14 @@ classdef TimeSteppingRigidBodyManipulator < DrakeSystem
     
     function out = name(obj)
       out = obj.manip.name;
+    end
+
+    function fr = getParamFrame(model)
+      fr = getParamFrame(model.manip);
+    end
+
+    function model = setParams(model,p)
+      model.manip = setParams(model.manip,p);
     end
     
   end

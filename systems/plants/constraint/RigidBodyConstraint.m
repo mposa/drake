@@ -1,26 +1,83 @@
 classdef RigidBodyConstraint
-  properties
+  % @param category      -- All constraints in the same category share the same function
+  %                         interface. Please use negative number for this category
+  % @param type          -- Only for non-abstract constraint. Each non-abstract constraint
+  %                         class has a unique type. Please use positive number for
+  %                         this category.
+  % @param robot         -- A RigidBodyManipulator or TimeSteppingRigidBodyManipulator
+  % @param tspan         -- A 1 x 2 double vector. The time span 
+  % @param mex_ptr       -- A DrakeConstraintMexPointer. The mex pointer of the
+  % RigidBodyConstraint
+  properties(SetAccess = protected)
+    category
     type
+    robot
+    tspan
+    mex_ptr
   end
   
   properties(Constant)
-    SingleTimeKinematicConstraintType = 1;
-    MultipleTimeKinematicConstraintType = 2;
-    QuasiStaticConstraintType = 3;
-    PostureConstraintType = 4;
-    MultipleTimeLinearPostureConstraint = 5;
+    SingleTimeKinematicConstraintCategory = -1;
+    MultipleTimeKinematicConstraintCategory = -2;
+    QuasiStaticConstraintCategory = -3;
+    PostureConstraintCategory = -4;
+    MultipleTimeLinearPostureConstraintCategory = -5;
+    SingleTimeLinearPostureConstraintCategory = -6;
+    ContactWrenchConstraintCategory = -7;
+  end
+  
+  properties(Constant)
+    QuasiStaticConstraintType = 1;
+    PostureConstraintType = 2;
+    SingleTimeLinearPostureConstraintType = 3;
+    AllBodiesClosestDistanceConstraintType = 4;
+    WorldEulerConstraintType = 5;
+    WorldGazeDirConstraintType = 6;
+    WorldGazeOrientConstraintType = 7;
+    WorldGazeTargetConstraintType = 8;
+    RelativeGazeTargetConstraintType = 9;
+    WorldCoMConstraintType = 10;
+    WorldPositionConstraintType = 11;
+    WorldPositionInFrameConstraintType = 12;
+    WorldQuatConstraintType = 13;
+    Point2PointDistanceConstraintType = 14;
+    Point2LineSegDistConstraintType = 15;
+    WorldFixedPositionConstraintType = 16;
+    WorldFixedOrientConstraintType = 17;
+    WorldFixedBodyPoseConstraintType = 18;
+    PostureChangeConstraintType = 19;
+    RelativePositionConstraintType = 20;
+    FrictionConeWrenchConstraintType = 21;
+    LinearFrictionConeWrenchConstraintType = 22;
+    RailGraspWrenchConstraintType = 23;
   end
   
   methods
-    function obj = RigidBodyConstraint(type)
-      if(~isnumeric(type))
-        error('Drake:Constraint:type has to be an integer');
+    function obj = RigidBodyConstraint(category,robot,tspan)
+      if(~isnumeric(category))
+        error('Drake:RigidBodyConstraint:BadInput','category has to be an integer');
       end
-      type = floor(type);
-      if(type>5||type<1)
-        error('Drake:Constraint: Currently type can only be within [1,5]');
+      category = floor(category);
+      if(category<-7||category>-1)
+        error('Drake:RigidBodyConstraint:BadInput','Unsupported constraint category');
       end
-      obj.type = type;
+      obj.category = category;
+      obj.type = 0;
+      if(~isa(robot,'RigidBodyManipulator') && ~isa(robot,'TimeSteppingRigidBodyManipulator'))
+        error('Drake:RigidBodyConstraint:BadInput','robot has to be a RigidBodyManipulator or a TimeSteppingRigidBodyManipulator');
+      end
+      obj.robot = robot;
+      if(nargin<3)
+        tspan = [-inf,inf];
+      end
+      if(isempty(tspan));
+        tspan = [-inf,inf];
+      end
+      tspan_size = size(tspan);
+      if(~isnumeric(tspan) || length(tspan_size) ~= 2 || tspan_size(1) ~= 1 || tspan_size(2) ~= 2 || tspan(1)>tspan(2))
+        error('Drake:RigidBodyConstraint:BadInput','tspan should be a 1 x 2 vector, and tspan(1) <= tspan(2)');
+      end
+      obj.tspan = tspan;
     end
   end
 end

@@ -16,6 +16,18 @@ classdef WorldCoMConstraint < PositionConstraint
     function [pos,J] = evalPositions(obj,kinsol)
       [pos,J] = getCOM(obj.robot,kinsol,obj.robotnum);
     end
+    
+    function cnst_names = evalNames(obj,t)
+      cnst_names = cell(3,1);
+      if(isempty(t))
+        time_str = '';
+      else
+        time_str = sprintf('at time %5.2f',t);
+      end
+        cnst_names{1} = sprintf('CoM x %s',time_str);
+        cnst_names{2} = sprintf('CoM y %s',time_str);
+        cnst_names{3} = sprintf('CoM z %s',time_str);
+    end
   end
   
   methods
@@ -26,7 +38,7 @@ classdef WorldCoMConstraint < PositionConstraint
       if(nargin <= 3)
         tspan = [-inf inf];
       end
-      ptr = constructPtrWorldCoMConstraintmex(robot.getMexModelPtr,lb,ub,tspan,robotnum);
+      ptr = constructPtrRigidBodyConstraintmex(RigidBodyConstraint.WorldCoMConstraintType,robot.getMexModelPtr,lb,ub,tspan,robotnum);
       obj = obj@PositionConstraint(robot,[0;0;0],lb,ub,tspan);
       if(~isempty(setdiff(robotnum,1:length(obj.robot.name))))
         error('Drake:WorldCoMConstraint: robotnum is not accepted');
@@ -34,49 +46,19 @@ classdef WorldCoMConstraint < PositionConstraint
       obj.robotnum = robotnum;
       obj.body_name = 'CoM';
       obj.body = 0;
+      obj.type = RigidBodyConstraint.WorldCoMConstraintType;
       obj.mex_ptr = ptr;
     end
     
     
-    
-    function name_str = name(obj,t)
-      if(obj.isTimeValid(t))
-        name_str = cell(obj.num_constraint,1);
-        constraint_idx = 1;
-        if(~obj.null_constraint_rows(1))
-          name_str{constraint_idx} = sprintf('CoM x');
-          if(~isempty(t))
-            name_str{constraint_idx} = sprintf('%s at time %10.4f',name_str{constraint_idx},t);
-          end
-          constraint_idx = constraint_idx+1;
-        end
-        if(~obj.null_constraint_rows(2))
-          name_str{constraint_idx} = sprintf('CoM y');
-          if(~isempty(t))
-            name_str{constraint_idx} = sprintf('%s at time %10.4f',name_str{constraint_idx},t);
-          end
-          constraint_idx = constraint_idx+1;
-        end
-        if(~obj.null_constraint_rows(3))
-          name_str{constraint_idx} = sprintf('CoM z');
-          if(~isempty(t))
-            name_str{constraint_idx} = sprintf('%s at time %10.4f',name_str{constraint_idx},t);
-          end
-        end
-      else
-        name_str = [];
-      end
-    end
     
     function obj = updateRobotnum(obj,robotnum)
       if(~isempty(setdiff(robotnum,1:length(obj.robot.name))))
         error('Drake:WorldCoMConstraint: robotnum is not accepted');
       end
       obj.robotnum = robotnum;
+      obj.mex_ptr = updatePtrRigidBodyConstraintmex(obj.mex_ptr,'robotnum',robotnum);
     end
-    function obj = updateRobot(obj,r)
-      obj.robot = r;
-      updatePtrWorldCoMConstraintmex(obj.mex_ptr,'robot',obj.robot.getMexModelPtr);
-    end
+    
   end
 end

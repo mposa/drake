@@ -9,9 +9,8 @@ warning(w);
 
 tp1 = extractTrigPolySystem(p1,options);
 
-oldpath=addpath('..');
+oldpath=addpath(fullfile(pwd,'..'));
 p2 = PendulumPlant();
-path(oldpath);
 
 tp2 = extractTrigPolySystem(p2,options);
 
@@ -34,3 +33,5 @@ for i=1:25
   valuecheck(x,xpx);
   valuecheck(xdot,dxdxp*xpdot);
 end
+
+path(oldpath);

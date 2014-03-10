@@ -1,42 +1,14 @@
 classdef SingleTimeKinematicConstraint < RigidBodyConstraint
   % An abstract class. Its eval function take a single time as input, the
   % constraint is enforced at that time only
-  properties(SetAccess = protected)
-    tspan % a 1x2 vector
+  % @param num_constraint    -- An int scalar. The number of nonlinear constraints
+  properties(SetAccess = protected,GetAccess = protected)
     num_constraint
-    robot
-    mex_ptr
-  end
-  
-  properties(Constant)
-    WorldCoMConstraint = 0;
-    WorldPositionConstraint = 1;
-    WorldQuatConstraint = 2;
-    WorldEulerConstraint = 3;
-    WorldGazeOrientConstraint = 4;
-    WorldGazeDirConstraint = 5;
-    WorldGazeTargetConstraint = 6;
-    AllBodiesClosestDistanceConstraint = 7;
-    Point2PointDistanceConstraint = 8;
-    WorldPositionInFrameConstraint = 9;
-    Point2LineSegDistConstraint = 10;
-    RelativeGazeTargetConstraint = 11;
   end
   
   methods
     function obj = SingleTimeKinematicConstraint(robot,tspan)
-      obj = obj@RigidBodyConstraint(RigidBodyConstraint.SingleTimeKinematicConstraintType);
-      if(nargin<2)
-        tspan = [-inf,inf];
-      end
-      if(isempty(tspan))
-        tspan = [-inf,inf];
-      end
-      if(tspan(1)>tspan(end))
-        error('tspan(1) should be no larger than tspan(end)')
-      end
-      obj.tspan = [tspan(1) tspan(end)];
-      obj.robot = robot;
+      obj = obj@RigidBodyConstraint(RigidBodyConstraint.SingleTimeKinematicConstraintCategory,robot,tspan);
     end
     
     function tspan = getTspan(obj)
@@ -63,11 +35,15 @@ classdef SingleTimeKinematicConstraint < RigidBodyConstraint
       end
     end
     
+    function obj = updateRobot(obj,robot)
+      obj.robot = robot;
+      obj.mex_ptr = updatePtrRigidBodyConstraintmex(obj.mex_ptr,'robot',robot.getMexModelPtr);
+    end
+    
   end
   methods(Abstract)
     [c,dc] = eval(obj,t,kinsol);
     [lb,ub] = bounds(obj,t)
     name_str = name(obj,t)
-    obj = updateRobot(obj,r);
   end
 end

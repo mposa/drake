@@ -24,7 +24,7 @@ classdef WorldEulerConstraint <EulerConstraint
       if(nargin ==4)
         tspan = [-inf inf];
       end
-      ptr = constructPtrWorldEulerConstraintmex(robot.getMexModelPtr,body,lb,ub,tspan);
+      ptr = constructPtrRigidBodyConstraintmex(RigidBodyConstraint.WorldEulerConstraintType,robot.getMexModelPtr,body,lb,ub,tspan);
       obj = obj@EulerConstraint(robot,lb,ub,tspan);
       if(isnumeric(body))
         sizecheck(body,[1,1]);
@@ -37,6 +37,7 @@ classdef WorldEulerConstraint <EulerConstraint
         error('Drake:WorldEulerConstraint:Body must be either the link name or the link index');
       end
       obj.body_name = obj.robot.getBody(obj.body).linkname;
+      obj.type = RigidBodyConstraint.WorldEulerConstraintType;
       obj.mex_ptr = ptr;
     end
     
@@ -45,39 +46,26 @@ classdef WorldEulerConstraint <EulerConstraint
     function name_str = name(obj,t)
       if(obj.isTimeValid(t))
         name_str = cell(obj.num_constraint,1);
+        time_str = '';
+        if(~isempty(t))
+          time_str = sprintf('at time %5.2f',t);
+        end
         constraint_idx = 1;
         if(~obj.null_constraint_rows(1))
-          name_str{constraint_idx} = sprintf('%s roll',obj.body_name);
-          if(~isempty(t))
-            name_str{constraint_idx} = sprintf('%s at time %10.4f',name_str{constraint_idx},t);
-          end
+          name_str{constraint_idx} = sprintf('%s roll %s',obj.body_name,time_str);
           constraint_idx = constraint_idx+1;
         end
         if(~obj.null_constraint_rows(2))
-          name_str{constraint_idx} = sprintf('%s pitch',obj.body_name);
-          if(~isempty(t))
-            name_str{constraint_idx} = sprintf('%s at time %10.4f',name_str{constraint_idx},t);
-          end
+          name_str{constraint_idx} = sprintf('%s pitch %s',obj.body_name,t);
           constraint_idx = constraint_idx+1;
         end
         if(~obj.null_constraint_rows(3))
-          name_str{constraint_idx} = sprintf('%s yaw',obj.body_name);
-          if(~isempty(t))
-            name_str{constraint_idx} = sprintf('%s at time %10.4f',name_str{constraint_idx},t);
-          end
+          name_str{constraint_idx} = sprintf('%s yaw %s',obj.body_name,t);
         end
       else
         name_str = [];
       end
     end
     
-    function obj = updateRobot(obj,robot)
-      obj.robot = robot;
-      updatePtrWorldEulerConstraintmex(obj.mex_ptr,'robot',robot.getMexModelPtr);
-    end
-    
-    function ptr = constructPtr(varargin)
-      ptr = constructPtrWorldEulerConstraintmex(varargin{:});
-    end
   end
 end

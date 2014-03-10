@@ -193,7 +193,7 @@ classdef RigidBodyManipulator < Manipulator
       child = model.body(child_ind);
       
       if child.parent>0
-        error('there is already a joint connecting this child to a parent');
+        error(['there is already a joint connecting this child (' child.linkname ') to a parent (' model.body(parent_ind).linkname ') on joint ' name ]);
       end
       
       jointname = regexprep(name, '\.', '_', 'preservecase');
@@ -765,9 +765,9 @@ classdef RigidBodyManipulator < Manipulator
       model.dirty = true;
     end
     
-    function model = replaceContactShapesWithCHull(model,body_indices)
+    function model = replaceContactShapesWithCHull(model,body_indices,varargin)
       for body_idx = reshape(body_indices,1,[])
-        model.body(body_idx) = replaceContactShapesWithCHull(model.body(body_idx));
+        model.body(body_idx) = replaceContactShapesWithCHull(model.body(body_idx),varargin{:});
       end
     end
     
@@ -1272,7 +1272,8 @@ classdef RigidBodyManipulator < Manipulator
       end
       for i = 1:length(model.force)
         if isa(model.force{i},'RigidBodyThrust')
-          inputparents = [inputparents model.body(model.force{i}.kinframe.body_ind)];
+          frame = model.frame(-model.force{i}.kinframe);
+          inputparents = [inputparents model.body(frame.body_ind)];
           inputnames{end+1} = model.force{i}.name;
         end
       end
