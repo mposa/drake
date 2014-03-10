@@ -1,9 +1,10 @@
 % clear all
+% based on flex_mult
 megaclear
-for iter=3:4,
+for iter=1:20,
 display(sprintf('Starting iter %d',iter))
 sos_option = 1;
-do_backoff = 1;
+do_backoff = 0;
 do_clean = 0;
 do_eig = 0;
 
@@ -32,61 +33,27 @@ g = 9.81;
 
 prog = spotsosprog();
 
-%% Add indeterminate variables
-q = msspoly('q',3);
-qd = msspoly('qd',3);
-s_vec = msspoly('s',3);
-c_vec = msspoly('c',3);
-lx = msspoly('lx',2);
-lzsq = [1;1];
-
-x = q(1);
-z = q(2);
-
-s = s_vec(3);
-c = c_vec(3);
-
-xd = qd(1);
-zd = qd(2);
-pitchd = qd(3);
-
-v_vars = [q(2);s_vec(3);c_vec(3);qd];
-x_vars = v_vars;
-
-prog = prog.withIndeterminate(q(2));
-prog = prog.withIndeterminate(s_vec(3));
-prog = prog.withIndeterminate(c_vec(3));
-prog = prog.withIndeterminate(qd);
-prog = prog.withIndeterminate(lx);
-
-x0 = [0;0;1;0;0;0];
-
-options = spotprog.defaultOptions;
-options.verbose = 1;
-options.trig.enable = true;
-options.trig.sin = s;
-options.trig.cos = c;
-options.clean_primal = true;
-options.scale_monomials = true;
-options.backoff = true;
-options.regularize = true;
-
-%% Dynamics
-% [H,C,B,phi,phidot,psi,J,J_f,K,S,U] = torsoEOM_mss(q,qd,s_vec,c_vec);
-% H = clean(H);
-% C = clean(C);
-% K = [10 1];
-% u = -K*[s_th;thetad];
-% U = U + K(1)*(1-c_th);
-
+%% Taylor dynamics
+taylor_degree = 3;
 
 cpi8 = cos(pi/8);
 spi8 = sin(pi/8);
 rt2 = sqrt(2);
 
 
+t0 = [0;0;0;0;0;0;0];
+t_vars = TaylorVar.init(t0,3);
+z = t_vars(1);
+theta = t_vars(2);
+xd = t_vars(3);
+zd = t_vars(4);
+pitchd = t_vars(5);
+lx = t_vars(6:7);
+lzsq = [1;1];
+c = cos(theta);
+s = sin(theta);
+
 f_impact=[0, 0;
-  0, 0;
   0, 0;
   0, 0;
   lx(1), lx(2);
@@ -101,49 +68,85 @@ psi = [xd + c*pitchd*cpi8 - s*pitchd*spi8; xd + c*pitchd*cpi8 + s*pitchd*spi8];
 
 f_free=[xd;
   zd;
-  c*pitchd;
-  -s*pitchd;
+  pitchd;
   0;
   -g
   0];
 
+
+%% Add indeterminate variables
+q = msspoly('q',3);
+qd = msspoly('qd',3);
+lx = msspoly('lx',2);
+lzsq = [1;1];
+
+x = q(1);
+z = q(2);
+theta = q(3);
+
+v_vars = [q(2:3);qd];
+x_vars = v_vars;
+
+prog = prog.withIndeterminate(q(2:3));
+% prog = prog.withIndeterminate(s_vec(3));
+% prog = prog.withIndeterminate(c_vec(3));
+prog = prog.withIndeterminate(qd);
+prog = prog.withIndeterminate(lx);
+
+x0 = zeros(5,1);
+
+options = spotprog.defaultOptions;
+options.verbose = 1;
+options.clean_primal = true;
+options.scale_monomials = true;
+options.backoff = true;
+options.regularize = true;
+
+%% Dynamics
+% [H,C,B,phi,phidot,psi,J,J_f,K,S,U] = torsoEOM_mss(q,qd,s_vec,c_vec);
+% H = clean(H);
+% C = clean(C);
+% K = [10 1];
+% u = -K*[s_th;thetad];
+% U = U + K(1)*(1-c_th);
+
+f_impact = getmsspoly(f_impact,[x_vars;lx]);
+f_free = getmsspoly(f_free,[x_vars;lx]);
+phi = getmsspoly(phi,[x_vars;lx],taylor_degree-1);
+phidot = getmsspoly(phidot,[x_vars;lx],taylor_degree-1);
+psi = getmsspoly(psi,[x_vars;lx],taylor_degree);
+
+
 E = .5*xd^2 + .5*zd^2 + 1/8*pitchd^2 + g*z;
+
+% Taylor expansion
+
 
 %% Lyapunov function
 if iter > 0
-  load(sprintf('flex_iter_%d',iter-1))
+  load(datapath(sprintf('taylor_iter_%d',iter-1)))
 end
 
-if iter==0,
-  [prog,V,coefv] = prog.newFreePoly(monomials(v_vars,0:V_degree));
-  [prog, equil_eqn] = prog.withEqs(subs(V,[z;s;c;qd],[0;0;1;0;0;0]));
+if even(iter),
+  [prog,V,coefv] = prog.newFreePoly(monomials(v_vars,1:V_degree));
   
   prog = prog.withEqs(subs(diff(V,qd(1)),x_vars,x0));
   prog = prog.withEqs(subs(diff(V,qd(2)),x_vars,x0));
   prog = prog.withEqs(subs(diff(V,qd(3)),x_vars,x0));
-  prog = prog.withEqs(subs(diff(V,s)*c + diff(V,c)*-s,x_vars,x0));
+  prog = prog.withEqs(subs(diff(V,theta),x_vars,x0));
 elseif ~even(iter),
   V = Vsol;
-else
-%   load iter_1
-  [prog,V,coefv] = prog.newFreePoly(monomials(v_vars,0:V_degree));
-  [prog, equil_eqn] = prog.withEqs(subs(V,[z;s;c;qd],[0;0;1;0;0;0]));
-  
-  prog = prog.withEqs(subs(diff(V,qd(1)),x_vars,x0));
-  prog = prog.withEqs(subs(diff(V,qd(2)),x_vars,x0));
-  prog = prog.withEqs(subs(diff(V,qd(3)),x_vars,x0));
-  prog = prog.withEqs(subs(diff(V,s)*c + diff(V,c)*-s,x_vars,x0));
 end
 
 % V = E;
 
-Vdot_free = diff(V,[x;z;s;c;xd;zd;pitchd])*f_free;
-Vdot_impact_1 = diff(V,[x;z;s;c;xd;zd;pitchd])*f_impact(:,1);
-Vdot_impact_2 = diff(V,[x;z;s;c;xd;zd;pitchd])*f_impact(:,2);
+Vdot_free = diff(V,[q;qd])*f_free;
+Vdot_impact_1 = diff(V,[q;qd])*f_impact(:,1);
+Vdot_impact_2 = diff(V,[q;qd])*f_impact(:,2);
 
 
 %% Ball constraints
-ball_vec = [z;s;1-c;qd];
+ball_vec = [z;theta;qd];
 % Ao2 = zeros(6);
 % Ao2(1,1) = 100;
 % Ao2(2,2) = 2;
@@ -152,13 +155,12 @@ ball_vec = [z;s;1-c;qd];
 % Ao2(5,5) = .5;
 % Ao2(6,6) = .1;
 
-Ao2 = zeros(6);
+Ao2 = zeros(5);
 Ao2(1,1) = 60;
 Ao2(2,2) = 2;
-Ao2(3,3) = 2;
+Ao2(3,3) = .5;
 Ao2(4,4) = .5;
-Ao2(5,5) = .5;
-Ao2(6,6) = .1;
+Ao2(5,5) = .1;
 
 Ao2 = Ao2*1.5;
 
@@ -168,11 +170,19 @@ if iter==0,
   Ai = Ao2;
   Ao = Ao2;
   rho_o = 1;
+  rho_Vo = 1;
 %   Ai = diag([50;6;10;10;10;10]);
 %   Ai = diag([50;50;50;50;50;50]);
 % Ai = diag([10;.25;.005;.1;.1;.05]);
 % rho = .03;
 %   rho = .1;
+elseif ~even(iter)
+  [prog, Ao] = PSD_fun(prog,5);
+  [prog, rho_Vo] = prog.newFree(1);
+  cost = -rho_Vo;
+  Ai = AI;
+  rho_i = R;
+  rho_o = 1;
 else
   cost_option = 4;
   
@@ -197,32 +207,17 @@ else
     case 4 % minimize rho, fix trace, psd Ai
       [prog,rho_i] = prog.newFree(1);
       cost = -rho_i;
-      Ai11mult = .01;
-      [prog, Ai] = PSD_fun(prog,6);
+%       Ai11mult = .1;
+      [prog, Ai] = PSD_fun(prog,5);
 %       Ai(1,1) = 100*Ai(1,1);
-%       prog = prog.withEqs(trace(Ai) - 100);
-      prog = prog.withEqs(trace(Ai) - 5 - 95/Ai11mult);
-      Ai(1,1) = Ai11mult*Ai(1,1);
+      prog = prog.withEqs(trace(Ai) - 100);
+%       prog = prog.withEqs(Ai(1,1) + trace(Ai(2:end,2:end)) - 100);
+%       Ai(1,1) = Ai11mult*Ai(1,1);
 %       Ai_diag(1) = 100*Ai_diag(1);
   end
-  
-  if ~even(iter)
-%     [prog,Ao_diag] = prog.newFree(6);
-%     Ao_diag(3) = 0;
-%     Ao = diag(Ao_diag);
-%     Ao(1,1) = 100*Ao(1,1);
-    [prog, Ao] = PSD_fun(prog,6);
-% Ao = Ao2;
-%     Ao = Ao*Ao2;
-%     prog = prog.withEqs(trace(Ao) - trace(Ao2));
-%     [prog,rho_o] = prog.newPos(1);
-%     Ao = Ao2 + diag(Ao_diag);
-%     Ao = Ao2;
-    rho_o = 1;
-  else
-    Ao = AO;
-    rho_o = D;
-  end
+  Ao = AO;
+  rho_o = D;
+  rho_Vo = 1;
 end
 
 h_Bo2 = rho_o - ball_vec'*Ao*ball_vec;
@@ -244,17 +239,17 @@ prog_bkp = prog;
 % (5) V(x) - 1 >= 0 for x on bdry(B_o)
 % (6) 1 - V(x) >= 0 for x in B_i
 
-sos_1 = -Vdot_free;
-sos_2 = -Vdot_impact_1;
-sos_3 = -Vdot_impact_2;
-sos_4 = V;
-sos_5 = (V - rho_V);%*(1 + z^2 + qd'*qd + 1 - c)^2;
+sos_1 = -Vdot_free*(1 + v_vars'*v_vars)^1;
+sos_2 = -Vdot_impact_1*(1 + v_vars'*v_vars)^0;
+sos_3 = -Vdot_impact_2*(1 + v_vars'*v_vars)^0;
+sos_4 = V
+sos_5 = (V - rho_Vo);
 
 if iter==0,
   sos_6 = (rho_V - V);
 else
 %   sos_6 = -h_Bi*tmp_mult;
-  sos_6 = -h_Bi*(1 + z^2 + qd'*qd + 1 - c);
+  sos_6 = -h_Bi*(1 + v_vars'*v_vars);
 end
 
 
@@ -288,7 +283,7 @@ if doSOS(1)
     prog = prog.withEqs(subs(diff(sig{end},qd(1)),x_vars,x0));
     prog = prog.withEqs(subs(diff(sig{end},qd(2)),x_vars,x0));
     prog = prog.withEqs(subs(diff(sig{end},qd(3)),x_vars,x0));
-    prog = prog.withEqs(subs(diff(sig{end},s)*c + diff(sig{end},c)*-s,x_vars,x0));
+    prog = prog.withEqs(subs(diff(sig{end},theta),x_vars,x0));
   else
     sos_1 = sos_1 - h_Bo2*sos1_mult;
   end
@@ -300,10 +295,10 @@ if doSOS(2)
   [prog, sos_2, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_2, phi(2), [x_vars;lx(1)], const_deg, sos_option, options);
   % Contact constraints (admissability of lambda)
   [prog, sos_2, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_2, -phidot(1), [x_vars;lx(1)], const_deg, sos_option, options);
-  [prog, sos_2, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_2, -lx(1)*psi(1), [x_vars;lx(1)], const_deg, sos_option, options);
+  [prog, sos_2, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_2, -lx(1)*psi(1), [x_vars;lx(1)], const_deg-2, sos_option, options);
   [prog, sos_2, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_2, mu^2*lzsq(1)^2 - lx(1)^2, [x_vars;lx(1)], const_deg, sos_option, options);
   [prog, sos_2, sig{end+1}, coefsig{end+1}] = spotless_add_eq_sprocedure(prog, sos_2, phi(1), [x_vars;lx(1)], const_deg);
-  [prog, sos_2, sig{end+1}, coefsig{end+1}] = spotless_add_eq_sprocedure(prog, sos_2, (mu^2*lzsq(1)^2 - lx(1)^2)*psi(1), [x_vars;lx(1)], const_deg);  %should this be psi^2?
+  [prog, sos_2, sig{end+1}, coefsig{end+1}] = spotless_add_eq_sprocedure(prog, sos_2, (mu^2*lzsq(1)^2 - lx(1)^2)*psi(1), [x_vars;lx(1)], const_deg-3);  %should this be psi^2?
   
   if even(iter) || iter==0
     [prog, sos_2, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_2, h_Bo2, [x_vars;lx(1)], const_deg, sos_option, options);
@@ -313,7 +308,7 @@ if doSOS(2)
     prog = prog.withEqs(subs(diff(sig{end},qd(1)),[x_vars;lx(1)],[x0;0]));
     prog = prog.withEqs(subs(diff(sig{end},qd(2)),[x_vars;lx(1)],[x0;0]));
     prog = prog.withEqs(subs(diff(sig{end},qd(3)),[x_vars;lx(1)],[x0;0]));
-    prog = prog.withEqs(subs(diff(sig{end},s)*c + diff(sig{end},c)*-s,[x_vars;lx(1)],[x0;0]));
+    prog = prog.withEqs(subs(diff(sig{end},theta),[x_vars;lx(1)],[x0;0]));
   else
     sos_2 = sos_2 - h_Bo2*sos2_mult;
   end
@@ -324,10 +319,10 @@ end
 if doSOS(3)
   [prog, sos_3, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_3, phi(1), [x_vars;lx(2)], const_deg, sos_option, options);
   [prog, sos_3, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_3, -phidot(2), [x_vars;lx(2)], const_deg, sos_option, options);
-  [prog, sos_3, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_3, -lx(2)*psi(2), [x_vars;lx(2)], const_deg, sos_option, options);
+  [prog, sos_3, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_3, -lx(2)*psi(2), [x_vars;lx(2)], const_deg-2, sos_option, options);
   [prog, sos_3, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_3, mu^2*lzsq(2)^2 - lx(2)^2, [x_vars;lx(2)], const_deg, sos_option, options);
   [prog, sos_3, sig{end+1}, coefsig{end+1}] = spotless_add_eq_sprocedure(prog, sos_3, phi(2), [x_vars;lx(2)], const_deg);
-  [prog, sos_3, sig{end+1}, coefsig{end+1}] = spotless_add_eq_sprocedure(prog, sos_3, (mu^2*lzsq(2)^2 - lx(2)^2)*psi(2), [x_vars;lx(2)], const_deg);  %should this be psi^2?
+  [prog, sos_3, sig{end+1}, coefsig{end+1}] = spotless_add_eq_sprocedure(prog, sos_3, (mu^2*lzsq(2)^2 - lx(2)^2)*psi(2), [x_vars;lx(2)], const_deg-3);  %should this be psi^2?
   
   if even(iter) || iter==0
     [prog, sos_3, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_3, h_Bo2, [x_vars;lx(2)], const_deg, sos_option, options);
@@ -337,7 +332,7 @@ if doSOS(3)
     prog = prog.withEqs(subs(diff(sig{end},qd(1)),[x_vars;lx(2)],[x0;0]));
     prog = prog.withEqs(subs(diff(sig{end},qd(2)),[x_vars;lx(2)],[x0;0]));
     prog = prog.withEqs(subs(diff(sig{end},qd(3)),[x_vars;lx(2)],[x0;0]));
-    prog = prog.withEqs(subs(diff(sig{end},s)*c + diff(sig{end},c)*-s,[x_vars;lx(2)],[x0;0]));
+    prog = prog.withEqs(subs(diff(sig{end},theta),[x_vars;lx(2)],[x0;0]));
     
   else
     sos_3 = sos_3 - h_Bo2*sos3_mult;
@@ -359,7 +354,7 @@ if doSOS(4)
     prog = prog.withEqs(subs(diff(sig{end},qd(1)),x_vars,x0));
     prog = prog.withEqs(subs(diff(sig{end},qd(2)),x_vars,x0));
     prog = prog.withEqs(subs(diff(sig{end},qd(3)),x_vars,x0));
-    prog = prog.withEqs(subs(diff(sig{end},s)*c + diff(V,c)*-s,x_vars,x0));
+    prog = prog.withEqs(subs(diff(sig{end},theta),x_vars,x0));
     
   else
     sos_4 = sos_4 - h_Bo2*sos4_mult;
@@ -403,17 +398,6 @@ if doSOS(6)
   
   prog = withSOS_fun(prog,sos_6);
 end
-
-% if doSOS(7)
-%   if iter==0
-%     sos_7 = subs(1-V,[s;c;qd],[0;1;zeros(3,1)]);
-%     [prog, sos_7, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_7, phi(1), x_vars, const_deg, sos_option, options);
-%     [prog, sos_7, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_7, phi(2), x_vars, const_deg, sos_option, options);
-%     [prog, sos_7, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_7, .15^2-z^2, z, const_deg, sos_option, options);
-%     prog = withSOS_fun(prog,sos_7);
-%   end
-% end
-
 
 % Solve program
 
@@ -484,7 +468,7 @@ else
   end
 end
 
-Vsol = sol.eval(V)/double(sol.eval(rho_V));
+Vsol = sol.eval(V)/double(sol.eval(rho_Vo));
 R = double(sol.eval(rho_i));
 AI = double(sol.eval(Ai));
 AO = double(sol.eval(Ao));
@@ -492,8 +476,8 @@ D = double(sol.eval(rho_o));
 if ~even(iter),
 %   sos6_mult_2 = sol.eval(sig{end-1});
 %   sos6_mult_3 = sol.eval(sig{end-2});
-sos6_mult = sol.eval(sos6_mult)*double(sol.eval(rho_V));
-  save(strcat(sprintf('flex_iter_%d',iter)),'Vsol','R','AO','AI','D','sos6_mult')
+sos6_mult = sol.eval(sos6_mult)*double(sol.eval(rho_Vo));
+ 
 %   save iter_1 Vsol sos6_mult sos6_mult_2 sos6_mult_3 R Ao2 AI
 else
 
@@ -502,7 +486,6 @@ else
   sos3_mult = sol.eval(sos3_mult);
   sos4_mult = sol.eval(sos4_mult);
   sos5_mult = sol.eval(sos5_mult);
-  save(strcat(sprintf('flex_iter_%d',iter)),'Vsol','sos1_mult','sos2_mult','sos3_mult','sos4_mult','sos5_mult','R','AO','AI','D')  
-%   save(strcat(sprintf('flex_iter_%d',iter)),'Vsol','sos1_mult','sos2_mult','sos3_mult','sos4_mult','sos5_mult','R','AO','AI','D')
+  save(datapath(strcat(sprintf('taylor_iter_%d',iter))),'Vsol','sos1_mult','sos2_mult','sos3_mult','sos4_mult','sos5_mult','R','AO','AI','D')  
 end
 end

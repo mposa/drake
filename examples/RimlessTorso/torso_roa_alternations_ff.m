@@ -1,4 +1,4 @@
-clear all
+megaclear
 iter = 2;
 sos_option = 1;
 
@@ -34,6 +34,7 @@ g = 9.81;
 
 prog = spotsosprog();
 
+
 %% Add indeterminate variables
 q = msspoly('q',4);
 qd = msspoly('qd',4);
@@ -68,6 +69,15 @@ prog = prog.withIndeterminate(lx);
 
 x0 = double(subs(x_vars,[q;qd;s_vec;c_vec],[zeros(12,1);ones(4,1)]));
 
+options = spotprog.defaultOptions;
+options.verbose = 1;
+options.verbose = 1;
+options.trig.enable = true;
+options.trig.sin = [s;s_th];
+options.trig.cos = [c;c_th];
+options.clean_primal = true;
+
+
 %% Dynamics
 [H,C,B,phi,phidot,psi,J,J_f,K,S,U] = torsoEOM_mss(q,qd,s_vec,c_vec);
 
@@ -97,25 +107,25 @@ H = clean(H);
 C = clean(C);
 
 %% Lyapunov function
-if even(iter)
+if iter > 0
+  load(sprintf('iter_%d',iter-1))
+end
+%   load(sprintf('iter_%d',iter-2))
+
+if even(iter)% && 0
   [prog,b,coefb] = prog.newFreePoly(monomials([z;s;c;s_th;c_th],0:b_degree),4);
   [prog,Uq,coefu] = prog.newFreePoly(monomials([z;s;c;s_th;c_th],0:u_degree));
   [prog,vm]=prog.newFree(1);
-elseif iter==1,
-  load iter_0
+elseif iter==1% || 1,
   b = bsol;
   Uq = Usol;
   vm = vmsol;
 else
-  load iter_2
   b = bsol;
   Uq = Usol;
   vm = vmsol;
 end
 
-if even(iter) && iter > 0
-  load iter_1
-end
 
 % b = 0;
 % Uq = U;
@@ -207,7 +217,7 @@ else
       rho = .1;
   end
 end
-
+Ao = Ao2;
 rho_i = rho;
 rho_o = 1;
 
@@ -261,18 +271,18 @@ end
 
 use_additional_eqs = true;
 
-if ~even(iter)
-  doSOS = [0 0 0 0 0 1];
-else
-  doSOS = [1 1 1 1 1 1];
-end
-
+% if ~even(iter)
+%   doSOS = [0 0 0 0 0 1];
+% else
+doSOS = [1 1 1 1 1 1];
+% doSOS = [0 0 0 0 0 1];  %worked 1,2,3,4,5
+% end
 
 if doSOS(1)
   % non-penetration (admissability of x)
-  [prog, sos_1, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_1, phi(1), [x_vars], const_deg, sos_option);
-  [prog, sos_1, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_1, phi(2), [x_vars], const_deg, sos_option);
-  [prog, sos_1, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_1, h_Bo2, [x_vars], const_deg, sos_option);
+  [prog, sos_1, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_1, phi(1), [x_vars], const_deg, sos_option, options);
+  [prog, sos_1, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_1, phi(2), [x_vars], const_deg, sos_option, options);
+  [prog, sos_1, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_1, h_Bo2, [x_vars], const_deg, sos_option, options);
   if use_additional_eqs
     prog = prog.withEqs(subs(sig{end},x_vars,x0));
     prog = prog.withEqs(subs(diff(sig{end},qd(1)),x_vars,x0));
@@ -286,14 +296,14 @@ if doSOS(1)
 end
 
 if doSOS(2)
-  [prog, sos_2, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_2, phi(2), [x_vars;lx(1)], const_deg, sos_option);
+  [prog, sos_2, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_2, phi(2), [x_vars;lx(1)], const_deg, sos_option, options);
   % Contact constraints (admissability of lambda)
-  [prog, sos_2, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_2, -phidot(1), [x_vars;lx(1)], const_deg, sos_option);
-  [prog, sos_2, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_2, -lx(1)*psi(1), [x_vars;lx(1)], const_deg, sos_option);
-  [prog, sos_2, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_2, lzsq(1)^2 - lx(1)^2, [x_vars;lx(1)], const_deg, sos_option);
+  [prog, sos_2, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_2, -phidot(1), [x_vars;lx(1)], const_deg, sos_option, options);
+  [prog, sos_2, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_2, -lx(1)*psi(1), [x_vars;lx(1)], const_deg, sos_option, options);
+  [prog, sos_2, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_2, lzsq(1)^2 - lx(1)^2, [x_vars;lx(1)], const_deg, sos_option, options);
   [prog, sos_2, sig{end+1}, coefsig{end+1}] = spotless_add_eq_sprocedure(prog, sos_2, phi(1), [x_vars;lx(1)], const_deg);
   [prog, sos_2, sig{end+1}, coefsig{end+1}] = spotless_add_eq_sprocedure(prog, sos_2, (lzsq(1)^2 - lx(1)^2)*psi(1), [x_vars;lx(1)], const_deg);  %should this be psi^2?
-  [prog, sos_2, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_2, h_Bo2, [x_vars;lx(1)], const_deg, sos_option);
+  [prog, sos_2, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_2, h_Bo2, [x_vars;lx(1)], const_deg, sos_option, options);
   if use_additional_eqs
     prog = prog.withEqs(subs(sig{end},[x_vars;lx(1)],[x0;0]));
     prog = prog.withEqs(subs(diff(sig{end},qd(1)),[x_vars;lx(1)],[x0;0]));
@@ -307,13 +317,13 @@ if doSOS(2)
 end
 
 if doSOS(3)
-  [prog, sos_3, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_3, phi(1), [x_vars;lx(2)], const_deg, sos_option);
-  [prog, sos_3, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_3, -phidot(2), [x_vars;lx(2)], const_deg, sos_option);
-  [prog, sos_3, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_3, -lx(2)*psi(2), [x_vars;lx(2)], const_deg, sos_option);
-  [prog, sos_3, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_3, lzsq(2)^2 - lx(2)^2, [x_vars;lx(2)], const_deg, sos_option);
+  [prog, sos_3, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_3, phi(1), [x_vars;lx(2)], const_deg, sos_option, options);
+  [prog, sos_3, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_3, -phidot(2), [x_vars;lx(2)], const_deg, sos_option, options);
+  [prog, sos_3, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_3, -lx(2)*psi(2), [x_vars;lx(2)], const_deg, sos_option, options);
+  [prog, sos_3, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_3, lzsq(2)^2 - lx(2)^2, [x_vars;lx(2)], const_deg, sos_option, options);
   [prog, sos_3, sig{end+1}, coefsig{end+1}] = spotless_add_eq_sprocedure(prog, sos_3, phi(2), [x_vars;lx(2)], const_deg);
   [prog, sos_3, sig{end+1}, coefsig{end+1}] = spotless_add_eq_sprocedure(prog, sos_3, (lzsq(2)^2 - lx(2)^2)*psi(2), [x_vars;lx(2)], const_deg);  %should this be psi^2?
-  [prog, sos_3, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_3, h_Bo2, [x_vars;lx(2)], const_deg, sos_option);
+  [prog, sos_3, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_3, h_Bo2, [x_vars;lx(2)], const_deg, sos_option, options);
   
   if use_additional_eqs
     prog = prog.withEqs(subs(sig{end},[x_vars;lx(2)],[x0;0]));
@@ -329,9 +339,9 @@ if doSOS(3)
 end
 
 if doSOS(4)
-  [prog, sos_4, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_4, phi(1), x_vars, const_deg, sos_option);
-  [prog, sos_4, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_4, phi(2), x_vars, const_deg, sos_option);
-  [prog, sos_4, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_4, h_Bo2, x_vars, const_deg, sos_option);
+  [prog, sos_4, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_4, phi(1), x_vars, const_deg, sos_option, options);
+  [prog, sos_4, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_4, phi(2), x_vars, const_deg, sos_option, options);
+  [prog, sos_4, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_4, h_Bo2, x_vars, const_deg, sos_option, options);
   if use_additional_eqs
     prog = prog.withEqs(subs(sig{end},x_vars,x0));
     prog = prog.withEqs(subs(diff(sig{end},qd(1)),x_vars,x0));
@@ -345,19 +355,20 @@ if doSOS(4)
 end
 
 if doSOS(5)
-  [prog, sos_5, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_5, phi(1), x_vars, const_deg, sos_option);
-  [prog, sos_5, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_5, phi(2), x_vars, const_deg, sos_option);
+  [prog, sos_5, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_5, phi(1), x_vars, const_deg, sos_option, options);
+  [prog, sos_5, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_5, phi(2), x_vars, const_deg, sos_option, options);
   [prog, sos_5, sig{end+1}, coefsig{end+1}] = spotless_add_eq_sprocedure(prog, sos_5, h_Bo2, x_vars, const_deg);
   prog = withSOS_fun(prog,sos_5);
 end
 
 if doSOS(6)
-  [prog, sos_6, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_6, phi(1), x_vars, const_deg, sos_option);
-  [prog, sos_6, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_6, phi(2), x_vars, const_deg, sos_option);
+  [prog, sos_6, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_6, phi(1), x_vars, const_deg, sos_option, options);
+  [prog, sos_6, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_6, phi(2), x_vars, const_deg, sos_option, options);
   if iter==0,
-    [prog, sos_6, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_6, h_Bi, x_vars, const_deg, sos_option);
+    [prog, sos_6, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_6, h_Bi, x_vars, const_deg, sos_option, options);
   elseif ~even(iter)
-    [prog, sos_6, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_6, V - 1, x_vars, const_deg, sos_option);
+    [prog, sos_6, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_6, V - 1, x_vars, const_deg, sos_option, options);
+    sos6_mult = sig{end};
   else
     sos_6 = sos_6 - (V-1)*sos6_mult;
   end
@@ -369,12 +380,8 @@ end
 % Solve program
 
 
-options = spotprog.defaultOptions;
-options.verbose = 1;
-options.verbose = 1;
-options.trig.enable = true;
-options.trig.sin = [s;s_th];
-options.trig.cos = [c;c_th];
+
+
 sol = prog.minimize(cost,sos_fun,options);
 
 sqrt(1/double(sol.eval(Ai(1,1)/double(sol.eval(rho_i)))))
@@ -384,13 +391,14 @@ bsol = sol.eval(b);
 Usol = sol.eval(Uq);
 vmsol = sol.eval(vm);
 AI = sol.eval(Ai);
+AO = double(sol.eval(Ao));
 R = double(sol.eval(rho_i));
-if iter==0,
+D = double(sol.eval(rho_o));
+if even(iter)
   save iter_0 Vsol bsol vmsol Usol Ao2 AI R
-elseif ~even(iter)
-  sos6_mult = sol.eval(sig{end});
-  save iter_1 Vsol bsol vmsol Usol sos6_mult R Ao2 AI
+  save(strcat(sprintf('iter_%d',iter)),'Vsol','bsol','vmsol','Usol','R','AO','AI','D')
 else
-  save iter_2 Vsol bsol vmsol Usol Ao2 AI R
+  sos6_mult = sol.eval(sos6_mult);
+  save(strcat(sprintf('iter_%d',iter)),'Vsol','bsol','vmsol','Usol','R','AO','AI','D','sos6_mult')
 end
 

@@ -12,7 +12,7 @@
 
   <link name="ball_1" >
     <inertial>
-      <mass value="4"/>
+      <mass value="1"/>
       <inertia ixx="0"  ixy="0"  ixz="0" iyy=".02" iyz="0" izz="0" />
     </inertial>
     <visual>
@@ -34,7 +34,7 @@
     <visual>
       <origin xyz="0 0 0"/>
       <geometry>
-        <sphere radius="0.05"/>
+        <sphere radius="0.1"/>
       </geometry>
       <material>
         <color rgba=".7 .7 .7 1"/>
@@ -50,7 +50,7 @@
     <visual>
       <origin xyz="0 0 0"/>
       <geometry>
-        <sphere radius="0.05"/>
+        <sphere radius="0.1"/>
       </geometry>
       <material>
         <color rgba=".7 .7 .7 1"/>

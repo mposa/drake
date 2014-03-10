@@ -73,7 +73,7 @@ if (eigen3_FOUND)
   pods_find_pkg_config(snopt_cpp)
   if (snopt_cpp_FOUND)
     add_mex(inverseKinBackendmex inverseKinBackendmex.cpp)
-    target_link_libraries(inverseKinBackendmex drakeRBM drakeUtil drakeRigidBodyConstraint)
+    target_link_libraries(inverseKinBackendmex drakeRBM drakeUtil drakeRigidBodyConstraint snopt_cpp)
     pods_use_pkg_config_packages(inverseKinBackendmex snopt_cpp)
   endif()
 

@@ -1,9 +1,9 @@
 % clear all
 megaclear
-for iter=3:4,
+for iter=31:50,
 display(sprintf('Starting iter %d',iter))
 sos_option = 1;
-do_backoff = 1;
+do_backoff = 0;
 do_clean = 0;
 do_eig = 0;
 
@@ -111,7 +111,7 @@ E = .5*xd^2 + .5*zd^2 + 1/8*pitchd^2 + g*z;
 
 %% Lyapunov function
 if iter > 0
-  load(sprintf('flex_iter_%d',iter-1))
+  load(datapath(sprintf('flex_mult_afix_iter_%d',iter-1)))
 end
 
 if iter==0,
@@ -168,11 +168,19 @@ if iter==0,
   Ai = Ao2;
   Ao = Ao2;
   rho_o = 1;
+  rho_Vo = 1;
 %   Ai = diag([50;6;10;10;10;10]);
 %   Ai = diag([50;50;50;50;50;50]);
 % Ai = diag([10;.25;.005;.1;.1;.05]);
 % rho = .03;
 %   rho = .1;
+elseif ~even(iter)
+  [prog, Ao] = PSD_fun(prog,6);
+  [prog, rho_Vo] = prog.newFree(1);
+  cost = -rho_Vo;
+  Ai = AI;
+  rho_i = R;
+  rho_o = 1;
 else
   cost_option = 4;
   
@@ -197,32 +205,17 @@ else
     case 4 % minimize rho, fix trace, psd Ai
       [prog,rho_i] = prog.newFree(1);
       cost = -rho_i;
-      Ai11mult = .01;
+%       Ai11mult = .1;
       [prog, Ai] = PSD_fun(prog,6);
 %       Ai(1,1) = 100*Ai(1,1);
-%       prog = prog.withEqs(trace(Ai) - 100);
-      prog = prog.withEqs(trace(Ai) - 5 - 95/Ai11mult);
-      Ai(1,1) = Ai11mult*Ai(1,1);
+      prog = prog.withEqs(trace(Ai) - 100);
+%       prog = prog.withEqs(Ai(1,1) + trace(Ai(2:end,2:end)) - 100);
+%       Ai(1,1) = Ai11mult*Ai(1,1);
 %       Ai_diag(1) = 100*Ai_diag(1);
   end
-  
-  if ~even(iter)
-%     [prog,Ao_diag] = prog.newFree(6);
-%     Ao_diag(3) = 0;
-%     Ao = diag(Ao_diag);
-%     Ao(1,1) = 100*Ao(1,1);
-    [prog, Ao] = PSD_fun(prog,6);
-% Ao = Ao2;
-%     Ao = Ao*Ao2;
-%     prog = prog.withEqs(trace(Ao) - trace(Ao2));
-%     [prog,rho_o] = prog.newPos(1);
-%     Ao = Ao2 + diag(Ao_diag);
-%     Ao = Ao2;
-    rho_o = 1;
-  else
-    Ao = AO;
-    rho_o = D;
-  end
+  Ao = AO;
+  rho_o = D;
+  rho_Vo = 1;
 end
 
 h_Bo2 = rho_o - ball_vec'*Ao*ball_vec;
@@ -248,7 +241,7 @@ sos_1 = -Vdot_free;
 sos_2 = -Vdot_impact_1;
 sos_3 = -Vdot_impact_2;
 sos_4 = V;
-sos_5 = (V - rho_V);%*(1 + z^2 + qd'*qd + 1 - c)^2;
+sos_5 = (V - rho_Vo);%*(1 + z^2 + qd'*qd + 1 - c)^2;
 
 if iter==0,
   sos_6 = (rho_V - V);
@@ -484,7 +477,7 @@ else
   end
 end
 
-Vsol = sol.eval(V)/double(sol.eval(rho_V));
+Vsol = sol.eval(V)/double(sol.eval(rho_Vo));
 R = double(sol.eval(rho_i));
 AI = double(sol.eval(Ai));
 AO = double(sol.eval(Ao));
@@ -492,8 +485,8 @@ D = double(sol.eval(rho_o));
 if ~even(iter),
 %   sos6_mult_2 = sol.eval(sig{end-1});
 %   sos6_mult_3 = sol.eval(sig{end-2});
-sos6_mult = sol.eval(sos6_mult)*double(sol.eval(rho_V));
-  save(strcat(sprintf('flex_iter_%d',iter)),'Vsol','R','AO','AI','D','sos6_mult')
+sos6_mult = sol.eval(sos6_mult)*double(sol.eval(rho_Vo));
+  save(datapath(strcat(sprintf('flex_mult_afix_iter_%d',iter))),'Vsol','R','AO','AI','D','sos6_mult')
 %   save iter_1 Vsol sos6_mult sos6_mult_2 sos6_mult_3 R Ao2 AI
 else
 
@@ -502,7 +495,6 @@ else
   sos3_mult = sol.eval(sos3_mult);
   sos4_mult = sol.eval(sos4_mult);
   sos5_mult = sol.eval(sos5_mult);
-  save(strcat(sprintf('flex_iter_%d',iter)),'Vsol','sos1_mult','sos2_mult','sos3_mult','sos4_mult','sos5_mult','R','AO','AI','D')  
-%   save(strcat(sprintf('flex_iter_%d',iter)),'Vsol','sos1_mult','sos2_mult','sos3_mult','sos4_mult','sos5_mult','R','AO','AI','D')
+  save(datapath(strcat(sprintf('flex_mult_afix_iter_%d',iter))),'Vsol','sos1_mult','sos2_mult','sos3_mult','sos4_mult','sos5_mult','R','AO','AI','D')  
 end
 end

@@ -49,11 +49,14 @@ classdef TaylorVar
       end
     end
     
-    function p = getmsspoly(obj,p_xbar)
+    function p = getmsspoly(obj,p_xbar,max_deg)
       % returns the taylor approximation as an msspoly
       % @param p_xbar should be relative to the original value of x used in
       % TaylorVar.init()
       
+      if nargin < 3
+        max_deg = length(obj.df);
+      end
       if (~isvector(p_xbar)) error('p_xbar should be a vector'); end
       if (length(obj.dim)>2) error('msspolys are not defined for ND arrays'); end
       p_xbar=p_xbar(:); % make sure p_x is a column vector
@@ -61,7 +64,7 @@ classdef TaylorVar
       p=reshape(obj.f,obj.dim);
       nX=obj.nX;
       x=1;
-      for o=1:length(obj.df)
+      for o=1:max_deg,
         % x needs to be nX^o-by-1 
         x=reshape(x(:)*p_xbar',nX^o,1)/o;
         p=p+reshape(obj.df{o}*x,obj.dim(1),obj.dim(2));

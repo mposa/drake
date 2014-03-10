@@ -1,9 +1,9 @@
 % clear all
 megaclear
-for iter=3:4,
+for iter=5:20,
 display(sprintf('Starting iter %d',iter))
 sos_option = 1;
-do_backoff = 1;
+do_backoff = 0;
 do_clean = 0;
 do_eig = 0;
 
@@ -68,8 +68,6 @@ options.trig.sin = s;
 options.trig.cos = c;
 options.clean_primal = true;
 options.scale_monomials = true;
-options.backoff = true;
-options.regularize = true;
 
 %% Dynamics
 % [H,C,B,phi,phidot,psi,J,J_f,K,S,U] = torsoEOM_mss(q,qd,s_vec,c_vec);
@@ -111,23 +109,16 @@ E = .5*xd^2 + .5*zd^2 + 1/8*pitchd^2 + g*z;
 
 %% Lyapunov function
 if iter > 0
-  load(sprintf('flex_iter_%d',iter-1))
+  load(sprintf('gl_iter_%d',iter-1))
 end
 
-if iter==0,
-  [prog,V,coefv] = prog.newFreePoly(monomials(v_vars,0:V_degree));
-  [prog, equil_eqn] = prog.withEqs(subs(V,[z;s;c;qd],[0;0;1;0;0;0]));
-  
-  prog = prog.withEqs(subs(diff(V,qd(1)),x_vars,x0));
-  prog = prog.withEqs(subs(diff(V,qd(2)),x_vars,x0));
-  prog = prog.withEqs(subs(diff(V,qd(3)),x_vars,x0));
-  prog = prog.withEqs(subs(diff(V,s)*c + diff(V,c)*-s,x_vars,x0));
-elseif ~even(iter),
+if ~even(iter),
   V = Vsol;
 else
 %   load iter_1
   [prog,V,coefv] = prog.newFreePoly(monomials(v_vars,0:V_degree));
   [prog, equil_eqn] = prog.withEqs(subs(V,[z;s;c;qd],[0;0;1;0;0;0]));
+  [prog, equil_eqn2] = prog.withEqs(1 - subs(V,[z;s;c;qd],[.1;0;1;0;0;0]));
   
   prog = prog.withEqs(subs(diff(V,qd(1)),x_vars,x0));
   prog = prog.withEqs(subs(diff(V,qd(2)),x_vars,x0));
@@ -142,121 +133,32 @@ Vdot_impact_1 = diff(V,[x;z;s;c;xd;zd;pitchd])*f_impact(:,1);
 Vdot_impact_2 = diff(V,[x;z;s;c;xd;zd;pitchd])*f_impact(:,2);
 
 
-%% Ball constraints
-ball_vec = [z;s;1-c;qd];
-% Ao2 = zeros(6);
-% Ao2(1,1) = 100;
-% Ao2(2,2) = 2;
-% Ao2(3,3) = 2;
-% Ao2(4,4) = .5;
-% Ao2(5,5) = .5;
-% Ao2(6,6) = .1;
-
-Ao2 = zeros(6);
-Ao2(1,1) = 60;
-Ao2(2,2) = 2;
-Ao2(3,3) = 2;
-Ao2(4,4) = .5;
-Ao2(5,5) = .5;
-Ao2(6,6) = .1;
-
-Ao2 = Ao2*1.5;
-
+%% cost setup
 if iter==0,
-  cost = 0;
-  rho_i = .2;
-  Ai = Ao2;
-  Ao = Ao2;
-  rho_o = 1;
-%   Ai = diag([50;6;10;10;10;10]);
-%   Ai = diag([50;50;50;50;50;50]);
-% Ai = diag([10;.25;.005;.1;.1;.05]);
-% rho = .03;
-%   rho = .1;
-else
-  cost_option = 4;
-  
-  switch cost_option
-    case 1 % fix rho, diagonal Ai
-      rho_i = .1;
-      [prog,Ai_diag] = prog.newPos(6);
-      cost = sum(Ai_diag);
-      %   Ai_diag(1) = 100*Ai_diag(1);
-      Ai = diag(Ai_diag);
-    case 2 % minimize rho, fix trace, diagonal Ai
-      [prog,rho_i] = prog.newFree(1);
-      cost = -rho_i;
-      [prog,Ai_diag] = prog.newPos(6);
-      prog = prog.withEqs(sum(Ai_diag) - 6);
-      Ai_diag(1) = 100*Ai_diag(1);
-    case 3 % fix rho, PSD Ai
-      [prog, Ai] = PSD_fun(prog,6);
-      cost = trace(Ai);
-%      Ai(1,1) = Ai(1,1)*100;
-      rho_i = .1;
-    case 4 % minimize rho, fix trace, psd Ai
-      [prog,rho_i] = prog.newFree(1);
-      cost = -rho_i;
-      Ai11mult = .01;
-      [prog, Ai] = PSD_fun(prog,6);
-%       Ai(1,1) = 100*Ai(1,1);
-%       prog = prog.withEqs(trace(Ai) - 100);
-      prog = prog.withEqs(trace(Ai) - 5 - 95/Ai11mult);
-      Ai(1,1) = Ai11mult*Ai(1,1);
-%       Ai_diag(1) = 100*Ai_diag(1);
-  end
-  
-  if ~even(iter)
-%     [prog,Ao_diag] = prog.newFree(6);
-%     Ao_diag(3) = 0;
-%     Ao = diag(Ao_diag);
-%     Ao(1,1) = 100*Ao(1,1);
-    [prog, Ao] = PSD_fun(prog,6);
-% Ao = Ao2;
-%     Ao = Ao*Ao2;
-%     prog = prog.withEqs(trace(Ao) - trace(Ao2));
-%     [prog,rho_o] = prog.newPos(1);
-%     Ao = Ao2 + diag(Ao_diag);
-%     Ao = Ao2;
-    rho_o = 1;
-  else
-    Ao = AO;
-    rho_o = D;
-  end
+  sos1_mult = (z^2 + 1 - c + qd'*qd)^2;
+  sos2_mult = (z^2 + 1 - c + qd'*qd)^2;
+  sos3_mult = (z^2 + 1 - c + qd'*qd)^2;
 end
-
-h_Bo2 = rho_o - ball_vec'*Ao*ball_vec;
-
-h_Bi = rho_i - ball_vec'*Ai*ball_vec;
-
-if even(iter)
-  rho_V = 1;
+if ~even(iter)
+  rho = 1.5*R;
+  cost = 0;
 else
-  rho_V = 1.0;
+  [prog,rho] = prog.newFree(1);
+  cost = -rho;
 end
 
 prog_bkp = prog;
 %% SOS functions
-% (1) -Vdot_free(x) >= 0 for x admissable in B_o
-% (2) -Vdot_impact_1(x,l) >= 0 for (x,l) admissable and x in B_o
-% (3) -Vdot_impact_2(x,l) >= 0 for (x,l) admissable and x in B_o
-% (4) V(x) >= 0 for x admissable and in B_o
-% (5) V(x) - 1 >= 0 for x on bdry(B_o)
-% (6) 1 - V(x) >= 0 for x in B_i
+% (1) -Vdot_free(x) >= 0 for x admissable and V < rho
+% (2) -Vdot_impact_1(x,l) >= 0 for (x,l) admissable and V < rho
+% (3) -Vdot_impact_2(x,l) >= 0 for (x,l) admissable and V < rho
+% (4) V(x) >= 0 for x admissable
+
 
 sos_1 = -Vdot_free;
 sos_2 = -Vdot_impact_1;
 sos_3 = -Vdot_impact_2;
 sos_4 = V;
-sos_5 = (V - rho_V);%*(1 + z^2 + qd'*qd + 1 - c)^2;
-
-if iter==0,
-  sos_6 = (rho_V - V);
-else
-%   sos_6 = -h_Bi*tmp_mult;
-  sos_6 = -h_Bi*(1 + z^2 + qd'*qd + 1 - c);
-end
-
 
 %% Add in constraints
 prog = prog_bkp;
@@ -268,20 +170,15 @@ sig = {};
 coefsig = {};
 
 
-doSOS = [1 1 1 1 1 1 0];
-% doSOS = [1 1 1 1 0 0 0];
-
-if ~even(iter) && 0
-  doSOS = [0 0 0 0 0 1 0];
-end
+doSOS = [1 1 1 1];
 
 if doSOS(1)
   % non-penetration (admissability of x)
   [prog, sos_1, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_1, phi(1), [x_vars], const_deg, sos_option, options);
   [prog, sos_1, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_1, phi(2), [x_vars], const_deg, sos_option, options);
   
-  if even(iter) || iter==0
-    [prog, sos_1, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_1, h_Bo2, [x_vars], const_deg, sos_option, options);
+  if ~even(iter)
+    [prog, sos_1, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_1, rho - V, [x_vars], const_deg, sos_option, options);
     sos1_mult = sig{end};
     
     prog = prog.withEqs(subs(sig{end},x_vars,x0));
@@ -290,7 +187,7 @@ if doSOS(1)
     prog = prog.withEqs(subs(diff(sig{end},qd(3)),x_vars,x0));
     prog = prog.withEqs(subs(diff(sig{end},s)*c + diff(sig{end},c)*-s,x_vars,x0));
   else
-    sos_1 = sos_1 - h_Bo2*sos1_mult;
+    sos_1 = sos_1 - (rho - V)*sos1_mult;
   end
   
   prog = withSOS_fun(prog,sos_1);
@@ -305,8 +202,8 @@ if doSOS(2)
   [prog, sos_2, sig{end+1}, coefsig{end+1}] = spotless_add_eq_sprocedure(prog, sos_2, phi(1), [x_vars;lx(1)], const_deg);
   [prog, sos_2, sig{end+1}, coefsig{end+1}] = spotless_add_eq_sprocedure(prog, sos_2, (mu^2*lzsq(1)^2 - lx(1)^2)*psi(1), [x_vars;lx(1)], const_deg);  %should this be psi^2?
   
-  if even(iter) || iter==0
-    [prog, sos_2, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_2, h_Bo2, [x_vars;lx(1)], const_deg, sos_option, options);
+  if ~even(iter)
+    [prog, sos_2, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_2, rho - V, [x_vars;lx(1)], const_deg, sos_option, options);
     sos2_mult = sig{end};
     
     prog = prog.withEqs(subs(sig{end},[x_vars;lx(1)],[x0;0]));
@@ -315,7 +212,7 @@ if doSOS(2)
     prog = prog.withEqs(subs(diff(sig{end},qd(3)),[x_vars;lx(1)],[x0;0]));
     prog = prog.withEqs(subs(diff(sig{end},s)*c + diff(sig{end},c)*-s,[x_vars;lx(1)],[x0;0]));
   else
-    sos_2 = sos_2 - h_Bo2*sos2_mult;
+    sos_2 = sos_2 - (rho - V)*sos2_mult;
   end
 
   prog = withSOS_fun(prog,sos_2);
@@ -329,8 +226,8 @@ if doSOS(3)
   [prog, sos_3, sig{end+1}, coefsig{end+1}] = spotless_add_eq_sprocedure(prog, sos_3, phi(2), [x_vars;lx(2)], const_deg);
   [prog, sos_3, sig{end+1}, coefsig{end+1}] = spotless_add_eq_sprocedure(prog, sos_3, (mu^2*lzsq(2)^2 - lx(2)^2)*psi(2), [x_vars;lx(2)], const_deg);  %should this be psi^2?
   
-  if even(iter) || iter==0
-    [prog, sos_3, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_3, h_Bo2, [x_vars;lx(2)], const_deg, sos_option, options);
+  if ~even(iter)
+    [prog, sos_3, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_3, rho - V, [x_vars;lx(2)], const_deg, sos_option, options);
     sos3_mult = sig{end};
     
     prog = prog.withEqs(subs(sig{end},[x_vars;lx(2)],[x0;0]));
@@ -340,7 +237,7 @@ if doSOS(3)
     prog = prog.withEqs(subs(diff(sig{end},s)*c + diff(sig{end},c)*-s,[x_vars;lx(2)],[x0;0]));
     
   else
-    sos_3 = sos_3 - h_Bo2*sos3_mult;
+    sos_3 = sos_3 - (rho - V)*sos3_mult;
   end
 
   prog = withSOS_fun(prog,sos_3);
@@ -350,69 +247,10 @@ end
 if doSOS(4)
   [prog, sos_4, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_4, phi(1), x_vars, const_deg, sos_option, options);
   [prog, sos_4, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_4, phi(2), x_vars, const_deg, sos_option, options);
-  
-  if even(iter) || iter==0
-    [prog, sos_4, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_4, h_Bo2, x_vars, const_deg, sos_option, options);
-    sos4_mult = sig{end};
-    
-    prog = prog.withEqs(subs(sig{end},x_vars,x0));
-    prog = prog.withEqs(subs(diff(sig{end},qd(1)),x_vars,x0));
-    prog = prog.withEqs(subs(diff(sig{end},qd(2)),x_vars,x0));
-    prog = prog.withEqs(subs(diff(sig{end},qd(3)),x_vars,x0));
-    prog = prog.withEqs(subs(diff(sig{end},s)*c + diff(V,c)*-s,x_vars,x0));
-    
-  else
-    sos_4 = sos_4 - h_Bo2*sos4_mult;
-  end
 
   prog = withSOS_fun(prog,sos_4);
 end
 
-if doSOS(5)
-  [prog, sos_5, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_5, phi(1), x_vars, const_deg, sos_option, options);
-  [prog, sos_5, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_5, phi(2), x_vars, const_deg, sos_option, options);
-  
-  if even(iter) || iter==0 
-    [prog, sos_5, sig{end+1}, coefsig{end+1}] = spotless_add_eq_sprocedure(prog, sos_5, h_Bo2, x_vars, const_deg);
-    sos5_mult = sig{end};
-  else
-    sos_5 = sos_5 - h_Bo2*sos5_mult;
-  end
-  
-  prog = withSOS_fun(prog,sos_5);
-end
-
-if doSOS(6)
-  [prog, sos_6, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_6, phi(1), x_vars, const_deg, sos_option, options);
-  [prog, sos_6, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_6, phi(2), x_vars, const_deg, sos_option, options);
-  %     [prog, sos_6, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_6, phi(1)*phi(2), x_vars, const_deg, sos_option, options);
-  
-  if iter==0,
-    [prog, sos_6, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_6, h_Bi, x_vars, const_deg, sos_option, options);
-    sos6_mult = sig{end};
-  elseif ~even(iter),
-    %     [prog, sos_6, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_6, (V - 1)*phi(1), x_vars, const_deg, sos_option, options);
-    %     [prog, sos_6, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_6, (V - 1)*phi(2), x_vars, const_deg, sos_option, options);
-    [prog, sos_6, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_6, V - rho_V, x_vars, const_deg-2, sos_option, options);
-    sos6_mult = sig{end};
-  else
-    %     sos_6 = sos_6 - (V-1)*phi(1)*sos6_mult_3;
-    %     sos_6 = sos_6 - (V-1)*phi(2)*sos6_mult_2;
-    sos_6 = sos_6 - (V-rho_V)*sos6_mult;
-  end
-  
-  prog = withSOS_fun(prog,sos_6);
-end
-
-% if doSOS(7)
-%   if iter==0
-%     sos_7 = subs(1-V,[s;c;qd],[0;1;zeros(3,1)]);
-%     [prog, sos_7, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_7, phi(1), x_vars, const_deg, sos_option, options);
-%     [prog, sos_7, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_7, phi(2), x_vars, const_deg, sos_option, options);
-%     [prog, sos_7, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_7, .15^2-z^2, z, const_deg, sos_option, options);
-%     prog = withSOS_fun(prog,sos_7);
-%   end
-% end
 
 
 % Solve program
@@ -423,8 +261,6 @@ options.regularize = false;
 sol = prog.minimize(cost,sos_fun,options);
 
 display(sprintf('Finished iter %d with cost=%f',iter,double(sol.eval(cost))))
-
-sqrt(1/double(sol.eval(Ai(1,1)/double(sol.eval(rho_i)))))
 
 do_backoff = do_backoff && ~isequal(cost,0);
 
@@ -484,25 +320,16 @@ else
   end
 end
 
-Vsol = sol.eval(V)/double(sol.eval(rho_V));
-R = double(sol.eval(rho_i));
-AI = double(sol.eval(Ai));
-AO = double(sol.eval(Ao));
-D = double(sol.eval(rho_o));
+Vsol = sol.eval(V);
+R = double(sol.eval(rho));
+sos1_mult = sol.eval(sos1_mult);
+sos2_mult = sol.eval(sos2_mult);
+sos3_mult = sol.eval(sos3_mult);
 if ~even(iter),
-%   sos6_mult_2 = sol.eval(sig{end-1});
-%   sos6_mult_3 = sol.eval(sig{end-2});
-sos6_mult = sol.eval(sos6_mult)*double(sol.eval(rho_V));
-  save(strcat(sprintf('flex_iter_%d',iter)),'Vsol','R','AO','AI','D','sos6_mult')
+  
+  save(strcat(sprintf('gl_iter_%d',iter)),'Vsol','R','sos1_mult','sos2_mult','sos3_mult')
 %   save iter_1 Vsol sos6_mult sos6_mult_2 sos6_mult_3 R Ao2 AI
 else
-
-  sos1_mult = sol.eval(sos1_mult);
-  sos2_mult = sol.eval(sos2_mult);
-  sos3_mult = sol.eval(sos3_mult);
-  sos4_mult = sol.eval(sos4_mult);
-  sos5_mult = sol.eval(sos5_mult);
-  save(strcat(sprintf('flex_iter_%d',iter)),'Vsol','sos1_mult','sos2_mult','sos3_mult','sos4_mult','sos5_mult','R','AO','AI','D')  
-%   save(strcat(sprintf('flex_iter_%d',iter)),'Vsol','sos1_mult','sos2_mult','sos3_mult','sos4_mult','sos5_mult','R','AO','AI','D')
+  save(strcat(sprintf('gl_iter_%d',iter)),'Vsol','R','sos1_mult','sos2_mult','sos3_mult')
 end
 end
