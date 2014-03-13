@@ -3,8 +3,8 @@ q = msspoly('q',4);
 qd = msspoly('qd',4);
 s_vec = msspoly('s',4);
 c_vec = msspoly('c',4);
-% [H,C,B,phi,phidot,psi,J,J_f,K,S,U] = torsoEOM_mss(q,qd,s_vec,c_vec);
-[H,C,B,phi,phidot,psi,J,J_f,K,S,U] = skinnyEOM_mss(q,qd,s_vec,c_vec);
+[H,C,B,phi,phidot,psi,J,J_f,K,S,U] = torsoEOM_mss(q,qd,s_vec,c_vec);
+% [H,C,B,phi,phidot,psi,J,J_f,K,S,U] = skinnyEOM_mss(q,qd,s_vec,c_vec);
 
 x = q(1);
 z = q(2);
@@ -20,28 +20,13 @@ c_th = c_vec(4);
 % load iter_4
 % rho_i = R;
 % rho_o = 1;
-
+load(datapath('iter_6'))
 % load torso_ff_03
-load skinny_ff_06
-% Ao2(1,1) = 200;
-% 
-% rho_o = .2;
-% rho_i = .1;
+% load skinny_ff_06
 
-% Ao2 = zeros(9)*z;
-% Ao2(1,1) = 100;
-% Ao2(2,2) = 5;
-% Ao2(3,3) = 5;
-% Ao2(4,4) = 2;
-% Ao2(5,5) = 2;
-% 
-% rho_o = .5;
-% rho_i = .01;
-% Vsol = 2;
-
-
-AI = Ao2;
-
+rho_i = R;
+rho_o = 1;
+Ao2 = AO;
 Ai = subs(AI,[s;s_th;c;c_th],[0;0;1;1]);
 Ao2 = subs(Ao2,[s;s_th;c;c_th],[0;0;1;1]);
 % rho_o = .15;
