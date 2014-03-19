@@ -20,7 +20,7 @@ c_th = c_vec(4);
 % load iter_4
 % rho_i = R;
 % rho_o = 1;
-load(datapath('iter_6'))
+load(datapath('torso_taylor_iter_2'))
 % load torso_ff_03
 % load skinny_ff_06
 

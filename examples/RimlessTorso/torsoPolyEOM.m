@@ -1,61 +1,40 @@
-function [phi_poly,phidot_poly,psi_poly,f_free_poly,f_impact_poly,E_poly,q,qd,lambda_x,lambda_z,u,invHJ,invH] = torsoPolyEOM(degree)
+function [phi,phidot,psi,f_free,f_impact_1,f_impact_2,E,invH,invHJ_1,invHJ_2] = torsoPolyEOM(degree)
 %need phi, phidot, psi, H^-1(Bu-C), H^-1*J'*lambda, 
 % lambda is ordered xp;xm;z;xp;xm;z;...
 
 p = PlanarRigidBodyManipulator('TorsoBalance.urdf');
 
-xu = TaylorVar.init(zeros(9,1),degree);
-
-
-q=msspoly('q',p.num_q);
-qd=msspoly('v',p.num_q);
-u=msspoly('u',1);
-lambda_x=msspoly('lx',2);
-lambda_z=msspoly('lz',2);
-lambda = [lambda_x(1);lambda_z(1);lambda_x(2);lambda_z(2)];
-[H,C,B] = p.manipulatorDynamics(xu(1:4),xu(5:8))
-% B = p.model.B;
-
-% H=p.getH(xu(1:4));
+xu = TaylorVar.init(zeros(11,1),degree);
+q=xu(1:4);
+qd=xu(5:8);
+u=xu(9);
+lx=xu(10:11);
+lz = [1;1];
+[H,C,B] = p.manipulatorDynamics(q,qd);
 invH = inv(H);
-% C=p.getC(xu(1:4),xu(5:8));
+kinsol = p.doKinematics(q);
 
-kinsol = p.doKinematics(xu(1:4));
-% doKinematicsAndVelocities(p.model,xu(1:4),xu(5:8));
-[phi, psi, dPhi, dPsi, J, dJ,psi_full]  = p.contactPositionsAndVelocities(xu(1:4),xu(5:8));
-% J_exp = [1 0 0 0;0 1 0 0; 0 -1 0 0; 0 0 1 0; 0 0 0 1; 0 0 0 -1] *J;
-% J_exp = [1 0 0 0;-1 0 0 0; 0 1 0 0; 0 0 1 0; 0 0 -1 0; 0 0 0 1] *J;
-J_exp = J;
-plant_dyn = invH*(B*xu(9) - C);
-f_free_poly = getmsspoly(plant_dyn,[q;qd;u]);
-% keyboard
-phi_poly = getmsspoly(phi,[q;qd;u]);
-phi_poly = phi_poly([2;4]);
+[phi,n,D] = p.contactConstraints(kinsol);
 
-psi_poly = getmsspoly(psi,[q;qd;u]);
-phidot_poly = getmsspoly(psi_full([2 4]),[q;qd;u]);
+f_free = invH*(B*u - C);
+phidot = n*qd;
+psi = D{1}*qd;
+invHJ_1 = invH*[D{1}(1,:);n(1,:)]';
+invHJ_2 = invH*[D{1}(2,:);n(2,:)]';
 
-% qt2 = TaylorVar.init(zeros(4,1),degree-1);
-% H2 = p.getH(qt2);
-% doKinematicsAndVelocities(p.model,qt2,zeros(4,1));
-% [~,~,~,~,J2,~] = p.contactPositionsAndVelocities(qt2,zeros(4,1));
-% J2_exp = [1 0 0 0;0 1 0 0; 0 -1 0 0; 0 0 1 0; 0 0 0 1; 0 0 0 -1] *J2;
-% f_impact_poly = getmsspoly(inv(H2)*J2_exp',q)*lambda;
-invHJ = getmsspoly(invH*J_exp',[q;qd;u]);
-invH = getmsspoly(invH,[q;qd;u]);
-f_impact_poly = invHJ*lambda;
+f_impact_1 = invHJ_1*[lx(1);lz(1)];
+f_impact_2 = invHJ_2*[lx(2);lz(2)];
 
-K = .5*xu(5:8)'*H*xu(5:8);
+K = .5*qd'*H*qd;
 g = 9.81;
 
 U = 0;
-for i=1:length(p.model.body),
-  T=p.model.body(i).T;
-  I = p.model.body(i).I;
-  if I(3,3) ~= 0
-    tmp = T*[I(1,3)/I(3,3);-I(1,2)/I(3,3);1];
-    U = U + tmp(2)*g*I(3,3);
+for i=1:p.getNumBodies,
+  m_i = p.getBody(i).mass;
+  if m_i > 0
+    com_i = p.forwardKin(kinsol,i,p.getBody(i).com);
+    U = U + m_i*com_i(3)*g;
   end
 end
 U = U - double(U);
-E_poly = getmsspoly(K+U,[q;qd;u]);
+E = K + U;

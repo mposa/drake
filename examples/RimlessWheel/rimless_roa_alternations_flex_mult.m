@@ -1,8 +1,8 @@
 % clear all
 megaclear
-for iter=0:6,
+for iter=0:20,
 display(sprintf('Starting iter %d',iter))
-sos_option = 2;
+sos_option = 1;
 do_backoff = 0;
 do_clean = 0;
 do_eig = 0;
@@ -31,6 +31,8 @@ V_degree = 4;
 g = 9.81;
 
 prog = spotsosprog();
+
+file_prefix = 'sq_lowmu_flex_mult_afix_iter_%d';
 
 %% Add indeterminate variables
 q = msspoly('q',3);
@@ -66,7 +68,7 @@ options.verbose = 1;
 options.trig.enable = true;
 options.trig.sin = s;
 options.trig.cos = c;
-options.clean_primal = false;
+options.clean_primal = true;
 options.scale_monomials = true;
 options.backoff = false;
 options.regularize = true;
@@ -111,7 +113,7 @@ E = .5*xd^2 + .5*zd^2 + 1/8*pitchd^2 + g*z;
 
 %% Lyapunov function
 if iter > 0
-  load(datapath(sprintf('sdd_flex_mult_afix_iter_%d',iter-1)))
+  load(datapath(sprintf(file_prefix,iter-1)))
 end
 
 if iter==0,
@@ -247,21 +249,22 @@ if iter==0,
   sos_6 = (rho_V - V);
 else
 %   sos_6 = -h_Bi*tmp_mult;
-  sos_6 = -h_Bi*(1 + z^2 + qd'*qd + 1 - c);
+  sos_6 = -h_Bi*(1 + z^2 + qd'*qd + 1 - c)^2;
 end
 
 
 %% Add in constraints
 prog = prog_bkp;
 
-mu = 1;
+mu = .2;
 
 const_deg = 4;
 sig = {};
 coefsig = {};
 
 
-doSOS = [1 1 1 1 1 1 0];
+doSOS = [1 1 1 1 1 1];
+% cost = 0;
 % doSOS = [1 1 1 1 0 0 0];
 
 if ~even(iter) && 0
@@ -486,7 +489,7 @@ if ~even(iter),
 %   sos6_mult_2 = sol.eval(sig{end-1});
 %   sos6_mult_3 = sol.eval(sig{end-2});
 sos6_mult = sol.eval(sos6_mult)*double(sol.eval(rho_Vo));
-  save(datapath(strcat(sprintf('sdd_flex_mult_afix_iter_%d',iter))),'Vsol','R','AO','AI','D','sos6_mult')
+  save(datapath(strcat(sprintf(file_prefix,iter))),'Vsol','R','AO','AI','D','sos6_mult')
 %   save iter_1 Vsol sos6_mult sos6_mult_2 sos6_mult_3 R Ao2 AI
 else
 
@@ -495,6 +498,6 @@ else
   sos3_mult = sol.eval(sos3_mult);
   sos4_mult = sol.eval(sos4_mult);
   sos5_mult = sol.eval(sos5_mult);
-  save(datapath(strcat(sprintf('sdd_flex_mult_afix_iter_%d',iter))),'Vsol','sos1_mult','sos2_mult','sos3_mult','sos4_mult','sos5_mult','R','AO','AI','D')  
+  save(datapath(strcat(sprintf(file_prefix,iter))),'Vsol','sos1_mult','sos2_mult','sos3_mult','sos4_mult','sos5_mult','R','AO','AI','D')  
 end
 end

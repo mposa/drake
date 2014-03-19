@@ -1,14 +1,15 @@
 N_trials = 1;
 
 h = 1e-3;
-T = 3;
+T = 1;
 N = floor(T/h);
 
 x0_vec = zeros(8,N_trials);
 xf_vec = zeros(8,N_trials);
 x_vec = zeros(8,N,N_trials);
 
-p = PlanarRigidBodyManipulator('SkinnyTorsoBalance.urdf');
+% p = PlanarRigidBodyManipulator('SkinnyTorsoBalance.urdf');
+p = PlanarRigidBodyManipulator('TorsoBalance.urdf');
 % p = PlanarRigidBodyManipulator('ReactionRimless.urdf');
 r = TimeSteppingRigidBodyManipulator(p,h);
 v = p.constructVisualizer;
@@ -21,8 +22,10 @@ for trial_ind=1:N_trials,
 % x0 = [0;.075;.05;.08;zeros(4,1)];
 % x0 = [0;.055;.05;.13;zeros(4,1)]*2;
 % x0 = [0;.055;.14;.24;zeros(4,1)]/2;
-x0 = [0;.015;.08;.22;zeros(4,1)];
-x0 = [0;.017;.1;.12;zeros(4,1)]*1.2;
+% x0 = [0;.015;.08;.22;zeros(4,1)];
+% x0 = [0;.017;.1;.12;zeros(4,1)]*1.2;
+x0 = [0;.075;-.14;.18;zeros(4,1)];
+% x0 = [0;.05;-.09;-.16;zeros(4,1)];
 % x0 = [0;.055;.05;.4;zeros(4,1)];
 % x0 = [0;.09;.06;.29;zeros(4,1)]r;
 % x0 = [0;.00;.0;.87;zeros(4,1)];
@@ -54,7 +57,9 @@ x0 = [0;.017;.1;.12;zeros(4,1)]*1.2;
   for i=2:N,
 %     u = 0;
 %     K = [0 0 0 -10 0 0 0 -1];
-    u = -[25 1]*[sin(x(4,i-1)); x(8,i-1)];
+%     u = -[25 1]*[sin(x(4,i-1)); x(8,i-1)];
+    
+    u = [  (0.091748)*x(5,i-1)+(0.0035586)*x(2,i-1)+(0.0011083)*x(6,i-1)+(2.1977)*x(3,i-1)+(-0.64263)*x(7,i-1)+(-11.686)*x(4,i-1)+(-2.4209)*x(8,i-1)  ];
     
 %     [x(:,i), ~] = p.singleStepUpdate(t(i-1),x(:,i-1),u,h);
     [x(:,i)] = r.update(t(i-1),x(:,i-1),u);
