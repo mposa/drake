@@ -57,6 +57,7 @@ if ~ok
       end
       
       if (conf.lcm_enabled)
+        javaaddpath(fullfile(pods_get_base_path,'share','java','lcmtypes_drake.jar'));
         [retval,info] = system('util/check_multicast_is_loopback.sh');
         if (retval)
           info = strrep(info,'ERROR: ','');
@@ -104,23 +105,28 @@ if ~ok
       end
       
     case 'vrml'
+      unsupported = false;
       if(exist('vrinstall','file'))
-        conf.vrml_enabled = logical(vrinstall('-check'));% && usejava('awt');  % usejava('awt') return 0 if running with no display
+        conf.vrml_enabled = logical(vrinstall('-check','-viewer'));% && usejava('awt');  % usejava('awt') return 0 if running with no display
         if ismac
           [~,osx] = system('sw_vers -productVersion');
           if ~verStringLessThan(osx,'10.9') && verLessThan('matlab','8.1')
             % per my support ticket to matlab, who sent a perfunctory response
             % pointing to this: http://www.mathworks.com/support/sysreq/release2012a/macintosh.html
             conf.vrml_enabled = false;
+            disp(' ');
+            disp(' Found Simulink 3D Animation Toolbox, but is not supported in this version of MATLAB.  See http://www.mathworks.com/support/sysreq/release2012a/macintosh.html ');
+            disp(' ');
+            unsupported = true;
           end
         end
       else
         conf.vrml_enabled=false;
       end
       
-      if (~conf.vrml_enabled)
+      if (~conf.vrml_enabled && ~unsupported)
         disp(' ');
-        disp(' Simulink 3D Animation Toolbox not found.');
+        disp(' Simulink 3D Animation Toolbox not found.  Have you run ''vrinstall -install viewer''?');
         disp(' ');
       end
       
@@ -211,6 +217,14 @@ if ~ok
         disp(' ');
       end
       
+    case 'rigidbodyconstraint_mex'
+      conf.rigidbodyconstraint_mex_enabled = (exist('constructPtrRigidBodyConstraintmex','file')==3);
+      if (~conf.rigidbodyconstraint_mex_enabled)
+        disp(' ');
+        disp(' The RigidBodyManipulatorConstraint classes were not built (because some of the dependencies where missing when cmake was run)');
+        disp(' ');
+      end
+      
     case 'bullet'
       conf.bullet_enabled = ~isempty(getCMakeParam('bullet',conf));
       if (~conf.bullet_enabled)
@@ -288,8 +302,13 @@ function val = getCMakeParam(param,conf)
 % note: takes precedence over the function by the same name in util, since
 % that one requires getDrakePath to be set first.
 
-[~,val] = system(['cmake -L -N ', fullfile(conf.root,'pod-build'),' | grep ', param,' | cut -d "=" -f2']);
-val = strtrim(val);
+[status,val] = system(['cmake -L -N ', ...
+      fullfile(conf.root,'pod-build'),' | grep ', param,' | cut -d "=" -f2']);
+if (status)
+  val=[];
+else
+  val = strtrim(val);
+end
 
 end
 
