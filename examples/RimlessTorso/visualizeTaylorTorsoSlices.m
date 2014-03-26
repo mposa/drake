@@ -1,4 +1,7 @@
-load(datapath('torso_controller_taylor_iter_30'))
+% load(datapath('torso_cubic_controller_taylor_iter_39'))
+load(datapath('zscale_torso_cubic_controller_taylor_iter_2'))
+load torso_taylor_eom_fix
+z_scale = .1;
 
 q = msspoly('q',4);
 qd = msspoly('qd',4);
@@ -9,10 +12,12 @@ z = q(2);
 pitch = q(3);
 theta = q(4);
 thetad = qd(4);
+xd = qd(1);
+zd = qd(2);
 
 taylor_degree = 3;
 taylor_vars = [q;qd;u;lx];
-load torso_taylor_eom_fix
+
 f_impact_1 = clean(getmsspoly(f_impact_1,taylor_vars,taylor_degree));
 f_impact_2 = clean(getmsspoly(f_impact_2,taylor_vars,taylor_degree));
 f_free = clean(getmsspoly(f_free,taylor_vars,taylor_degree));
@@ -20,6 +25,12 @@ phi = clean(getmsspoly(phi,taylor_vars,taylor_degree-1));
 phidot = clean(getmsspoly(phidot,taylor_vars,taylor_degree-1));
 psi = clean(getmsspoly(psi,taylor_vars,taylor_degree));
 E = clean(getmsspoly(E,taylor_vars,taylor_degree));
+
+% phi = subs(phi,[z;zd],[z;zd]*z_scale);
+Vsol = subs(Vsol,[z;zd],[z;zd]/z_scale);
+TA = diag([1/z_scale;ones(6,1)]);
+AO = TA'*AO*TA;
+AI = TA'*AI*TA;
 
 K = [10 1];
 
@@ -29,7 +40,9 @@ Vdot_impact_1 = diff(Vsol,qd)*f_impact_1;
 Vdot_impact_2 = diff(Vsol,qd)*f_impact_2;
 
 
-
+pitch_val =  -.5:.05:.5;
+z_range = 0:.01:.2;
+theta_val =  -.5:.05:.5;
 %%
 % load iter_4
 % rho_i = R;
@@ -57,8 +70,8 @@ Vsub = subs(Vsol,[theta;qd],[zeros(5,1)]);
 phisub = subs(phi,[theta;qd],[zeros(5,1)]);
 Vdot_freesub = subs(Vdot_free,[theta;qd],[zeros(5,1)]);
 
-pitch_val =  -.5:.02:.5;
-[PITCH,Z] = meshgrid(pitch_val,0:.001:.15);
+
+[PITCH,Z] = meshgrid(pitch_val,z_range);
 C = cos(PITCH);
 S = sin(PITCH);
 
@@ -112,8 +125,7 @@ h_Bo = ball_vec'*Ao2*ball_vec;
 h_Bi = ball_vec'*Ai*ball_vec; %worked with .01 and E, but failed sdsos
 Vsub = subs(Vsol,[pitch;qd],[0;zeros(4,1)]);
 
-theta_val =  -.5:.02:.5;
-[THETA,Z] = meshgrid(theta_val,0:.001:.15);
+[THETA,Z] = meshgrid(theta_val,z_range);
 
 Vval = dmsubs(Vsub,[z;theta],[Z(:) THETA(:)]');
 Vval = reshape(Vval,size(Z,1),[]);
@@ -145,7 +157,7 @@ Vdot_freesub = subs(Vdot_free,qd,zeros(4,1));
 
 % theta =  -.5:.05:.5;
 % pitch =  -.5:.05:.5;
-[PITCH,THETA,Z] = meshgrid(pitch_val,theta_val,0:.005:.15);
+[PITCH,THETA,Z] = meshgrid(pitch_val,theta_val,z_range);
 
 Vval = dmsubs(Vsub,[z;pitch;theta],[Z(:) PITCH(:) THETA(:)]');
 Vval = reshape(full(Vval),size(Z,1),size(Z,2),[]);

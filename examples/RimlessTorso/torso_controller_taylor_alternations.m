@@ -3,6 +3,7 @@ for iter = 2:4,
 display(sprintf('Starting iter %d',iter))
 do_backoff = true;
 sos_option = 1;
+z_scale = .1;
 
 switch sos_option
   case 1
@@ -100,7 +101,16 @@ E = clean(getmsspoly(E,taylor_vars,taylor_degree));
 
 invH = clean(getmsspoly(invH,taylor_vars,taylor_degree));
 
-% E = E + .5*K(1)*theta^2;
+K = [10 1];
+E = E + .5*K(1)*theta^2;
+
+f_impact_1(2) = subs(f_impact_1(2)/z_scale,[z;zd],[z;zd]*z_scale);
+f_impact_2(2) = subs(f_impact_2(2)/z_scale,[z;zd],[z;zd]*z_scale);
+f_free(2) = subs(f_free(2)/z_scale,[z;zd],[z;zd]*z_scale);
+phi = subs(phi,[z;zd],[z;zd]*z_scale);
+phidot = subs(phidot,[z;zd],[z;zd]*z_scale);
+psi = subs(psi,[z;zd],[z;zd]*z_scale);
+E = subs(E,[z;zd],[z;zd]*z_scale);
 
 
 
@@ -121,7 +131,7 @@ ball_vec = v_vars;
 % Ao2 = Ao;
 Ao2 = zeros(7);
 
-Ao2(1,1) = 100;
+Ao2(1,1) = 100*z_scale^2;
 Ao2(2,2) = 2;
 Ao2(3,3) = 2;
 Ao2(4:7,4:7) = .5*double(subs(diff(diff(E,qd)',qd),x_vars,x0));
@@ -138,7 +148,7 @@ if iter==0,
   Ao = Ao2;
   rho_o = 2;
   rho_Vo = 1;
-  K = [10 1];
+  
   controller = -K*[theta; thetad];
 elseif ~even(iter)
   [prog,controller,coefu] = prog.newFreePoly(monomials(v_vars,1:controller_degree));  
