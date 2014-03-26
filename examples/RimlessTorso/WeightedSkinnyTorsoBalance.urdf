@@ -1,0 +1,126 @@
+<robot name="TorsoBalance">
+
+  <link name="world"/>
+  <link name="floating_base_x"/>
+  <link name="floating_base_z"/>
+
+  <link name="center" >
+  </link>
+  <link name="leg1" >
+    <inertial>
+      <origin xyz="0 0 -.5" rpy="0 0 0"/>
+      <mass value=".5"/>
+      <inertia ixx="0"  ixy="0"  ixz="0" iyy="0" iyz="0" izz="0" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 -.5" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.03" length="1"/>
+      </geometry>
+    </visual>
+  </link>
+  <link name="leg2" >
+    <inertial>
+      <origin xyz="0 0 -.5" rpy="0 0 0"/>
+      <mass value=".5"/>
+      <inertia ixx="0"  ixy="0"  ixz="0" iyy="0" iyz="0" izz="0" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 -.5" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.03" length="1"/>
+      </geometry>
+    </visual>
+  </link>
+  <link name="toe1">
+    <collision>
+      <origin xyz="0 0 0"/>
+      <geometry>
+        <sphere radius="0"/>
+      </geometry>
+    </collision>
+    <visual>
+      <origin xyz="0 0 0"/>
+      <geometry>
+        <sphere radius="0.01"/>
+      </geometry>
+    </visual>
+  </link>
+  <link name="toe2">
+    <collision>
+      <origin xyz="0 0 0"/>
+      <geometry>
+        <sphere radius="0"/>
+      </geometry>
+    </collision>
+    <visual>
+      <origin xyz="0 0 0"/>
+      <geometry>
+        <sphere radius="0.01"/>
+      </geometry>
+    </visual>
+  </link>
+  <link name="torso" >
+    <inertial>
+      <origin xyz="0 0 .75" rpy="0 0 0"/>
+      <mass value="2"/>
+      <inertia ixx="0"  ixy="0"  ixz="0" iyy="0" iyz="0" izz="0" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 .375" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.03" length=".75"/>
+      </geometry>
+    </visual>
+  </link>
+
+  <joint name="joint1" type="fixed">
+    <origin xyz="0 0 0" rpy="0 0.1963 0" />
+    <parent link="center"/>
+    <child link="leg1"/>
+  </joint>
+  <joint name="joint2" type="fixed">
+    <origin xyz="0 0 0" rpy="0 -.1963 0"/>
+    <parent link="center"/>
+    <child link="leg2"/>
+  </joint>
+  
+  <joint name="toejoint1" type="fixed">
+    <parent link="leg1"/>
+    <child link="toe1"/>
+    <origin xyz="0 0 -1" rpy="0 0 0" />
+  </joint>
+  <joint name="toejoint2" type="fixed">
+    <parent link="leg2"/>
+    <child link="toe2"/>
+    <origin xyz="0 0 -1" rpy="0 0 0" />
+  </joint>  
+  <joint name="float_x" type="prismatic">
+    <parent link="world" />
+    <child link="floating_base_x" />
+    <axis xyz="1 0 0" />    
+  </joint>
+  <joint name="float_z" type="prismatic">
+    <parent link="floating_base_x" />
+    <child link="floating_base_z" />
+    <axis xyz="0 0 1" />
+    <origin xyz="0 0 0.9808" rpy="0 0 0"/>
+  </joint>
+  <joint name="pitch_joint" type="continuous">
+    <parent link="floating_base_z" />
+    <child link="center" />
+    <axis xyz="0 1 0" />    
+    <origin xyz="0 0 0" rpy="0 0 0" />
+  </joint>
+  <joint name="torso_joint" type="continuous">
+    <parent link="center" />
+    <child link="torso" />
+    <axis xyz="0 1 0" />    
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+  <transmission type="SimpleTransmission">
+    <actuator name="torque_drive" />
+    <joint name="torso_joint" />
+    <mechanicalReduction>1</mechanicalReduction>    
+  </transmission>
+</robot>
