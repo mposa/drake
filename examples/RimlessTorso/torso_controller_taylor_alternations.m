@@ -1,5 +1,5 @@
 megaclear
-for iter = 2:4,
+for iter = 4:5,
 display(sprintf('Starting iter %d',iter))
 do_backoff = true;
 sos_option = 1;
@@ -35,7 +35,7 @@ g = 9.81;
 
 prog = spotsosprog();
 
-file_prefix = 'torso_cubic_controller_taylor_iter_%d';
+file_prefix = 'zscale_torso_cubic_controller_taylor_iter_%d';
 if iter > 0
   load(datapath(sprintf(file_prefix,iter-1)))
 end
@@ -83,7 +83,7 @@ if iter == 0,
 elseif even(iter)
   options.regularize_eps = 1e-6;
 else
-  options.regularize_eps = 1e-6;
+  options.regularize_eps = 1e-5;
 end
 
 
@@ -201,13 +201,8 @@ else
     case 4 % minimize rho, fix trace, psd Ai
       [prog,rho_i] = prog.newFree(1);
       cost = -rho_i;
-%       Ai11mult = .1;
       [prog, Ai] = PSD_fun(prog,7);
-%       Ai(1,1) = 100*Ai(1,1);
-      prog = prog.withEqs(trace(Ai) - 100);
-%       prog = prog.withEqs(Ai(1,1) + trace(Ai(2:end,2:end)) - 100);
-%       Ai(1,1) = Ai11mult*Ai(1,1);
-%       Ai_diag(1) = 100*Ai_diag(1);
+      prog = prog.withEqs(trace(Ai) - 7);
   end
   Ao = AO;
   rho_o = D;
@@ -224,6 +219,7 @@ h_Bo2 = rho_o - ball_vec'*Ao*ball_vec;
 h_Bi = rho_i - ball_vec'*Ai*ball_vec; 
 
 %% Lyapunov function
+mu = .5;
 
 if even(iter)% && 0
   [prog,V,coefv] = prog.newFreePoly(monomials(v_vars,1:V_degree));  
@@ -297,9 +293,9 @@ if doSOS(2)
   % Contact constraints (admissability of lambda)
   [prog, sos_2, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_2, -phidot(1), [x_vars;lx(1)], const_deg, sos_option, options);
   [prog, sos_2, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_2, -lx(1)*psi(1), [x_vars;lx(1)], const_deg-2, sos_option, options);
-  [prog, sos_2, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_2, lzsq(1)^2 - lx(1)^2, [x_vars;lx(1)], const_deg, sos_option, options);
+  [prog, sos_2, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_2, mu^2*lzsq(1)^2 - lx(1)^2, [x_vars;lx(1)], const_deg, sos_option, options);
   [prog, sos_2, sig{end+1}, coefsig{end+1}] = spotless_add_eq_sprocedure(prog, sos_2, phi(1), [x_vars;lx(1)], const_deg);
-  [prog, sos_2, sig{end+1}, coefsig{end+1}] = spotless_add_eq_sprocedure(prog, sos_2, (lzsq(1)^2 - lx(1)^2)*psi(1), [x_vars;lx(1)], const_deg-3);  %should this be psi^2?
+  [prog, sos_2, sig{end+1}, coefsig{end+1}] = spotless_add_eq_sprocedure(prog, sos_2, (mu^2*lzsq(1)^2 - lx(1)^2)*psi(1), [x_vars;lx(1)], const_deg-3);  %should this be psi^2?
   
   if even(iter)
     [prog, sos_2, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_2, h_Bo2, [x_vars;lx(1)], const_deg, sos_option, options);
@@ -322,9 +318,9 @@ if doSOS(3)
   [prog, sos_3, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_3, phi(1), [x_vars;lx(2)], const_deg, sos_option, options);
   [prog, sos_3, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_3, -phidot(2), [x_vars;lx(2)], const_deg, sos_option, options);
   [prog, sos_3, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_3, -lx(2)*psi(2), [x_vars;lx(2)], const_deg-2, sos_option, options);
-  [prog, sos_3, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_3, lzsq(2)^2 - lx(2)^2, [x_vars;lx(2)], const_deg, sos_option, options);
+  [prog, sos_3, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_3, mu^2*lzsq(2)^2 - lx(2)^2, [x_vars;lx(2)], const_deg, sos_option, options);
   [prog, sos_3, sig{end+1}, coefsig{end+1}] = spotless_add_eq_sprocedure(prog, sos_3, phi(2), [x_vars;lx(2)], const_deg);
-  [prog, sos_3, sig{end+1}, coefsig{end+1}] = spotless_add_eq_sprocedure(prog, sos_3, (lzsq(2)^2 - lx(2)^2)*psi(2), [x_vars;lx(2)], const_deg-3);  %should this be psi^2?
+  [prog, sos_3, sig{end+1}, coefsig{end+1}] = spotless_add_eq_sprocedure(prog, sos_3, (mu^2*lzsq(2)^2 - lx(2)^2)*psi(2), [x_vars;lx(2)], const_deg-3);  %should this be psi^2?
   
   if even(iter)
     [prog, sos_3, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_3, h_Bo2, [x_vars;lx(2)], const_deg, sos_option, options);
@@ -409,8 +405,15 @@ if do_backoff && ~isnumeric(cost)
   prog = prog.withPos(costval + .01*abs(costval) - cost);
   
   [prog,bo_eps] = prog.newFree(1);
-  for i=1:length(prog.sosExpr),
-    prog.sosExpr(i) = prog.sosExpr(i) + bo_eps*sol.gramMonomials{i}'*sol.gramMonomials{i};
+  switch sos_option
+    case 1
+      for i=1:length(prog.sosExpr),
+        prog.sosExpr(i) = prog.sosExpr(i) + bo_eps*sol.gramMonomials{i}'*sol.gramMonomials{i};
+      end
+    case 2
+      for i=1:length(prog.sdsosExpr),
+        prog.sdsosExpr(i) = prog.sdsosExpr(i) + bo_eps*sol.gramMonomials{i}'*sol.gramMonomials{i};
+      end
   end
   
   sol = prog.minimize(bo_eps,sos_fun,options);
@@ -418,7 +421,7 @@ else
   bo_eps = 0;
 end
 
-sqrt(1/double(sol.eval(Ai(1,1)/double(sol.eval(rho_i)))))
+sqrt(1/double(sol.eval(Ai(1,1)/double(sol.eval(rho_i)))))*z_scale
 
 Vsol = sol.eval(V)/double(sol.eval(rho_Vo));
 controllersol = sol.eval(controller);

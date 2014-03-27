@@ -1,5 +1,5 @@
 % load(datapath('torso_cubic_controller_taylor_iter_39'))
-load(datapath('zscale_torso_cubic_controller_taylor_iter_2'))
+load(datapath('zscale_torso_cubic_controller_taylor_iter_20'))
 load torso_taylor_eom_fix
 z_scale = .1;
 
@@ -28,6 +28,7 @@ E = clean(getmsspoly(E,taylor_vars,taylor_degree));
 
 % phi = subs(phi,[z;zd],[z;zd]*z_scale);
 Vsol = subs(Vsol,[z;zd],[z;zd]/z_scale);
+controllersol = subs(controllersol,[z;zd],[z;zd]/z_scale);
 TA = diag([1/z_scale;ones(6,1)]);
 AO = TA'*AO*TA;
 AI = TA'*AI*TA;
