@@ -1,5 +1,5 @@
 megaclear
-for iter = 4:5,
+for iter = 5:6,
 display(sprintf('Starting iter %d',iter))
 do_backoff = true;
 sos_option = 1;
@@ -83,7 +83,7 @@ if iter == 0,
 elseif even(iter)
   options.regularize_eps = 1e-6;
 else
-  options.regularize_eps = 1e-5;
+  options.regularize_eps = 2e-5;
 end
 
 
