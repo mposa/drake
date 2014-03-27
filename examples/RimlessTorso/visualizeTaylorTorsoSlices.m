@@ -1,5 +1,5 @@
 % load(datapath('torso_cubic_controller_taylor_iter_39'))
-load(datapath('zscale_torso_cubic_controller_taylor_iter_20'))
+load(datapath('zscale_torso_cubic_controller_taylor_iter_6'))
 load torso_taylor_eom_fix
 z_scale = .1;
 
