@@ -11,7 +11,6 @@ classdef RigidBody < RigidBodyElement
     visual_shapes={}; % objects of type RigidBodyGeometry
     contact_shapes={}; % objects of type RigidBodyGeometry
 
-    contact_pts=[];  % a 3xn matrix with [x;y;z] positions of contact points
     collision_group_name={};  % string names of the groups
     collision_group={};       % collision_group{i} is a list of indices into contact_pts which belong to collision_group_name{i}
     contact_shape_group={}; % contact_shape_group{i} is a list of indices into contact_shapes which belong to collision_group_name{i}
@@ -57,23 +56,7 @@ classdef RigidBody < RigidBodyElement
     end
     
     function [pts,inds] = getContactPoints(body,collision_group)
-      % @param collision_group (optional) return only the points in that
-      % group.  can be an integer index or a string.
-      if (nargin<2) 
-        pts = body.contact_pts;
-        inds = 1:length(body.contact_pts);
-      else
-        if isa(collision_group,'char')
-          collision_group_ind = find(strcmpi(collision_group,body.collision_group_name));
-          if isempty(collision_group_ind)
-            error(['cannot find collision group ',collision_group]);
-          end
-        else
-          collision_group_ind = collision_group;
-        end
-        inds = body.collision_group{collision_group_ind};
-        pts = body.contact_pts(:,inds);
-      end
+      error('getContactPoints has been deprecated. useGetContactShapes for all contact geometries');
     end
 
     function shapes = getContactShapes(body,collision_group,collision_ind)
