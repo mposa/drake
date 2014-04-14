@@ -78,7 +78,9 @@ if ~ok
   
       if (~conf.lcmgl_enabled)
         try % try to add bot2-lcmgl.jar
-          javaaddpath(fullfile(pods_get_base_path,'share','java','bot2-lcmgl.jar'));
+          lcm_java_classpath = getCMakeParam('LCMGL_JAR_FILE',conf);
+          javaaddpath(lcm_java_classpath);
+          disp(' Added the lcmgl jar to your javaclasspath (found via cmake)');
         catch
         end
         conf.lcmgl_enabled = exist('bot_lcmgl.data_t','class');
@@ -87,6 +89,23 @@ if ~ok
         disp(' ');
         disp(' LCMGL not found.  LCMGL support will be disabled.');
         disp(' To re-enable, add bot2-lcmgl.jar to your matlab classpath using javaaddpath.');
+        disp(' ');
+      end
+      
+    case 'ros'
+      conf.ros_enabled = logical(exist('rosmatlab.node','class'));
+      if (~conf.ros_enabled)
+        if exist(fullfile(matlabroot, 'toolbox', 'psp', 'rosmatlab'), 'dir')
+          addpath(fullfile(matlabroot, 'toolbox', 'psp', 'rosmatlab'));
+          conf.ros_enabled = logical(exist('rosmatlab.node','class'));
+        end
+      end
+        
+      if (~conf.ros_enabled)
+        disp(' ');
+        disp(' ROS not found.  ROS support will be disabled.');
+        disp(' To re-enable, install MATLAB''s ROS support from');
+        disp(' <a href="http://www.mathworks.com/ros">http://www.mathworks.com/hardware-support/ros</a>');
         disp(' ');
       end
       
@@ -158,9 +177,24 @@ if ~ok
         conf.gurobi_enabled = pod_pkg_config('gurobi'); %&& ~isempty(getenv('GUROBI_HOME'));
       end
 
+      if (conf.gurobi_enabled)
+        % gurobi.mex* is loaded, now test for license issues
+        model.obj = 1;
+        model.A  = sparse(1,1);
+        model.rhs = 0;
+        model.sense = '=';
+        params.outputflag = false;
+        try 
+          result = gurobi(model, params);
+        catch ex;
+          conf.gurobi_enabled = false;
+          disp(getReport(ex,'extended'));
+        end
+      end
+      
       if (~conf.gurobi_enabled)
         disp(' ');
-        disp(' GUROBI not found. GUROBI support will be disabled.');
+        disp(' GUROBI not found or not working. GUROBI support will be disabled.');
         disp('    To enable, install GUROBI and a free academic license from');
         disp('    <a href="http://www.gurobi.com/download/licenses/free-academic">http://www.gurobi.com/download/licenses/free-academic</a> .');
         disp(' Then, you will need to set several environment variables.');
@@ -170,6 +204,8 @@ if ~ok
 
     case 'gurobi_mex'
       conf.gurobi_mex_enabled = logical(exist('gurobiQPmex'));
+      
+      
       if (~conf.gurobi_mex_enabled)
 	disp(' ');
         disp(' GUROBI MEX not found.  GUROBI MEX support will be disabled.');  
@@ -287,8 +323,8 @@ function success=pod_pkg_config(podname)
     try 
       eval(cmd);
       success=true;
-    catch
-      % intentionally left blank
+    catch ex
+      disp(getReport(ex,'extended'))
     end
   end
     

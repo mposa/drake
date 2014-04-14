@@ -18,12 +18,24 @@ l_hand = r.findLinkInd('l_hand');
 head = r.findLinkInd('head');
 pelvis = r.findLinkInd('pelvis');
 
-r_foot_contact_pts = getContactPoints(getBody(r,r_foot));
-r_foot_pts = r_foot_contact_pts(:,1);
-l_foot_contact_pts = getContactPoints(getBody(r,l_foot));
-l_foot_pts = l_foot_contact_pts(:,1);
-r_hand_pts = mean(getContactPoints(getBody(r,r_hand)),2);
-l_hand_pts = mean(getContactPoints(getBody(r,l_hand)),2);
+l_hand_shapes = r.getBody(l_hand).getContactShapes;
+r_hand_shapes = r.getBody(r_hand).getContactShapes;
+l_hand_pts = [];
+r_hand_pts = [];
+for i=1:length(l_hand_shapes),
+  l_hand_pts = [l_hand_pts r.getBody(l_hand).getContactShapes{i}.getPoints];
+end
+for i=1:length(r_hand_shapes),
+  r_hand_pts = [r_hand_pts r.getBody(r_hand).getContactShapes{i}.getPoints];
+end
+
+r_foot_contact_pts = r_hand_pts(:,1);
+l_foot_contact_pts = l_hand_pts(:,1);
+
+r_foot_contact_pts = r.getBody(r_foot).getContactShapes{1}.getPoints;
+l_foot_contact_pts = r.getBody(l_foot).getContactShapes{1}.getPoints;
+r_hand_pts = mean(r_hand_pts,2);
+l_hand_pts = mean(l_hand_pts,2);
 
 
 
@@ -41,18 +53,18 @@ r_leg_hpz = find(strcmp(coords,'r_leg_hpz'));
 q0 = nom_data.xstar(1:nq);
 qdot0 = zeros(nq,1);
 kinsol0 = doKinematics(r,q0,false,false);
-r_foot_pos = forwardKin(r,kinsol0,r_foot,r_foot_pts,2);
+r_foot_pos = forwardKin(r,kinsol0,r_foot,r_hand_pts,2);
 r_foot_pos(3,:) = 0;
-l_foot_pos = forwardKin(r,kinsol0,l_foot,l_foot_pts,2);
+l_foot_pos = forwardKin(r,kinsol0,l_foot,l_hand_pts,2);
 l_foot_pos(3,:) = 0;
 r_hand_pos = forwardKin(r,kinsol0,r_hand,r_hand_pts,0);
 l_hand_pos = forwardKin(r,kinsol0,l_hand,l_hand_pts,0);
 com_pos0 = getCOM(r,kinsol0,1);
 com_height = com_pos0(3);
 tspan = [0,1];
-kc1 = {WorldPositionConstraint(r,r_foot,r_foot_pts,r_foot_pos(1:3),r_foot_pos(1:3),tspan),...
+kc1 = {WorldPositionConstraint(r,r_foot,r_hand_pts,r_foot_pos(1:3),r_foot_pos(1:3),tspan),...
   WorldQuatConstraint(r,r_foot,r_foot_pos(4:7),0,tspan)};
-kc2 = {WorldPositionConstraint(r,l_foot,l_foot_pts,l_foot_pos(1:3),l_foot_pos(1:3),tspan),...
+kc2 = {WorldPositionConstraint(r,l_foot,l_hand_pts,l_foot_pos(1:3),l_foot_pos(1:3),tspan),...
   WorldQuatConstraint(r,l_foot,l_foot_pos(4:7),0,tspan)};
 kc3 = WorldPositionConstraint(r,r_hand,r_hand_pts,r_hand_pos+[0.1;0.05;0.75],r_hand_pos+[0.1;0.05;1],[tspan(end) tspan(end)]);
 kc4 = WorldPositionConstraint(r,l_hand,l_hand_pts,l_hand_pos,l_hand_pos,[tspan(end) tspan(end)]);
@@ -102,6 +114,15 @@ q_seed_traj = PPTrajectory(zoh(t,repmat(q0,1,nT)+[zeros(nq,1) 1e-3*randn(nq,nT-1
 display('Check IK traj');
 xtraj = test_IKtraj_userfun(r,t,q_seed_traj,q_nom_traj,kc1{:},kc2{:},kc3,kc4,kc5,pc_knee,ikoptions);
 v = r.constructVisualizer();
+x_sol = xtraj.eval(t);
+q_sol = x_sol(1:nq,:);
+[robot_lb,robot_ub] = r.getJointLimits();
+if(any(any(q_sol>bsxfun(@times,robot_ub,ones(1,nT)))) || any(any(q_sol<bsxfun(@times,robot_lb,ones(1,nT)))))
+  error('posture solution is not within the joint limits');
+end
+if(any(any(isinf(x_sol))) || any(any(isnan(q_sol))))
+  error('solution cannot be nan');
+end
 v.playback(xtraj,struct('slider',true));
 display('Check IK traj with quasi static constraint');
 xtraj = test_IKtraj_userfun(r,t,q_seed_traj,q_nom_traj,kc1{:},qsc,kc2{:},kc3,kc4,kc5,pc_knee,ikoptions);
@@ -127,6 +148,17 @@ display('The user should check that the infeasible constraints are the CoM z');
 display('The infeasible constraints returned from IKtraj is');
 display(infeasible_constraint);
 
+x0 = [q_seed_traj.eval(t(1));q_seed_traj.deriv(t(1))];
+ikproblem = InverseKinTraj(r,t,q_nom_traj,ikoptions.fixInitialState,x0,kc_err,kc2{:},kc3,kc4,kc5,pc_knee,qsc);
+ikproblem = ikproblem.addBoundingBoxConstraint(BoundingBoxConstraint(ikoptions.qdf_lb,ikoptions.qdf_ub),ikproblem.qdf_idx);
+ikproblem = ikproblem.setSolverOptions('snopt','MajorIterationsLimit',ikoptions.SNOPT_MajorIterationsLimit);
+ikproblem = ikproblem.setSolverOptions('snopt','IterationsLimit',ikoptions.SNOPT_IterationsLimit);
+% ikproblem = ikproblem.setSolverOptions('snopt','print','iktraj.out');
+[xtraj,F,info,infeasible_constraint] = ikproblem.solve(q_seed_traj);
+if(info ~= 13)
+  error('The problem should be infeasible');
+end
+
 display('Check IK with WorldFixedPositionConstraint');
 kc_fixedPosition = WorldFixedPositionConstraint(r,pelvis,[0;0;0],tspan);
 xtraj = test_IKtraj_userfun(r,t,q_seed_traj,q_nom_traj,kc1{:},kc2{:},kc3,kc4,qsc,kc_fixedPosition,stlpc,ikoptions);
@@ -150,7 +182,11 @@ xtraj = test_IKtraj_userfun(r,t,q_seed_traj,q_nom_traj,kc1{:},kc2{:},kc3,kc4,qsc
 t_samples = sort([t t_inbetween]);
 x_samples = xtraj.eval(t_samples);
 q_samples = x_samples(1:nq,:);
-c_fixedPose = kc_fixedPose.eval(t_samples,q_samples);
+kinsol_samples = cell(1,size(q_samples,2));
+for i = 1:size(q_samples,2)
+  kinsol_samples{i} = r.doKinematics(q_samples(:,i),false,false);
+end
+c_fixedPose = kc_fixedPose.eval(t_samples,kinsol_samples);
 [lb_fixedPose,ub_fixedPose] = kc_fixedPose.bounds(t_samples);
 if(any(c_fixedPose-ub_fixedPose>1e-3) || any(c_fixedPose-lb_fixedPose<-1e-3))
   error('The fixed pose constraint is not satisfied');
@@ -166,8 +202,8 @@ pc_change = PostureChangeConstraint(r,[l_leg_kny;r_leg_kny],[-0.1;-0.03],[0.05;0
 ikoptions = ikoptions.setFixInitialState(true);
 xtraj = test_IKtraj_userfun(r,t,q_seed_traj,q_nom_traj,kc1{:},kc2{:},kc3,kc4,qsc,pc_change,ikoptions);
 xbreaks = xtraj.eval(t);
-if(any(xbreaks(l_leg_kny,2:end)-xbreaks(l_leg_kny,1)>0.05+1e-10) || any(xbreaks(l_leg_kny,2:end)-xbreaks(l_leg_kny,1)<-0.1-1e-10)||...
-   any(xbreaks(r_leg_kny,2:end)-xbreaks(r_leg_kny,1)>0.02+1e-10) || any(xbreaks(r_leg_kny,2:end)-xbreaks(r_leg_kny,1)<-0.03-1e-10))
+if(any(xbreaks(l_leg_kny,3:end)-xbreaks(l_leg_kny,2)>0.05+1e-10) || any(xbreaks(l_leg_kny,3:end)-xbreaks(l_leg_kny,2)<-0.1-1e-10)||...
+   any(xbreaks(r_leg_kny,3:end)-xbreaks(r_leg_kny,2)>0.02+1e-10) || any(xbreaks(r_leg_kny,3:end)-xbreaks(r_leg_kny,2)<-0.03-1e-10))
  error('PostureChangeConstraint is not satisfied');
 end
 
@@ -228,10 +264,21 @@ ikoptions = ikoptions.setMex(false);
 display('IK mex start to solve the problem');
 tic
 [xtraj,info,infeasible_constraint] = inverseKinTraj(r,t,q_seed,q_nom,varargin{1:end-1},ikmexoptions);
-toc
 if(info>10)
-  error('SNOPT info is %d, IK mex fails to solve the problem',info);
+  error('SNOPT info is %d, inverseKinTraj mex fails to solve the problem',info);
 end
+toc
+tic
+x0 = [q_seed.eval(t(1));q_seed.deriv(t(1))];
+ikproblem = InverseKinTraj(r,t,q_nom,ikoptions.fixInitialState,x0,varargin{1:end-1});
+ikproblem = ikproblem.addBoundingBoxConstraint(BoundingBoxConstraint(ikoptions.qdf_lb,ikoptions.qdf_ub),ikproblem.qdf_idx);
+ikproblem = ikproblem.setSolverOptions('snopt','MajorIterationsLimit',ikoptions.SNOPT_MajorIterationsLimit);
+% ikproblem = ikproblem.setSolverOptions('snopt','print','iktraj.out');
+[xtraj,F,info,infeasible_constraint] = ikproblem.solve(q_seed);
+if(info>10)
+  error('SNOPT info is %d, InverseKinTraj fails to solve the problem',info);
+end
+toc
 % display('IK matlab start to solve the problem');
 % tic
 % [xtraj,info,infeasible_constraint] = inverseKinTraj(r,t,q_seed,q_nom,varargin{1:end-1},ikoptions);

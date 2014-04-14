@@ -138,7 +138,9 @@ void mexFunction(int nlhs, mxArray *plhs[],int nrhs, const mxArray *prhs[])
         if(field_str=="robot")
         {
           RigidBodyManipulator* robot = (RigidBodyManipulator*) getDrakeMexPointer(prhs[2]);
-          cnst->updateRobot(robot);
+          AllBodiesClosestDistanceConstraint* cnst_new = new AllBodiesClosestDistanceConstraint(*cnst);
+          cnst_new->updateRobot(robot);
+          plhs[0] = createDrakeConstraintMexPointer((void*) cnst_new,"deleteRigidBodyConstraintmex","AllBodiesClosestDistanceConstraint");
         }
         else
         {
@@ -400,6 +402,22 @@ void mexFunction(int nlhs, mxArray *plhs[],int nrhs, const mxArray *prhs[])
         else
         {
           mexErrMsgIdAndTxt("Drake:updatePtrRigidBodyConstraintmex:BadInputs","RelativePositionConstraint:argument 2 is not accepted");
+        }
+      }
+      break;
+    case RigidBodyConstraint::RelativeQuatConstraintType:
+      {
+        RelativeQuatConstraint* cnst = static_cast<RelativeQuatConstraint*>(constraint);
+        if(field_str == "robot")
+        {
+            RigidBodyManipulator* robot = (RigidBodyManipulator*) getDrakeMexPointer(prhs[2]);
+            RelativeQuatConstraint* cnst_new = new RelativeQuatConstraint(*cnst);
+            cnst_new->updateRobot(robot);
+            plhs[0] = createDrakeConstraintMexPointer((void*)cnst_new,"deleteRigidBodyConstraintmex","RelativeQuatConstraint");
+        }
+        else
+        {
+          mexErrMsgIdAndTxt("Drake:updatePtrRigidBodyConstraintmex:BadInputs","RelativeQuatConstraint:argument 2 is not accepted");
         }
       }
       break;

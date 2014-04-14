@@ -5,11 +5,6 @@ function addpath_drake
 % directing you to their location.
 %
 
-try
-  load drake_config.mat; 
-catch
-  conf=struct();
-end
 conf.root = pwd;
 
 if ~exist('pods_get_base_path','file')
@@ -51,6 +46,7 @@ addpath(fullfile(conf.root,'systems','plants'));
 addpath(fullfile(conf.root,'systems','plants','affordance'));
 addpath(fullfile(conf.root,'systems','plants','collision'));
 addpath(fullfile(conf.root,'systems','plants','constraint'));
+addpath(fullfile(conf.root,'systems','plants','trajOpt'));
 addpath(fullfile(conf.root,'systems','controllers'));
 addpath(fullfile(conf.root,'systems','observers'));
 addpath(fullfile(conf.root,'systems','trajectories'));
@@ -81,8 +77,16 @@ else
   conf.simulink_enabled = true;
 end
 
-setenv('PATH_LICENSE_STRING','2069810742&Courtesy_License&&&USR&2013&14_12_2011&1000&PATH&GEN&31_12_2013&0_0_0&0&0_0');
-conf.pathlcp_enabled = true;
+setenv('PATH_LICENSE_STRING', '1926793586&Courtesy&&&USR&54782&7_1_2014&1000&PATH&GEN&31_12_2015&0_0_0&5000&0_0');
+  
+try
+  x = pathlcp(speye(500),-ones(500,1));
+  valuecheck(x,ones(500,1));
+  conf.pathlcp_enabled = true;
+catch
+  disp('The cached PATH license is out of date, and PATH will fail to solve larger problems. Please report this bug.');
+  conf.pathlcp_enabled = false;
+end
 
 %conf.pathlcp_enabled = ~isempty(getenv('PATH_LICENSE_STRING'));
 %if (~conf.pathlcp_enabled)
