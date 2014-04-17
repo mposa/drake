@@ -2,7 +2,7 @@
 %degree in eqn 5, 5e-6,1e-6, 1e-5
 
 megaclear
-for iter = 48:80,
+for iter = 1:2,
 display(sprintf('Starting iter %d',iter))
 do_backoff = true;
 sos_option = 1;
@@ -39,7 +39,7 @@ g = 9.81;
 prog = spotsosprog();
 
 % file_prefix = 'lowdeg_skinny_cubic_controller_taylor_iter_%d';
-file_prefix = 'zscale_skinny_cubic_controller_taylor_iter_%d';
+file_prefix = 'no_help_zscale_skinny_cubic_controller_taylor_iter_%d';
 % file_prefix = 'sdsos_zscale_skinny_cubic_controller_taylor_iter_%d';
 if iter > 0
   load(datapath(sprintf(file_prefix,iter-1)))
@@ -78,9 +78,10 @@ options = spotprog.defaultOptions;
 options.verbose = 1;
 options.verbose = 1;
 options.trig.enable = false;
-options.clean_primal = true;
 options.scale_monomials = true;
-options.regularize = true;
+
+options.clean_primal = false;
+options.regularize = false;
 
 if iter == 0,
   options.regularize_eps = 5e-6;

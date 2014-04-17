@@ -49,6 +49,10 @@ classdef (InferiorClasses = {?msspoly}) TrigPoly
       obj.p=obj.q;
     end
     
+    function p=double(obj)
+      p = zeros(size(obj.q));
+    end
+    
     function p=getmsspoly(obj)
       p=obj.p;
     end

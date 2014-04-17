@@ -78,6 +78,12 @@
     </visual>
   </link>
 
+  <collision_filter_group name="feet">
+    <member link="toe1"/>
+    <member link="toe2"/>
+    <ignored_collision_filter_group collision_filter_group="feet"/>
+  </collision_filter_group>
+
   <joint name="joint1" type="fixed">
     <origin xyz="0 0 0" rpy="0 0.1963 0" />
     <parent link="center"/>

@@ -6,8 +6,15 @@ function [prog, eqn, mult, coefmult ] = spotless_add_sprocedure(prog, eqn, h, va
 %   eqn_deg = eqn_deg + 1;
 % end
 % degree = max(2,min(degree, 2*floor((eqn_deg - deg(h))/2)));
-if length(degree) == 1
-  degree = [0 degree];
+
+if isa(degree,'msspoly')
+  mons = degree;
+  degree = [0 deg(mons)];
+else
+  if length(degree) == 1
+    degree = [0 degree];
+  end
+  mons = monomials(vars,degree(1):degree(2));
 end
 if nargin < 6
   sos_option = 1;
@@ -18,11 +25,12 @@ end
 switch sos_option
   case 1
 %     [prog,mult,coefmult] = prog.newSOSPoly(monomials(vars,0:degree));
-    [prog,mult,coefmult] = prog.newSOSPoly2(monomials(vars,degree(1):degree(2)),@newPSD,spot_option);
+    [prog,mult,coefmult] = prog.newSOSPoly2(mons,@newPSD,spot_option);
+%     [prog,mult,coefmult] = prog.newSOSPoly(mons);
   case 2
-    [prog,mult,coefmult] = prog.newSDSOSPoly(monomials(vars,degree(1):degree(2)));
+    [prog,mult,coefmult] = prog.newSDSOSPoly(mons);
   case 3
-    [prog,mult,coefmult] = prog.newDSOSPoly(monomials(vars,degree(1):degree(2)));
+    [prog,mult,coefmult] = prog.newDSOSPoly(mons);
 end
 
 eqn = eqn - h*mult;

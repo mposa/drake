@@ -12,8 +12,9 @@ c = c_vec(3);
 
 %%
 
-% load flex_mult_afix_iter_49'
-load(datapath('sq_lowmu_flex_mult_afix_iter_14'))
+% load(datapath('flex_mult_afix_iter_48'))
+load(datapath('no_help_sq_lowmu_flex_mult_afix_iter_17'))
+% load(datapath('sq_lowmu_flex_mult_afix_iter_14'))
 
 % D = 0;
 % AO = eye(6);

@@ -1,5 +1,5 @@
 megaclear
-for iter = 0:20,
+for iter = 0:2,
 display(sprintf('Starting iter %d',iter))
 sos_option = 2;
 
@@ -76,9 +76,9 @@ options.verbose = 1;
 options.trig.enable = true;
 options.trig.sin = [s;s_th];
 options.trig.cos = [c;c_th];
-options.clean_primal = true;
+options.clean_primal = false;
 options.scale_monomials = true;
-options.regularize = true;
+options.regularize = false;
 
 
 %% Dynamics
@@ -111,7 +111,7 @@ C = clean(C);
 
 %% Lyapunov function
 if iter > 0
-  load(datapath(sprintf('sdd_iter_%d',iter-1)))
+  load(datapath(sprintf('iter_%d',iter-1)))
 end
 %   load(sprintf('iter_%d',iter-2))
 
@@ -434,10 +434,10 @@ if even(iter)
   sos4_mult = sol.eval(sos4_mult);
   sos5_mult = sol.eval(sos5_mult);
   
-  save(datapath(strcat(sprintf('sdd_iter_%d',iter))),'Vsol','bsol','vmsol','Usol','R','AO','AI','D','sos1_mult','sos2_mult','sos3_mult','sos4_mult','sos5_mult')
+  save(datapath(strcat(sprintf('iter_%d',iter))),'Vsol','bsol','vmsol','Usol','R','AO','AI','D','sos1_mult','sos2_mult','sos3_mult','sos4_mult','sos5_mult')
 else
   sos6_mult = sol.eval(sos6_mult)*double(sol.eval(rho_Vo));
-  save(datapath(strcat(sprintf('sdd_iter_%d',iter))),'Vsol','bsol','vmsol','Usol','R','AO','AI','D','sos6_mult')
+  save(datapath(strcat(sprintf('iter_%d',iter))),'Vsol','bsol','vmsol','Usol','R','AO','AI','D','sos6_mult')
 end
 
 end

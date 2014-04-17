@@ -1,6 +1,8 @@
 % load(datapath('torso_cubic_controller_taylor_iter_39'))
-load(datapath('zscale_torso_cubic_controller_taylor_iter_2'))
-load torso_taylor_eom_fix
+% load(datapath('zscale_torso_cubic_controller_taylor_iter_4'))
+load(datapath('zscale_skinny_cubic_controller_taylor_iter_70'));
+load skinny_taylor_eom
+% load torso_taylor_eom_fix
 z_scale = .1;
 
 q = msspoly('q',4);

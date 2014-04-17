@@ -33,7 +33,7 @@ kinsol = p.doKinematics(q_trig);
 
 cp = clean(p.contactPositions(kinsol));
 
-phi = getmsspoly(cp(3,:)');
+phi = getmsspoly(cp(3,3:4)');
 % phidot = diff(phi,[z;s;c])*[zd;pitchd*c;-pitchd*s];
 % psi = diff(getmsspoly(cp(1,:)'),[x;z;s;c])*[xd;zd;pitchd*c;-pitchd*s];
 

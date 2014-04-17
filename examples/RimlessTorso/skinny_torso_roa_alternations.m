@@ -1,5 +1,5 @@
 megaclear
-for iter = 0:2,
+for iter = 0:0,
 display(sprintf('Starting iter %d',iter))
 sos_option = 1;
 
@@ -76,9 +76,10 @@ options.verbose = 1;
 options.trig.enable = true;
 options.trig.sin = [s;s_th];
 options.trig.cos = [c;c_th];
-options.clean_primal = true;
+options.clean_primal = false;
 options.scale_monomials = true;
-options.regularize = true;
+options.regularize = false;
+options.regularize_eps = 1e-6;
 
 
 %% Dynamics
