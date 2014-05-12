@@ -9,6 +9,34 @@
       <mass value="1"/>
       <inertia ixx="0"  ixy="0"  ixz="0" iyy="0" iyz="0" izz="0" />
     </inertial>
+    <visual>
+      <origin xyz="0 .1 0" rpy="0 0 0"/>
+      <geometry>
+          <sphere radius=".06"/>
+      </geometry>
+      <material name="black">
+        <color rgba="0 0 0 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin xyz="0 0.05 0" rpy="0 0 0"/>
+      <geometry>
+          <sphere radius=".08"/>
+      </geometry>
+      <material name="dgrey">
+        <color rgba=".5 .5 .5 1"/>
+      </material>
+    </visual>
+
+    <visual>
+      <origin xyz="0 -.1 -.3" rpy="0 1.5708 0"/>
+      <geometry>
+          <cylinder radius="0.02" length=".1"/>
+      </geometry>
+      <material name="dgrey">
+        <color rgba=".5 .5 .5 1"/>
+      </material>
+    </visual>
   </link>
   <link name="leg1" >
     <inertial>
@@ -19,8 +47,11 @@
     <visual>
       <origin xyz="0 0 -.5" rpy="0 0 0"/>
       <geometry>
-        <cylinder radius="0.03" length="1"/>
+        <cylinder radius="0.02" length="1"/>
       </geometry>
+      <material name="dgrey">
+        <color rgba=".5 .5 .5 1"/>
+      </material>
     </visual>
   </link>
   <link name="leg2" >
@@ -32,8 +63,11 @@
     <visual>
       <origin xyz="0 0 -.5" rpy="0 0 0"/>
       <geometry>
-        <cylinder radius="0.03" length="1"/>
+        <cylinder radius="0.02" length="1"/>
       </geometry>
+      <material name="dgrey">
+        <color rgba=".5 .5 .5 1"/>
+      </material>
     </visual>
   </link>
   <link name="toe1">
@@ -46,9 +80,13 @@
     <visual>
       <origin xyz="0 0 0"/>
       <geometry>
-        <sphere radius="0.01"/>
+        <sphere radius="0.015"/>
       </geometry>
+      <material name="black">
+        <color rgba="0 0 0 1"/>
+      </material>
     </visual>
+
   </link>
   <link name="toe2">
     <collision>
@@ -60,8 +98,11 @@
     <visual>
       <origin xyz="0 0 0"/>
       <geometry>
-        <sphere radius="0.01"/>
+        <sphere radius="0.015"/>
       </geometry>
+      <material name="black">
+        <color rgba="0 0 0 1"/>
+      </material>
     </visual>
   </link>
   <link name="torso" >
@@ -73,8 +114,11 @@
     <visual>
       <origin xyz="0 0 .375" rpy="0 0 0"/>
       <geometry>
-        <cylinder radius="0.03" length=".75"/>
+        <cylinder radius="0.02" length=".75"/>
       </geometry>
+      <material name="dgrey">
+        <color rgba=".5 .5 .5 1"/>
+      </material>
     </visual>
   </link>
 

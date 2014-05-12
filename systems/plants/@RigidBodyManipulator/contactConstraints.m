@@ -44,7 +44,7 @@ idxB = idxB';
 nC = length(phi);
 
 % For now, all coefficients of friction are 1
-mu = ones(nC,1);
+mu = .2*ones(nC,1);
 
 d = obj.surfaceTangents(normal);
 if compute_first_derivative

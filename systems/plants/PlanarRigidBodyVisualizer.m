@@ -43,7 +43,7 @@ classdef PlanarRigidBodyVisualizer < RigidBodyVisualizer
           x = reshape(pts(1,:),size(obj.body(i).x{j}));
           y = reshape(pts(2,:),size(obj.body(i).y{j}));
           z = reshape(pts(3,:),size(obj.body(i).z{j}));
-          patch(x,y,z,c,'LineWidth',.01,'EdgeColor',obj.fade_percent*obj.fade_color); %0*xpts,'FaceColor','flat','FaceVertexCData',body.geometry.c);
+          patch(x,y,z,c,'EdgeAlpha',1,'LineWidth',.01,'EdgeColor',obj.fade_percent*obj.fade_color); %0*xpts,'FaceColor','flat','FaceVertexCData',body.geometry.c);
           % patch(xpts,ypts,body.geometry{j}.c,'EdgeColor','none','FaceAlpha',1); %0*xpts,'FaceColor','flat','FaceVertexCData',body.geometry.c);
 
           % for debugging:

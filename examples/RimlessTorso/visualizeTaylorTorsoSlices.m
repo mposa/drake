@@ -1,6 +1,7 @@
 % load(datapath('torso_cubic_controller_taylor_iter_39'))
 % load(datapath('zscale_torso_cubic_controller_taylor_iter_4'))
-load(datapath('zscale_skinny_cubic_controller_taylor_iter_70'));
+load(datapath('zscale_skinny_cubic_controller_taylor_iter_68'));
+% load(datapath('zscale_skinny_cubic_controller_taylor_iter_51'));
 load skinny_taylor_eom
 % load torso_taylor_eom_fix
 z_scale = .1;
@@ -14,6 +15,7 @@ z = q(2);
 pitch = q(3);
 theta = q(4);
 thetad = qd(4);
+pitchd = qd(3);
 xd = qd(1);
 zd = qd(2);
 
@@ -34,17 +36,20 @@ TA = diag([1/z_scale;ones(6,1)]);
 AO = TA'*AO*TA;
 AI = TA'*AI*TA;
 
-K = [10 1];
-
-f_free = subs(f_free,u,-K*[theta;thetad]);
+% K = [10 1];
+controllersol = subs(controllersol,z,z/z_scale);
+f_free = subs(f_free,u,controllersol);
 Vdot_free = diff(Vsol,q)*qd + diff(Vsol,qd)*f_free;
 Vdot_impact_1 = diff(Vsol,qd)*f_impact_1;
 Vdot_impact_2 = diff(Vsol,qd)*f_impact_2;
 
 
-pitch_val =  -.5:.05:.5;
-z_range = 0:.01:.2;
-theta_val =  -.5:.05:.5;
+pitch_val =  -.3:.01:.3;
+z_range = 0:.001:.03;
+theta_val =  -.5:.01:.5;
+
+pitchd_val = linspace(-4,4,300);
+thetad_val = linspace(-4,4,300);
 %%
 % load iter_4
 % rho_i = R;
@@ -156,6 +161,7 @@ h_Bo = ball_vec'*Ao2*ball_vec;
 h_Bi = ball_vec'*Ai*ball_vec;
 Vsub = subs(Vsol,qd,zeros(4,1));
 Vdot_freesub = subs(Vdot_free,qd,zeros(4,1));
+controllersolsub = subs(controllersol,qd,zeros(4,1));
 
 % theta =  -.5:.05:.5;
 % pitch =  -.5:.05:.5;
@@ -176,18 +182,27 @@ BOval = reshape(full(BOval),size(Z,1),size(Z,2),[]);
 PHIval = min(dmsubs(phi,[z;pitch;theta],[Z(:) PITCH(:) THETA(:)]'));
 PHIval = reshape(full(PHIval),size(Z,1),size(Z,2),[]);
 
+Uval = dmsubs(controllersolsub,[z;pitch;theta],[Z(:) PITCH(:) THETA(:)]');
+Uval = reshape(Uval,size(PITCH,1),[]);
+
+I = find(PHIval < -.01 | BOval > rho_o);
+Vval(I) = Vval(I) + 10;
+
 figure(3)
 close(3)
 figure(3)
+h = axes;
 hold off
 surf=isosurface(PITCH,THETA,Z,Vval,1);
 p=patch(surf);
+% set(p,'facecolor','blue','edgecolor','none')
 set(p,'facecolor','blue')
-% set(p,'edgealpha',0)
+set(p,'edgealpha',.02)
 alpha(.5)
-xlabel('Pitch')
-ylabel('Theta')
-zlabel('z')
+xlabel('{\theta} (rad)','FontSize',24)
+ylabel('{\phi} (rad)','FontSize',24)
+zlabel('z (m)','FontSize',24)
+set(gca,'FontSize',24)
 hold on
 % isosurface(PITCH,THETA,Z,BIval,rho_i);
 % alpha(.5)
@@ -197,7 +212,8 @@ p = patch(surf);
 set(p,'facecolor','red')
 set(p,'edgealpha',0)
 alpha(.3);
-
+set(h,'LineWidth',2)
+legend('Verified Region','Inadmissible Region')
 % [PITCH_PHI,THETA_PHI] = meshgrid(pitch,theta);
 % % z_phi = -( - (8321567036706119*cos(pitch))/9007199254740992 - (215431620425035*sin(abs(pitch)))/562949953421312 + 1040195879588265/1125899906842624);
 % z_phi = max(-double(subs(dmsubs(phi,[s;c],[sin(pitch);cos(pitch)]),z,0)));
@@ -206,6 +222,62 @@ alpha(.3);
 % 
 % surf(PITCH_PHI,THETA_PHI,Z_PHI')
 % alpha(.3);
+
+% figure(5)
+% scatter3(PITCH(:),THETA(:),Z(:),10,Uval(:))
+%%
+
+load(datapath('torso_tmp_data'))
+xf_norm = sum(xf_vec(2:end,:).*xf_vec(2:end,:));
+figure(4)
+hold off
+pitchd_val = linspace(-5,5,100);
+thetad_val = linspace(-5,5,100);
+[PITCHD,THETAD] = meshgrid(pitchd_val,thetad_val);
+scatter(PITCHD(xf_norm < 1),THETAD(xf_norm < 1),'r*')
+hold on
+
+ball_vec = [0;0;0;0;0;pitchd;thetad];
+% Ao2(4,4) = 1;
+% Ao2(5,5) = 1;
+
+h_Bo = ball_vec'*Ao2*ball_vec;
+% h_Bo2 = .1 - (2-c-c_th) - z^2 - .05*.5*qd'*H*qd;
+
+%searched for V with .01, worked
+h_Bi = ball_vec'*Ai*ball_vec; %worked with .01 and E, but failed sdsos
+Vsub = subs(Vsol,[z;pitch;theta;xd;zd],[zeros(5,1)]);
+[THETAD,PITCHD] = meshgrid(thetad_val,pitchd_val);
+
+Vval = dmsubs(Vsub,[pitchd;thetad],[PITCHD(:) THETAD(:)]');
+Vval = reshape(Vval,size(PITCHD,1),[]);
+
+
+BIval = dmsubs(h_Bi,[pitchd;thetad],[PITCHD(:) THETAD(:)]');
+BIval = reshape(BIval,size(PITCHD,1),[]);
+
+BOval = dmsubs(h_Bo,[pitchd;thetad],[PITCHD(:) THETAD(:)]');
+BOval = reshape(BOval,size(PITCHD,1),[]);
+
+% figure(4)
+% hold off
+[cl, h] = contour(PITCHD,THETAD,Vval,[1 1],'b','LineWidth',3);
+% clabel(cl,h);
+hold on
+[cl, h] = contour(PITCHD,THETAD,BIval,[rho_i rho_i],'k','LineWidth',3);
+% clabel(cl,h);
+
+% [cl, h] = contour(PITCHD,THETAD,BOval,[rho_o rho_o],'m','LineWidth',3);
+% clabel(cl,h);
+xlabel('{\theta} (rad/s)','FontSize',24)
+ylabel('{\phi} (rad/s)','FontSize',24)
+set(gca,'FontSize',24)
+
+controllersolsub = subs(controllersol,[z;pitch;theta;xd;zd],[zeros(5,1)]);
+
+Uval = dmsubs(controllersolsub,[pitchd;thetad],[PITCHD(:) THETAD(:)]');
+Uval = reshape(Uval,size(PITCHD,1),[]);
+% [cl, h] = contour(PITCHD,THETAD,Uval,-35:2:35);
 
 %%
 doSampleVdot = false;
@@ -224,16 +296,17 @@ if doSampleVdot
     rad_i(i) = x_val(:,i)'*AI*x_val(:,i);
   end
    Vdotval = dmsubs(Vdot_free,[z;pitch;theta;qd],x_val);
+   Vval = dmsubs(Vsol,[z;pitch;theta;qd],x_val);
    PHIval = dmsubs(phi,[z;pitch;theta;qd],x_val);
    BOval = dmsubs(h_Bo,[z;pitch;theta;qd],x_val);
    psival = dmsubs(psi,[z;pitch;theta;qd],x_val);
    phidotval = dmsubs(phidot,[z;pitch;theta;qd],x_val);
-   lxval = -sign(psival);
+   lxval = -.2*sign(psival);
    Vdotimpact1val = dmsubs(Vdot_impact_1,[z;pitch;theta;qd;lx(1)],[x_val; lxval(1,:)]);
    Vdotimpact2val = dmsubs(Vdot_impact_2,[z;pitch;theta;qd;lx(2)],[x_val; lxval(2,:)]);
-   
-   maxVdot = max(Vdotval(BOval < rho_o & min(PHIval) > 0))
-   max(Vdotimpact1val(abs(PHIval(1,:)) < 1e-3 & BOval < rho_o & PHIval(2,:) > 0 & phidotval(1,:) < 0))
-   max(Vdotimpact2val(abs(PHIval(2,:)) < 1e-3 & BOval < rho_o & PHIval(1,:) > 0 & phidotval(2,:) < 0))
+   minV = min(Vval(BOval < rho_o & min(PHIval) > 0))
+%    maxVdot = max(Vdotval(BOval < rho_o & min(PHIval) > 0 & Vval < 1))
+%    max(Vdotimpact1val(abs(PHIval(1,:)) < 1e-3 & BOval < rho_o & PHIval(2,:) > 0 & phidotval(1,:) < 0 & Vval < 1))
+%    max(Vdotimpact2val(abs(PHIval(2,:)) < 1e-3 & BOval < rho_o & PHIval(1,:) > 0 & phidotval(2,:) < 0 & Vval < 1))
    
 end

@@ -12,8 +12,8 @@ c = c_vec(3);
 
 %%
 
-% load(datapath('flex_mult_afix_iter_48'))
-load(datapath('no_help_sq_lowmu_flex_mult_afix_iter_17'))
+load(datapath('flex_mult_afix_iter_48'))
+load(datapath('no_help_sq_lowmu_flex_mult_afix_iter_13'))
 % load(datapath('sq_lowmu_flex_mult_afix_iter_14'))
 
 % D = 0;
@@ -31,7 +31,8 @@ h_Bi = ball_vec'*AI*ball_vec; %worked with .01 and E, but failed sdsos
 Vsub = subs(Vsol,qd,zeros(3,1));
 
 pitch =  -.5:.01:.5;
-[PITCH,Z] = meshgrid(pitch,0:.001:.15);
+pitch = -.2:.01:.8;
+[PITCH,Z] = meshgrid(pitch,0:.001:.13);
 C = cos(PITCH);
 S = sin(PITCH);
 
@@ -47,15 +48,15 @@ BOval = reshape(BOval,size(C,1),[]);
 figure(1)
 hold off
 [cl, h] = contour(PITCH,Z,Vval,[1 1],'b','Linewidth',3);
-xlabel('{\theta} (rad)','FontSize',14)
-ylabel('z (m)','FontSize',14)
-clabel(cl,h);
+xlabel('{\theta} (rad)','FontSize',24)
+ylabel('z (m)','FontSize',24)
+% clabel(cl,h);
 hold on
-[cl, h] = contour(PITCH,Z,BIval,[rho_i rho_i]);
-clabel(cl,h);
+[cl, h] = contour(PITCH,Z,BIval,[rho_i rho_i],'k','Linewidth',3);
+% clabel(cl,h);
 
-[cl, h] = contour(PITCH,Z,BOval,[rho_o rho_o]);
-clabel(cl,h);
+[cl, h] = contour(PITCH,Z,BOval,[rho_o rho_o],'m','Linewidth',3);
+% clabel(cl,h);
 
 cpi8 = cos(pi/8);
 spi8 = sin(pi/8);
@@ -66,3 +67,4 @@ Z_PHI = max(msubs(z_phi,[s;c],[sin(pitch); cos(pitch)]));
 
 % z_phi = -( - (8321567036706119*cos(pitch))/9007199254740992 - (215431620425035*sin(abs(pitch)))/562949953421312 + 1040195879588265/1125899906842624);
 plot(pitch,Z_PHI,'r','Linewidth',3)
+set(gca,'FontSize',24)
