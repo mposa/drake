@@ -25,7 +25,7 @@ end
 switch sos_option
   case 1
 %     [prog,mult,coefmult] = prog.newSOSPoly(monomials(vars,0:degree));
-    [prog,mult,coefmult] = prog.newSOSPoly2(mons,@newPSD,spot_option);
+    [prog,mult,coefmult] = prog.newSOSPolyCompressed(mons,@newPSD,spot_option);
 %     [prog,mult,coefmult] = prog.newSOSPoly(mons);
   case 2
     [prog,mult,coefmult] = prog.newSDSOSPoly(mons);

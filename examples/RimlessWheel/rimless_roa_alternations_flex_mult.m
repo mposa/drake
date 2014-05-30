@@ -1,6 +1,6 @@
 % clear all
 megaclear
-for iter=18:20,
+for iter=1:2,
 display(sprintf('Starting iter %d',iter))
 sos_option = 1;
 do_backoff = 0;
@@ -10,20 +10,21 @@ do_eig = 0;
 switch sos_option
   case 1
 %     sos_fun = @spot_sedumi;
-    sos_fun = @spot_mosek_sos;
+%     sos_fun = @spot_mosek_sos;
 %     sos_fun = @spot_sdpnal;
     withSOS_fun = @withSOS;
     PSD_fun = @newPSD;
   case 2
-    sos_fun = @spot_mosek_sdsos;
+%     sos_fun = @spot_mosek_sdsos;
     withSOS_fun = @withSDSOS;
     PSD_fun = @newSDD;
   case 3
-    sos_fun = @spot_mosek_dsos;
+%     sos_fun = @spot_mosek_dsos;
 %     sos_fun = @spot_gurobi_dsos;7
     withSOS_fun = @withDSOS;
     PSD_fun = @newDD;
 end
+sos_fun= @spot_mosek;
 
 % degree = 4;
 V_degree = 4;
