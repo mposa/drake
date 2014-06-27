@@ -3,7 +3,6 @@ classdef NonlinearProgramWKinsol < NonlinearProgramWConstraintObjects
   % evaluating nonlinear constraints
   properties(SetAccess = protected)
     robot
-    x_name
   end
   properties(Access=protected)
     nq
