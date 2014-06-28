@@ -40,7 +40,6 @@ classdef InverseKinTraj < NonlinearProgramWConstraintObjects
     qd0_idx  
     qdf_idx  
     qsc_weight_idx
-    x_name
     robot
 
     % nT-element vector of indices into the shared_data, where

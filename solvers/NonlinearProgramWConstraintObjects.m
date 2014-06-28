@@ -17,6 +17,7 @@ classdef NonlinearProgramWConstraintObjects < NonlinearProgram
     ceq_name % A cell array of strings. ceq_name{i} is the name of i'th nonlinear equality constraint
     Ain_name % A cell array of strings. Ain_name{i} is the name of i'th linear inequality constraint
     Aeq_name % A cell array of strings. Aeq_name{i} is the name of i'th linear equality constraint
+    x_name % A cell of strings. x_name{i} is the name of x(i)
   end
   
   properties(SetAccess = protected)
@@ -52,9 +53,18 @@ classdef NonlinearProgramWConstraintObjects < NonlinearProgram
   end
   
   methods
-    function obj = NonlinearProgramWConstraintObjects(num_vars)
+    function obj = NonlinearProgramWConstraintObjects(num_vars,x_name)
       % @param num_vars     -- The number of decision variables
       obj = obj@NonlinearProgram(num_vars,0,0);
+      if(nargin<2)
+        x_name = cellfun(@(i) sprintf('x%d',i),num2cell((1:obj.num_vars)'),'UniformOutput',false);
+      else
+        if(~iscellstr(x_name) || numel(x_name) ~= num_vars)
+          error('Drake:NonlinearProgramWConstraintObjects:InvalidArgument','Argument x_name should be a cell containing %d strings',num_vars);
+        end
+        x_name = x_name(:);
+      end
+      obj.x_name = x_name;
       obj.nlcon = {};
       obj.lcon = {};
       obj.bbcon = {};
@@ -78,15 +88,15 @@ classdef NonlinearProgramWConstraintObjects < NonlinearProgram
       obj.cost_dataind = {};
     end
     
-    function obj = addCompositeConstraints(obj,cnstr,xind,data_ind)
+    function obj = addCompositeConstraint(obj,cnstr,xind,data_ind)
       % add a CompositeConstraint to the object, change the constraint evalation of the
       % program.
-      % @param mgr     -- A CompositeConstraint object
+      % @param cnstr     -- A CompositeConstraint object
       % @param xind      -- Optional argument. The x(xind) is the decision variables used
       % in evaluating the cnstr. Default value is (1:obj.num_vars)
       % @param data_ind  -- Optional argument. shared_data{data_ind} are the data objects used
       if(~isa(cnstr,'CompositeConstraint'))
-        error('Drake:NonlinearProgramWConstraint:UnsupportedConstraint','addCompositeConstraints expects a CompositeConstraint object');
+        error('Drake:NonlinearProgramWConstraint:UnsupportedConstraint','addCompositeConstraint expects a CompositeConstraint object');
       end
       if(nargin<3)
         xind = {(1:obj.num_vars)'};
@@ -106,7 +116,7 @@ classdef NonlinearProgramWConstraintObjects < NonlinearProgram
       for i=1:length(xind)
         xind{i} = [xind{i};(obj.num_vars + 1 : obj.num_vars + n_slack)'];
       end
-      obj = obj.addDecisionVariable(n_slack);
+      obj = obj.addDecisionVariable(n_slack,cnstr.slack_name);
       
       if nargin < 4
         args = {xind};
@@ -115,9 +125,13 @@ classdef NonlinearProgramWConstraintObjects < NonlinearProgram
       end
       
       % add constraints
-      for k=1:length(cnstr.constraints),
+      for k=1:numel(cnstr.constraints)
         obj = obj.addConstraint(cnstr.constraints{k}, args{:});
-      end      
+      end   
+      % add costs
+      for k = 1:numel(cnstr.costs)
+        obj = obj.addCost(cnstr.costs{k},args{:});
+      end
     end
     
     function obj = addConstraint(obj,cnstr,varargin)
@@ -128,7 +142,7 @@ classdef NonlinearProgramWConstraintObjects < NonlinearProgram
       elseif isa(cnstr,'DifferentiableConstraint')
         obj = addDifferentiableConstraint(obj,cnstr,varargin{:});
       elseif isa(cnstr,'CompositeConstraint')
-        obj = addCompositeConstraints(obj,cnstr,varargin{:});
+        obj = addCompositeConstraint(obj,cnstr,varargin{:});
       else
         error('Drake:NonlinearProgramWConstraintObjects:UnsupportedConstraint','Unsupported constraint type');
       end
@@ -362,11 +376,22 @@ classdef NonlinearProgramWConstraintObjects < NonlinearProgram
       G = [G(1,:);G(1+obj.nlcon_ineq_idx,:);G(1+obj.nlcon_eq_idx,:)];
     end
     
-    function obj = addDecisionVariable(obj,num_new_vars)
+    function obj = addDecisionVariable(obj,num_new_vars,var_names)
       % appending new decision variables to the end of the current decision variables
       % @param num_new_vars      -- An integer. The newly added decision variable is an
       % num_new_vars x 1 double vector.
+      % @param var_names    -- An cell of strings. var_name{i} is the name of the i'th new
+      % decision variable
+      if(nargin<3)
+        var_names = cellfun(@(i) sprintf('x%d',i),num2cell(obj.num_vars+(1:num_new_vars)'),'UniformOutput',false);
+      else
+        if(~iscellstr(var_names) || numel(var_names) ~= num_new_vars)
+          error('Drake:NonlinearProgramWConstraintObjects:addDecisionVariable:InvalidArguments','Argument var_names should be a cell containing %d strings',num_new_vars);
+        end
+        var_names = var_names(:);
+      end
       obj.num_vars = obj.num_vars+num_new_vars;
+      obj.x_name = [obj.x_name;var_names];
       obj.x_lb = [obj.x_lb;-inf(num_new_vars,1)];
       obj.x_ub = [obj.x_ub;inf(num_new_vars,1)];
       if(~isempty(obj.Aeq))

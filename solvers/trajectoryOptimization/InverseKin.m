@@ -14,7 +14,6 @@ classdef InverseKin < NonlinearProgramWConstraintObjects
     q_idx   % q=x(q_idx), the robot posture
     qsc_weight_idx   % qsc_weight = x(qsc_weight_idx), the weight used in QuasiStaticConstraint
     nq
-    x_name
     robot
     kinsol_dataind
   end
