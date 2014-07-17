@@ -41,7 +41,8 @@ classdef RigidBodyFlatTerrain < RigidBodyTerrain
       box_width = 1000;
       box_depth = 10;
       geom = RigidBodyBox([box_width;box_width;box_depth]);
-      geom.T(3,4) = -box_depth/2;
+      geom.T(3,4) = -box_depth/2/cos(0);
+      geom.T(1:3,1:3) = roty(0);
       geom.c = [0.5,0.5,0.5];
     end
   end

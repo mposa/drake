@@ -1,0 +1,104 @@
+<?xml version="1.0" ?>
+<robot name="SimpleBalancer" xmlns="http://drake.mit.edu" xmlns:xacro="http://ros.org/wiki/xacro" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://drake.mit.edu ../../doc/drakeURDF.xsd">
+  <link name="base">
+  </link>
+  <link name="base_leg">
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0.5"/>
+      <geometry>
+        <cylinder length="1" radius="0.0075"/>
+      </geometry>
+      <material>
+        <color rgba="1 0 0 1"/>
+      </material>
+    </visual>
+    <inertial>
+      <mass value="5"/>
+      <origin rpy="0 0 0" xyz="0 0 0.5"/>
+      <inertia ixx=".1" ixy="0" ixz="0" iyy=".4" iyz="0" izz=".1"/>
+    </inertial>
+  </link>
+  <link name="swing_ul">
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 -0.375"/>
+      <geometry>
+        <cylinder length=".75" radius="0.0075"/>
+      </geometry>
+      <material>
+        <color rgba="1 0 0 1"/>
+      </material>
+    </visual>
+    <inertial>
+      <mass value="2.5"/>
+      <origin rpy="0 0 0" xyz="0 0 -0.375"/>
+      <inertia ixx=".02" ixy="0" ixz="0" iyy=".1" iyz="0" izz=".02"/>
+    </inertial>
+  </link>
+  <link name="swing_ll">
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 -0.375"/>
+      <geometry>
+        <cylinder length=".75" radius="0.0075"/>
+      </geometry>
+      <material>
+        <color rgba="1 0 0 1"/>
+      </material>
+    </visual>
+    <visual>
+      <origin rpy="0 1.5708 0" xyz="0 0 -0.75"/>
+      <geometry>
+        <cylinder length=".2" radius="0.0075"/>
+      </geometry>
+      <material>
+        <color rgba="0 0 0 1"/>
+      </material>
+    </visual>
+    <inertial>
+      <mass value="2.5"/>
+      <origin rpy="0 0 0" xyz="0 0 -0.375"/>
+      <inertia ixx=".02" ixy="0" ixz="0" iyy=".1" iyz="0" izz=".02"/>
+    </inertial>
+    <!--<collision>
+      <origin rpy="0 0 0" xyz="-.1 0 -.75"/>
+      <geometry>
+        <sphere radius="0"/>
+      </geometry>
+    </collision>
+    <collision>
+      <origin rpy="0 0 0" xyz=".1 0 -.75"/>
+      <geometry>
+        <sphere radius="0"/>
+      </geometry>
+    </collision>-->
+  </link>
+ 
+  <joint name="stance_pin" type="continuous">
+    <origin rpy="0 0 0" xyz="0 0 0"/>
+    <parent link="base"/>
+    <child link="base_leg"/>
+    <axis xyz="0 1 0"/>
+  </joint>
+  <joint name="hip_pin" type="continuous">
+    <origin rpy="0 0 0" xyz="0 0 1"/>
+    <parent link="base_leg"/>
+    <child link="swing_ul"/>
+    <axis xyz="0 1 0"/>
+  </joint>
+  <joint name="knee_pin" type="continuous">
+    <origin rpy="0 0 0" xyz="0 0 -.75"/>
+    <parent link="swing_ul"/>
+    <child link="swing_ll"/>
+    <axis xyz="0 1 0"/>
+  </joint>
+  <transmission name="hip_trans" type="SimpleTransmission">
+    <actuator name="hip_torque"/>
+    <joint name="hip_pin"/>
+    <mechanicalReduction>1</mechanicalReduction>
+  </transmission>
+  <transmission name="knee_trans" type="SimpleTransmission">
+    <actuator name="knee_torque"/>
+    <joint name="knee_pin"/>
+    <mechanicalReduction>1</mechanicalReduction>
+  </transmission>
+</robot>
+

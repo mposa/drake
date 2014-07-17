@@ -1,17 +1,19 @@
 megaclear
 degree = 4;
 
+ground_angle = .1;
+
 finite_time = true;
 T = 5;
 impact_time_scale = .1;
 
 R = 1; % don't change this
-R_diag = [.2 2 2 4];
+R_diag = [.2 2 1 1];
 RT_diag = R_diag;
 % R_diag = [1 1 1 1];
 
 RT = .05;
-theta_bound = .75;
+theta_bound = pi/8;%.75;
 thetaT_bound = .01;
 A = 1/R*diag(1./(R_diag.^2));
 AT = 1/RT*diag(1./(RT_diag.^2));
@@ -21,6 +23,14 @@ g = 9.81;
 
 prog = spotsosprog();
 
+xf_fb = [10.391;-0.0830;.1-pi/8;1.2533;.3639;1.3079]; % from sim
+% xf_fb = [0;0;0;1.2854;-.7264;1.6393];
+% xf = [xf_fb(1);xf_fb(2) - cos(pi/8);sin(xf_fb(3) + pi/8);cos(xf_fb(3) + pi/8);xf_fb(4:6)];
+
+aT = [0;cos(ground_angle)*xf_fb(4) - sin(ground_angle)*xf_fb(5);sin(ground_angle)*xf_fb(4) + cos(ground_angle)*xf_fb(5);xf_fb(6)]
+% aT = zeros(4,1);
+
+%...figure out these conditions
 %% Add indeterminate variables
 q = msspoly('q',4);
 qd = msspoly('qd',3);
@@ -58,33 +68,36 @@ end
 
 % V = g*z + .5*zd^2 + .5*xd^2 + 1/8*pitchd^2;
 
+% Make V and W cyclic
+prog = prog.withEqs(decomp(subs(V,[s;c],[sin(pi/8);cos(pi/8)]) - subs(V,[s;c],[sin(-pi/8);cos(-pi/8)]),[t;q;qd]));
+prog = prog.withEqs(decomp(subs(W,[s;c],[sin(pi/8);cos(pi/8)]) - subs(W,[s;c],[sin(-pi/8);cos(-pi/8)]),[t;q;qd]));
+
 
 %% Dynamics
+
+% do dynamics the right way
 cpi8 = cos(pi/8);
 spi8 = sin(pi/8);
 rt2 = sqrt(2);
-ground_angle = 0;
 f_free=[xd;
     zd;
     c*pitchd;
     -s*pitchd;
-    0;
-    -g
+    g*sin(ground_angle);
+    -g*cos(ground_angle);
     0];
   
 fk_foot{1} = [x + s*cpi8 - c*spi8;z + s*spi8 - c*cpi8 + cpi8];
 fk_foot{2} = [x + s*cpi8 + c*spi8;z - s*spi8 - c*cpi8 + cpi8];
 
-T_contact = [cos(ground_angle) -sin(ground_angle); sin(ground_angle) cos(ground_angle)];
-
-phi{1} = T_contact(2,:)*fk_foot{1};
-phi{2} = T_contact(2,:)*fk_foot{2};
+phi{1} = fk_foot{1}(2,:);
+phi{2} = fk_foot{2}(2,:);
 
 J_fk{1} = diff(fk_foot{1},q);
 J_fk{2} = diff(fk_foot{2},q);
 
-vk_foot{1} = T_contact*J_fk{1}*f_free(1:4);
-vk_foot{2} = T_contact*J_fk{2}*f_free(1:4);
+vk_foot{1} = J_fk{1}*f_free(1:4);
+vk_foot{2} = J_fk{2}*f_free(1:4);
 
 phidot{1} = vk_foot{1}(2);
 phidot{2} = vk_foot{2}(2);
@@ -94,30 +107,6 @@ psi{2} = vk_foot{2}(1);
 
 f_impact = [zeros(4,2); diag([1;1;4])*[1 0 0 0;0 1 0 0; 0 0 c -s]*[J_fk{1}'*[lx(1);lzsq(1)^2] J_fk{2}'*[lx(2);lzsq(2)^2]]]; 
 
-% f_impact=[0, 0;
-%     0, 0;
-%     0, 0;
-%     0, 0;
-%     lx(1), lx(2);
-%     lzsq(1)^2, lzsq(2)^2;
-%     4*lzsq(1)^2*(spi8*c + s*cpi8)- 4*(-lx(1))*(c*cpi8 - s*spi8), 4*lzsq(2)^2*(-spi8*c + s*cpi8)- 4*(-lx(2))*(c*cpi8 + s*spi8)];
-% 
-% phi{1} = z + s*spi8 - c*cpi8 + cpi8;
-% phi{2} = z - s*spi8 - c*cpi8 + cpi8;
-% 
-% phidot{1} = zd + c*pitchd*spi8 + s*pitchd*cpi8;
-% phidot{2} = zd - c*pitchd*spi8 + s*pitchd*cpi8;
-% 
-% psi{1} = xd + c*pitchd*cpi8 - s*pitchd*spi8;
-% psi{2} = xd + c*pitchd*cpi8 + s*pitchd*spi8;
-% 
-% f_free=[xd;
-%     zd;
-%     c*pitchd;
-%     -s*pitchd;
-%     0;
-%     -g
-%     0];
 
 Vdot_free = T*diff(V,[x;z;s;c;xd;zd;pitchd])*f_free + diff(V,t);
 Vdot_impact_1 = diff(V,[x;z;s;c;xd;zd;pitchd])*f_impact(:,1) + impact_time_scale*diff(V,t);
@@ -137,7 +126,7 @@ sos_1 = -Vdot_free;
 sos_2 = -Vdot_impact_1;
 sos_3 = -Vdot_impact_2;
 sos_4 = W - subs(V,t,0) - 1;
-sos_5 = subs(V,t,T);
+sos_5 = V; %subs(V,t,T);  %use V for flexible finite time
 sos_6 = W;
 
 
@@ -171,7 +160,7 @@ coefsig = {};
 
 % Ball constraints
 h_B = 1 - [z;qd]'*A*[z;qd];
-h_BT = 1 - [z;qd]'*AT*[z;qd];
+h_BT = 1 - ([z;qd]-aT)'*AT*([z;qd]-aT);
 
 [prog, sos_1, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_1, h_B, [V_vars], const_deg);
 [prog, sos_2, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_2, h_B, [V_vars;lx(1)], const_deg);
@@ -181,12 +170,14 @@ h_BT = 1 - [z;qd]'*AT*[z;qd];
 [prog, sos_6, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_6, h_B, W_vars, const_deg);
 
 % Angle constraints
+if theta_bound ~= pi
 [prog, sos_1, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_1, c - cos(theta_bound), [V_vars], const_deg);
 [prog, sos_2, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_2, c - cos(theta_bound), [V_vars;lx(1)], const_deg);
 [prog, sos_3, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_3, c - cos(theta_bound), [V_vars;lx(2)], const_deg);
 [prog, sos_4, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_4, c - cos(theta_bound), W_vars, const_deg);
 [prog, sos_5, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_5, c - cos(thetaT_bound), W_vars, const_deg);
 [prog, sos_6, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_6, c - cos(theta_bound), W_vars, const_deg);
+end
 
 % [prog, sos_1, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_1, sin(theta_bound)^2 - s^2, [x_vars], const_deg);
 % [prog, sos_2, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_2, sin(theta_bound)^2 - s^2, [x_vars;lx(1)], const_deg);
@@ -208,6 +199,13 @@ h_BT = 1 - [z;qd]'*AT*[z;qd];
 [prog, sos_3, sig{end+1}, coefsig{end+1}] = spotless_add_eq_sprocedure(prog, sos_3, phi{2}, [V_vars;lx(2)], const_deg+1);
 [prog, sos_3, sig{end+1}, coefsig{end+1}] = spotless_add_eq_sprocedure(prog, sos_3, (lzsq(2)^2 - lx(2)^2)*psi{2}, [V_vars;lx(2)], const_deg-2);  %should this be psi^2?
 
+% time constraints
+[prog, sos_1, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_1, T*t - t^2, [V_vars], const_deg);
+[prog, sos_2, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_2, T*t - t^2, [V_vars;lx(1)], const_deg);
+[prog, sos_3, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_3, T*t - t^2, [V_vars;lx(2)], const_deg);
+[prog, sos_4, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_4, T*t - t^2, W_vars, const_deg);
+[prog, sos_5, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_5, T*t - t^2, W_vars, const_deg);
+[prog, sos_6, sig{end+1}, coefsig{end+1}] = spotless_add_sprocedure(prog, sos_6, T*t - t^2, W_vars, const_deg);
 %% Setup cost function
 [vars,alphas,coeff] = decomp(W, prog.freeVar);
 assert(isequal(vars(4),s))
@@ -252,36 +250,51 @@ options.trig.cos = c;
 options.do_fr = true;
 sol = prog.minimize(coeff*l,@spot_mosek,options);
 
+
 %% Plotting
+close all
 figure
 hold off
-[Z,THETA] = meshgrid(linspace(0,R_diag(1),100),linspace(-theta_bound,theta_bound,100));
+[Z,THETA] = meshgrid(linspace(-R_diag(1),R_diag(1),100),linspace(-theta_bound,theta_bound,100));
 L=prod(size(Z));
-Wval = msubs(sol.eval(W),[q;qd],[zeros(1,L);Z(:)';sin(THETA(:))';cos(THETA(:))';zeros(3,L)]);
+
+qd_data = repmat(aT(2:4),1,L);
+Wval = msubs(sol.eval(W),[q;qd],[zeros(1,L);Z(:)';sin(THETA(:))';cos(THETA(:))';qd_data]);
 Wval=reshape(Wval,size(Z,1),[]);
 [cl,h]=contour(THETA,Z,Wval);
 clabel(cl,h);
 
-theta = linspace(-theta_bound,theta_bound,100);
-z_phi = -( - (8321567036706119*cos(theta))/9007199254740992 - (215431620425035*sin(abs(theta)))/562949953421312 + 1040195879588265/1125899906842624);
+C = cos(THETA);
+S = sin(THETA);
+phi1val = msubs(subs(phi{1},x,0),[z;s;c],[Z(:) S(:) C(:)]');
+phi2val = msubs(subs(phi{2},x,0),[z;s;c],[Z(:) S(:) C(:)]');
+phival = min(phi1val,phi2val);
+phival = reshape(phival,size(C,1),[]);
+
+% theta = linspace(-theta_bound,theta_bound,100);
+% z_phi = -( - (8321567036706119*cos(theta))/9007199254740992 - (215431620425035*sin(abs(theta)))/562949953421312 + 1040195879588265/1125899906842624);
 
 hold on
-plot(theta,z_phi)
+% plot(theta,z_phi)
+contour(THETA,Z,phival,[0 0],'k','Linewidth',3)
 
 figure
-Vval = msubs(sol.eval(subs(V,t,0)),[q;qd],[zeros(1,L);Z(:)';sin(THETA(:))';cos(THETA(:))';zeros(3,L)]);
+Vval = msubs(sol.eval(subs(V,t,0)),[q;qd],[zeros(1,L);Z(:)';sin(THETA(:))';cos(THETA(:))';qd_data]);
 Vval=reshape(Vval,size(Z,1),[]);
 [cl,h]=contour(THETA,Z,Vval);
 clabel(cl,h);
 
 hold on
-plot(theta,z_phi)
+% plot(theta,z_phi)
+contour(THETA,Z,phival,[0 0],'k','Linewidth',3)
+
 
 figure
-Vdfval = msubs(sol.eval(subs(Vdot_free,t,0)),[q;qd],[zeros(1,L);Z(:)';sin(THETA(:))';cos(THETA(:))';zeros(3,L)]);
+Vdfval = msubs(sol.eval(subs(Vdot_free,t,0)),[q;qd],[zeros(1,L);Z(:)';sin(THETA(:))';cos(THETA(:))';qd_data]);
 Vdfval=reshape(Vdfval,size(Z,1),[]);
 [cl,h]=contour(THETA,Z,Vdfval);
 clabel(cl,h);
 
 hold on
-plot(theta,z_phi)
+% plot(theta,z_phi)
+contour(THETA,Z,phival,[0 0],'k','Linewidth',3)

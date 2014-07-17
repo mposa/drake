@@ -12,10 +12,12 @@ c = c_vec(3);
 
 %%
 
-load(datapath('flex_mult_afix_iter_48'))
-load(datapath('no_help_sq_lowmu_flex_mult_afix_iter_13'))
+% load(datapath('flex_mult_afix_iter_48'))
+% load(datapath('no_help_sq_lowmu_flex_mult_afix_iter_13'))
 % load(datapath('sq_lowmu_flex_mult_afix_iter_14'))
-
+% load(datapath('no_help_sq_lowmu_elim_iter_30'))
+load(datapath('reg8_sq_lowmu_elim_iter_50'))
+% 
 % D = 0;
 % AO = eye(6);
 % AI = eye(6);
@@ -31,8 +33,8 @@ h_Bi = ball_vec'*AI*ball_vec; %worked with .01 and E, but failed sdsos
 Vsub = subs(Vsol,qd,zeros(3,1));
 
 pitch =  -.5:.01:.5;
-pitch = -.2:.01:.8;
-[PITCH,Z] = meshgrid(pitch,0:.001:.13);
+% pitch = -.2:.01:.8;
+[PITCH,Z] = meshgrid(pitch,0:.001:.2);
 C = cos(PITCH);
 S = sin(PITCH);
 
