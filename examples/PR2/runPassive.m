@@ -2,13 +2,14 @@ function runPassive
 
 options.ignore_self_collisions = true;
 options.floating = true;
-%options.terrain = [];
+options.terrain = RigidBodyFlatTerrain();
 
 w = warning('off','Drake:RigidBodyManipulator:UnsupportedContactPoints');
 warning('off','Drake:RigidBodyManipulator:UnsupportedJointLimits');
 warning('off','Drake:RigidBodyManipulator:BodyHasZeroInertia');
 warning('off','Drake:RigidBodyManipulator:UnsupportedVelocityLimits');
 warning('off','Drake:RigidBodyGeometry:SimplifiedCollisionGeometry');
+warning('off','Drake:RigidBodyManipulator:ReplacedCylinder');
 r = TimeSteppingRigidBodyManipulator('pr2.urdf',0.001,options);
 warning(w);
 

@@ -1,6 +1,8 @@
+function fallingCapsulesTest
+
 options.floating = true;
+options.terrain = RigidBodyFlatTerrain();
 N = 4;
-% p = TimeSteppingRigidBodyManipulator('Cylinder.urdf',.01,options);
 p = TimeSteppingRigidBodyManipulator('Capsule.urdf',.01,options);
 for i=2:N,
   options.namesuffix = num2str(N);
