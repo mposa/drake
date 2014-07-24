@@ -41,7 +41,7 @@ end
 [phi,normal,xA,xB,idxA,idxB] = collisionDetect(obj,kinsol,allow_multiple_contacts,active_collision_options);
 idxA = idxA';
 idxB = idxB';
-nC = numel(phi);
+nC = length(phi);
 
 % If there are no potential collisions, return empty
 if nC == 0
@@ -103,8 +103,12 @@ if compute_first_derivative
     else
       [~,J_tmp] = obj.forwardKin(kinsol,body_inds(i),[xA(:,cindA) xB(:,cindB)]);
     end
-    J(JindA,:) = J(JindA,:) + J_tmp(1:3*length(cindA),:);
-    J(JindB,:) = J(JindB,:) - J_tmp(3*length(cindA)+1:end,:);
+    if ~isempty(JindA)
+      J(JindA,:) = J(JindA,:) + J_tmp(1:3*length(cindA),:);
+    end
+    if ~isempty(JindB)
+      J(JindB,:) = J(JindB,:) - J_tmp(3*length(cindA)+1:end,:);
+    end
   end
   
 %   for i=1:nC,
