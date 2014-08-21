@@ -4,10 +4,9 @@
 #include <Eigen/Dense>
 #include <Eigen/LU>
 #include <set>
-//#include <vector>
-#include <Eigen/StdVector>
+#include <Eigen/StdVector> //#include <vector>
 
-#include "collision/Model.h"
+#include "collision/DrakeCollision.h"
 
 #include "RigidBody.h"
 #include "RigidBodyFrame.h"
@@ -15,12 +14,13 @@
 #define INF -2147483648
 using namespace Eigen;
 
-extern std::set<int> emptyIntSet;  // was const std:set<int> emptyIntSet, but valgrind said I was leaking memory
+//extern std::set<int> emptyIntSet;  // was const std:set<int> emptyIntSet, but valgrind said I was leaking memory
 
 class RigidBodyManipulator 
 {
 public:
   RigidBodyManipulator(int num_dof, int num_featherstone_bodies=-1, int num_rigid_body_objects=-1, int num_rigid_body_frames=0);
+  virtual ~RigidBodyManipulator(void);
 
   void resize(int num_dof, int num_featherstone_bodies=-1, int num_rigid_body_objects=-1, int num_rigid_body_frames=0);
 
@@ -42,16 +42,16 @@ public:
   template <typename Derived>
   void getCOMdJac(MatrixBase<Derived> &dJ, const std::set<int> &robotnum = RigidBody::defaultRobotNumSet);
 
-  int getNumContacts(const std::set<int> &body_idx = emptyIntSet);
+  int getNumContacts(const std::set<int> &body_idx);// = emptyIntSet);
 
   template <typename Derived>
-  void getContactPositions(MatrixBase<Derived> &pos, const std::set<int> &body_idx = emptyIntSet);
+    void getContactPositions(MatrixBase<Derived> &pos, const std::set<int> &body_idx);// = emptyIntSet);
   
   template <typename Derived>
-  void getContactPositionsJac(MatrixBase<Derived> &J, const std::set<int> &body_idx = emptyIntSet);
+    void getContactPositionsJac(MatrixBase<Derived> &J, const std::set<int> &body_idx);// = emptyIntSet);
   
   template <typename Derived>
-  void getContactPositionsJacDot(MatrixBase<Derived> &Jdot, const std::set<int> &body_idx = emptyIntSet);
+    void getContactPositionsJacDot(MatrixBase<Derived> &Jdot, const std::set<int> &body_idx);// = emptyIntSet);
 
   template <typename DerivedA, typename DerivedB>
   void forwardKin(const int body_or_frame_ind, const MatrixBase<DerivedA>& pts, const int rotation_type, MatrixBase<DerivedB> &x);
@@ -72,8 +72,7 @@ public:
   template <typename DerivedA, typename DerivedB, typename DerivedC, typename DerivedD, typename DerivedE, typename DerivedF>
   void HandC(double* const q, double * const qd, MatrixBase<DerivedA> * const f_ext, MatrixBase<DerivedB> &H, MatrixBase<DerivedC> &C, MatrixBase<DerivedD> *dH=NULL, MatrixBase<DerivedE> *dC=NULL, MatrixBase<DerivedF> * const df_ext=NULL);
 
-
-  void addCollisionElement(const int body_ind, Matrix4d T_elem_to_lnk, DrakeCollision::Shape shape, std::vector<double> params);
+  void addCollisionElement(const int body_ind, Matrix4d T_elem_to_lnk, DrakeCollision::Shape shape, std::vector<double> params, std::string group_name = "default");
 
   void updateCollisionElements(const int body_ind);
 
@@ -99,7 +98,25 @@ public:
                         MatrixXd& xA, MatrixXd& xB, 
                         std::vector<int>& bodyA_idx, 
                         std::vector<int>& bodyB_idx,
-                        std::vector<int>& bodies_idx);
+                        const std::vector<int>& bodies_idx,
+                        const std::set<std::string>& active_element_groups);
+
+  bool collisionDetect( VectorXd& phi, MatrixXd& normal, 
+                        MatrixXd& xA, MatrixXd& xB, 
+                        std::vector<int>& bodyA_idx, 
+                        std::vector<int>& bodyB_idx,
+                        const std::vector<int>& bodies_idx);
+
+  bool collisionDetect( VectorXd& phi, MatrixXd& normal, 
+                        MatrixXd& xA, MatrixXd& xB, 
+                        std::vector<int>& bodyA_idx, 
+                        std::vector<int>& bodyB_idx,
+                        const std::set<std::string>& active_element_groups);
+
+  bool collisionDetect( VectorXd& phi, MatrixXd& normal, 
+                        MatrixXd& xA, MatrixXd& xB, 
+                        std::vector<int>& bodyA_idx, 
+                        std::vector<int>& bodyB_idx);
 
 
   bool allCollisions(std::vector<int>& bodyA_idx, std::vector<int>& bodyB_idx, 
@@ -109,6 +126,9 @@ public:
   
   int findLinkInd(std::string linkname, int robot = -1);
   //@param robot   the index of the robot. robot = -1 means to look at all the robots
+  
+  std::string getBodyOrFrameName(int body_or_frame_id);
+  //@param body_or_frame_id   the index of the body or the id of the frame. 
 public:
   std::vector<std::string> robot_name;
 
@@ -191,9 +211,14 @@ private:
   int secondDerivativesCached;
 
   std::shared_ptr< DrakeCollision::Model > collision_model;
+  
+public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 
+/*
 template<typename T> int sgn(T val) {
   return (T(0) < val) - (val < T(0));
 };
+*/
 #endif

@@ -32,20 +32,28 @@ classdef MultiCoordinateFrame < CoordinateFrame
         error('you''ve only passed in a single frame.  you should be calling MultiCoordinateFrame.constructFrame instead, to get the correct behavior');
       end
       
+      if isempty(frame_id)
+        for i=1:length(coordinate_frames)
+          frame_id = vertcat(frame_id,repmat(i,coordinate_frames{i}.dim,1));
+        end
+      else
+        rangecheck(frame_id,1,length(coordinate_frames));
+      end
+      
       % if coordinate_frame contains multi-frames, then extract them here
       % (don't allow recursive multi-frames)
       cf = coordinate_frames;
       coordinate_frames={};
-      for i=1:length(cf)
+      for i=length(cf):-1:1
         if isa(cf{i},'MultiCoordinateFrame')
-          coordinate_frames=vertcat(coordinate_frames,cf{i}.frame);
+          coordinate_frames=vertcat(cf{i}.frame,coordinate_frames);
           if ~isempty(frame_id)
             % update frame ids accordingly (by wedging these frames in)
-            frame_id(frame_id>i) = frame_id(frame_id>i)+length(cf{i}.frame);
+            frame_id(frame_id>i) = frame_id(frame_id>i)+length(cf{i}.frame)-1;
             frame_id(frame_id==i) = cf{i}.frame_id + i-1;
           end
         else
-          coordinate_frames=vertcat(coordinate_frames,{cf{i}});
+          coordinate_frames=vertcat({cf{i}},coordinate_frames);
         end
       end
       
@@ -54,41 +62,22 @@ classdef MultiCoordinateFrame < CoordinateFrame
         name = [name,'+',coordinate_frames{i}.name];
         dim = dim+coordinate_frames{i}.dim;
         prefix = vertcat(prefix,coordinate_frames{i}.prefix);
+        coordinates(frame_id==i) = reshape(coordinate_frames{i}.coordinates,[],1);
+        coord_ids{i} = find(frame_id==i);
       end
+      name=name(2:end); % remove extra '+'
       
-      if ~isempty(frame_id)
-        sizecheck(frame_id,dim);
-        rangecheck(frame_id,1,length(coordinate_frames));
-      end
-      
-      for i=1:length(coordinate_frames)
-        c = reshape(coordinate_frames{i}.coordinates,[],1);
-        if isempty(frame_id)
-          coordinates = vertcat(coordinates,c);
-        else
-          coordinates(frame_id==i) = c;
-        end
-      end
-      name=name(2:end);
-      
-      
+      sizecheck(frame_id,dim);
       obj = obj@CoordinateFrame(name,dim,prefix,coordinates);
       obj.frame = coordinate_frames;
       obj.frame_id = frame_id;
+      obj.coord_ids = coord_ids;
+      
+      % add a transform from this multiframe to the child frame
+      % iff the subframes are unique
       for i=1:length(coordinate_frames)
         d = coordinate_frames{i}.dim;
-        if isempty(frame_id)
-          obj.coord_ids{i} = (1:d) + length(obj.frame_id);
-          obj.frame_id = vertcat(obj.frame_id,repmat(i,d,1));
-        elseif d>0
-          obj.coord_ids{i} = find(frame_id==i);
-          sizecheck(obj.coord_ids{i},d);
-        else
-          obj.coord_ids{i} = [];
-        end
-
-        % add a transform from this multiframe to the child frame
-        % iff the subframes are unique
+        
         if ~any(cellfun(@(a) a==coordinate_frames{i},coordinate_frames([1:i-1,i+1:end])))
           T = sparse(1:d,obj.coord_ids{i},1,d,dim);
           tf = AffineTransform(obj,coordinate_frames{i},T,zeros(d,1));
@@ -131,7 +120,8 @@ classdef MultiCoordinateFrame < CoordinateFrame
       % There are two ways to get a transform from this multiframe to
       % another frame.  One is if a transform exists directly from the
       % multi-frame.  The other is if the required transforms exist for ALL
-      % of the child frames.
+      % of the child frames.  see the mimoCascade and mimoFeedback methods
+      % for more complex combinations.
 
       if (nargin<3) options=struct(); end
       if ~isfield(options,'throw_error_if_fail') options.throw_error_if_fail = false; end
@@ -278,6 +268,14 @@ classdef MultiCoordinateFrame < CoordinateFrame
     function fr = getFrameByNum(obj,n)
       rangecheck(n,1,length(obj.frame));
       fr = obj.frame{n};
+    end
+
+    function fr = getFrameByName(obj,name)
+      id = find(cellfun(@(a)strcmp(a.name,name),obj.frame));
+      if length(id)~=1
+        error(['couldn''t find unique frame named ',name]);
+      end
+      fr = obj.frame{id};
     end
     
     function id = getFrameNum(obj,frame)

@@ -17,9 +17,9 @@ classdef BotVisualizer < RigidBodyVisualizer
     function obj = BotVisualizer(manip,use_contact_shapes)
       if nargin < 2, use_contact_shapes = false; end
       
-      global g_disable_botvis;
-      if g_disable_botvis % evaluates to false if empty
-        error('Drake:MissingDependency:BotVisualizerDisabled','botvis is disabled with g_disable_botvis');
+      global g_disable_visualizers;
+      if g_disable_visualizers % evaluates to false if empty
+        error('Drake:MissingDependency:BotVisualizerDisabled','botvis is disabled with g_disable_visualizers');
       end
       
       checkDependency('lcm');
@@ -54,8 +54,10 @@ classdef BotVisualizer < RigidBodyVisualizer
         disp('launching drake_viewer...');
         retval = systemWCMakeEnv([fullfile(pods_get_bin_path,'drake_viewer'),' &> drake_viewer.out &']);
         
+        if ismac % I'm missing valid acks on mac
+          pause(1);
         % listen for ready message
-        if isempty(obj.status_agg.getNextMessage(5000)) % wait for viewer to come up
+        elseif isempty(obj.status_agg.getNextMessage(5000)) % wait for viewer to come up
           error('Drake:BotVisualizer:AutostartFailed','Failed to automatically start up a viewer');
         end
       end
