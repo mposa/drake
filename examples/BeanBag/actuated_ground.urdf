@@ -1,0 +1,79 @@
+<?xml version="1.0" ?>
+<robot name="pount_ground" xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <link name="point">
+    <inertial>
+      <mass value="1"/>
+      <inertia ixx="0.01" ixy="0" ixz="0" iyy="0.01" iyz="0" izz="0.01"/>
+    </inertial>
+    <visual>
+      <origin rpy="0 -0 0" xyz="0 0 0"/>
+      <geometry>
+        <sphere radius=".05"/>
+      </geometry>
+    </visual>
+    <collision>
+      <geometry>
+        <sphere radius="0"/>
+      </geometry>
+    </collision>   
+  </link>
+  <link name="support">
+    <inertial>
+      <mass value="1"/>
+      <inertia ixx="0.01" ixy="0" ixz="0" iyy="0.01" iyz="0" izz="0.01"/>
+    </inertial>
+    <visual>
+      <geometry>
+        <origin xyz="0 0 -.25" rpy="0 0 0"/>
+        <box size=".5 .5 .5"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 -.25" rpy="0 0 0"/>
+      <geometry>
+        <box size=".5 .5 .5"/>
+      </geometry>
+    </collision>   
+  </link>
+  <link name="ground">
+    <visual>
+      <origin xyz="0 0 -1.25" rpy="0 0 0"/>
+      <geometry>
+        <box size="1 1 .5"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 -1.25" rpy="0 0 0"/>
+      <geometry>
+        <box size="1 1 .5"/>
+      </geometry>
+    </collision>   
+  </link>
+
+
+  <joint name="point_joint" type="prismatic">
+    <axis xyz="0 0 1"/>
+    <parent link="ground"/>
+    <child link="point"/>
+  </joint>
+
+
+  <joint name="support_joint" type="prismatic">
+    <axis xyz="0 0 1"/>
+    <parent link="ground"/>
+    <child link="support"/>
+  </joint>
+
+    <transmission name="support_trans" type="SimpleTransmission">
+    <actuator name="support_force"/>
+    <joint name="support_joint"/>
+    <mechanicalReduction>1</mechanicalReduction>
+  </transmission>
+
+<collision_filter_group name="ignore">
+  <!--<member link="ground"/>-->
+  <member link="support"/>
+  <ignored_collision_filter_group collision_filter_group="ignore"/>
+</collision_filter_group>
+
+</robot>
