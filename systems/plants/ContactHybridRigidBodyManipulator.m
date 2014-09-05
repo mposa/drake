@@ -45,12 +45,24 @@ classdef ContactHybridRigidBodyManipulator < HybridDrakeSystem
       nU = length(u);
       
       if any(i_transition)
-        q = x(1:obj.plant.getNumPositions);
-        qd = x(obj.plant.getNumPositions+1:end);
-        [phi,normal,d,xA,xB,idxA,idxB,mu,n,D] = obj.plant.contactConstraints(q);
-        assert(sum(i_transition)  == 1)
-        g = phi(i_transition);
-        dg = [0 n(i_transition,:) zeros(1,length(u))];
+        n_active = length(i_out);
+        
+        q = xm(1:obj.plant.getNumPositions);
+        qd = xm(obj.plant.getNumPositions+1:end);
+        
+        [H,C,B] = obj.plant.manipulatorDynamics(q,qd);
+        
+        [phi,normal,d,xA,xB,idxA,idxB,mu,n,D,dn,dD] = obj.plant.contactConstraints(q);
+        
+        J = zeros(n_active*length(D),size(n,2));
+        J(1:n_active,:) = n(i_out,:);
+        for i=1:length(D),
+          J(n_active*i+1:n_active*(i+1),:) = D{i}(i_out,:);
+        end        
+        
+        qdp = qd -inv(H)*J'*inv(J*inv(H)*J')*J*qd;
+        
+        dqdpdqdm = []; % ugh, fine.
       else
         xp = xm;
         dxp = [zeros(1,nX) eye(nX) zeros(nU,nX)];
