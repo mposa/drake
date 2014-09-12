@@ -8,6 +8,44 @@ if flip_lr
   [xtraj_flipped,utraj_flipped,Btraj_flipped,Straj_flipped] = flipLeftRight(r,xtraj,utraj,Btraj,Straj);
 end
 
+xtraj_N = xtraj;
+utraj_N = utraj;
+Btraj_N = Btraj;
+Straj_N = Straj;
+
+t_shift = xtraj.tspan(2) - xtraj.tspan(1);
+% rewriting this (mposa)
+parity = true;
+
+for i=2:N,
+  if flip_lr
+    parity = ~parity;
+  end
+  
+  if parity
+    xtraj_ = xtraj.shiftTime(t_shift*(i-1));
+    utraj_ = utraj.shiftTime(t_shift*(i-1));
+    for j=1:length(Btraj),
+      Btraj_N{end+1} = Btraj{j}.shiftTime(t_shift*(i-1));
+      Straj_N{end+1} = Straj{j}.shiftTime(t_shift*(i-1));
+    end
+  else
+    xtraj_ = xtraj_flipped.shiftTime(t_shift*(i-1));
+    utraj_ = utraj_flipped.shiftTime(t_shift*(i-1));
+    for j=1:length(Btraj),
+      Btraj_N{end+1} = Btraj_flipped{j}.shiftTime(t_shift*(i-1));
+      Straj_N{end+1} = Straj_flipped{j}.shiftTime(t_shift*(i-1));
+    end      
+  end
+  
+  x0 = xtraj_N.eval(xtraj_N.tspan(2));
+  xtraj_ = xtraj_ + [x0(1);zeros(length(x0)-1,1)];
+  
+  xtraj_N = xtraj_N.append(xtraj_);
+  utraj_N = utraj_N.append(utraj_);
+end
+return
+
 m = length(Straj);
 k=m;
 

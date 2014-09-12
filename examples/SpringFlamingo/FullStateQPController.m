@@ -229,8 +229,13 @@ classdef FullStateQPController < MIMODrakeSystem
       % compute foor placement error
       kinsol0 = r.doKinematics(q0);
       xp0 = forwardKin(r,kinsol0,active_supports,xz_pts,0);
-      xoffset = mean(xp(1,:) - xp0(1,:))
+      if size(xp,2) > 2 && false
+        xoffset = mean(xp(1,end-1:end) - xp0(1,end-1:end));
+      else
+        xoffset = mean(xp(1,:) - xp0(1,:));
+      end
       x0(1) = x0(1) - xoffset;
+      display(sprintf('t=%f, offset=%f',t,xoffset));
       
       % delete y rows
       yind = 2:3:nc*3;
@@ -351,8 +356,8 @@ classdef FullStateQPController < MIMODrakeSystem
       qp_active_set = find(abs(Ain_fqp*alpha - bin_fqp)<1e-6);
       obj.controller_data.qp_active_set = qp_active_set;
     end
-    beta=Ibeta*alpha
-    y = Iu*alpha     
+    beta=Ibeta*alpha;
+    y = Iu*alpha;
     
   end
   end

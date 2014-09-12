@@ -30,7 +30,10 @@ v.display_dt = 0.01;
 
 data_dir = fullfile(getDrakePath,'examples','Atlas','data');
 traj_file = strcat(data_dir,'/atlas_passiveankle_traj_lqr_090314_zoh.mat');
+% traj_file = strcat(data_dir,'/atlas_passiveankle_traj_periodiclqr_091114.mat');
+
 load(traj_file);
+
 
 [xtraj,utraj,Btraj,Straj_full] = repeatTraj(r,xtraj,utraj,Btraj,Straj_full,3,true);
 

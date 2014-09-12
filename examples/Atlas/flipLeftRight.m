@@ -28,12 +28,6 @@ R(l_leg+nq,r_leg+nq) = eye(length(r_leg));
 R(r_leg,l_leg) = eye(length(r_leg));
 R(r_leg+nq,l_leg+nq) = eye(length(r_leg));
 
-xtraj_ = R*xtraj;
-
-for i=1:length(Straj)
-  Straj_{i} = R*Straj{i}*R;
-end
-
 % INPUTS
 % keep the same
 back_bky_in = findInputInd(r,'back_bky');
@@ -45,6 +39,16 @@ U = zeros(r.getNumInputs());
 U(back_bky_in,back_bky_in) = 1;
 U(l_leg_in,r_leg_in) = eye(length(r_leg_in));
 U(r_leg_in,l_leg_in) = eye(length(r_leg_in));
+
+% rewriting this (mposa)
+
+
+xtraj_ = R*xtraj;
+
+for i=1:length(Straj)
+  Straj_{i} = R*Straj{i}*R;
+end
+
 
 utraj_ = U*utraj;
 
