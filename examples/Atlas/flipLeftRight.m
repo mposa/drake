@@ -40,9 +40,6 @@ U(back_bky_in,back_bky_in) = 1;
 U(l_leg_in,r_leg_in) = eye(length(r_leg_in));
 U(r_leg_in,l_leg_in) = eye(length(r_leg_in));
 
-% rewriting this (mposa)
-
-
 xtraj_ = R*xtraj;
 
 for i=1:length(Straj)

@@ -44,7 +44,12 @@ for i=2:N,
   xtraj_N = xtraj_N.append(xtraj_);
   utraj_N = utraj_N.append(utraj_);
 end
-return
+% return
+
+xtraj_0 = xtraj_N;
+utraj_0 = utraj_N;
+Btraj_0 = Btraj_N;
+Straj_0 = Straj_N;
 
 m = length(Straj);
 k=m;
