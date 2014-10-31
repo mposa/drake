@@ -33,10 +33,6 @@ classdef BotVisualizer < RigidBodyVisualizer
       end
       typecheck(manip,'RigidBodyManipulator');
       
-      if ~BotVisualizer.isSupportedTerrain(manip.terrain)
-        error('Drake:BotVisualizer:UnsupportedModel', ...
-          'This model has terrain that is not supported by BotVisualizer (yet)');
-      end
 %      if numel(manip.urdf)~=1
 %        error('Drake:BotVisualizer:UnsupportedModel','I don''t actually support robots with multiple urdfs yet, but it will be easy enough');
 %      end
@@ -104,7 +100,7 @@ classdef BotVisualizer < RigidBodyVisualizer
         end
       end
       
-      nq = getNumDOF(manip);
+      nq = getNumPositions(manip);
       obj.draw_msg = drake.lcmt_viewer_draw();
       nb = getNumBodies(manip);
       obj.draw_msg.num_links = nb;
@@ -123,7 +119,7 @@ classdef BotVisualizer < RigidBodyVisualizer
     function draw(obj,t,y)
       obj.draw_msg.timestamp = int64(t*1000000);
       
-      kinsol = doKinematics(obj.model,y(1:getNumDOF(obj.model)));
+      kinsol = doKinematics(obj.model,y(1:getNumPositions(obj.model)));
       for i=1:getNumBodies(obj.model)
         pt = forwardKin(obj.model,kinsol,i,zeros(3,1),2);
         obj.draw_msg.position(i,:) = pt(1:3);
@@ -197,16 +193,6 @@ classdef BotVisualizer < RigidBodyVisualizer
       delete(ppms_filename);
     end
     
-  end
-
-  methods (Static)
-    function is_supported_terrain = isSupportedTerrain(terrain)
-      if isempty(terrain), is_supported_terrain = true; return; end;
-
-      supported_classes = { 'RigidBodyFlatTerrain', ...
-                            'RigidBodyFlatTerrainNoGeometry'};
-      is_supported_terrain = any(cellfun(@(str)isa(terrain,str),supported_classes));
-    end
   end
   
   properties 

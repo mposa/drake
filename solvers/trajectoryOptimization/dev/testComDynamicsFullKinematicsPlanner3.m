@@ -4,7 +4,6 @@ function testComDynamicsFullKinematicsPlanner3
 warning('off','Drake:RigidBody:SimplifiedCollisionGeometry');
 warning('off','Drake:RigidBody:NonPositiveInertiaMatrix');
 warning('off','Drake:RigidBodyManipulator:UnsupportedContactPoints');
-warning('off','Drake:RigidBodyManipulator:UnsupportedJointLimits');
 warning('off','Drake:RigidBodyManipulator:UnsupportedVelocityLimits');
 urdf = [getDrakePath,'/examples/Atlas/urdf/atlas_minimal_contact.urdf'];
 options.floating = true;
@@ -13,7 +12,7 @@ nomdata = load([getDrakePath,'/examples/Atlas/data/atlas_fp.mat']);
 nq = robot.getNumPositions();
 qstar = nomdata.xstar(1:nq);
 kinsol_star = robot.doKinematics(qstar,false,false);
-nv = robot.getNumDOF();
+nv = robot.getNumVelocities();
 vstar = zeros(nv,1);
 
 l_foot = robot.findLinkInd('l_foot');
@@ -69,7 +68,7 @@ Q = eye(nq);
 Q(1,1) = 0;
 Q(2,2) = 0;
 Q(6,6) = 0;
-Qv = 0.1*eye(nv); 
+Qv = 0.1*eye(nv);
 Q_contact_force = 0*eye(3);
 cdfkp = ComDynamicsFullKinematicsPlanner(robot,nT,tf_range,Q_comddot,Qv,Q,q_nom,Q_contact_force,rb_wrench);
 cdfkp = cdfkp.addRigidBodyConstraint(WorldFixedBodyPoseConstraint(robot,l_foot),{2:nT-1});

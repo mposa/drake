@@ -20,7 +20,6 @@ classdef TimeSteppingRigidBodyManipulator < DrakeSystem
 
   methods
     function obj=TimeSteppingRigidBodyManipulator(manipulator_or_urdf_filename,timestep,options)
-      checkDependency('pathlcp');
       if (nargin<3) options=struct(); end
       if ~isfield(options,'twoD') options.twoD = false; end
 
@@ -29,14 +28,13 @@ classdef TimeSteppingRigidBodyManipulator < DrakeSystem
 
       if isempty(manipulator_or_urdf_filename) || ischar(manipulator_or_urdf_filename)
         % then make the corresponding manipulator
-        S = warning('off','Drake:RigidBodyManipulator:UnsupportedJointLimits');
-        warning('off','Drake:RigidBodyManipulator:UnsupportedContactPoints');
+        w = warning('off','Drake:RigidBodyManipulator:UnsupportedContactPoints');
         if options.twoD
           manip = PlanarRigidBodyManipulator(manipulator_or_urdf_filename,options);
         else
           manip = RigidBodyManipulator(manipulator_or_urdf_filename,options);
         end
-        warning(S);
+        warning(w);
       else
         manip = manipulator_or_urdf_filename;
       end
@@ -91,10 +89,9 @@ classdef TimeSteppingRigidBodyManipulator < DrakeSystem
     end
 
     function model = compile(model)
-      S = warning('off','Drake:RigidBodyManipulator:UnsupportedJointLimits');
-      warning('off','Drake:RigidBodyManipulator:UnsupportedContactPoints');
+      w = warning('off','Drake:RigidBodyManipulator:UnsupportedContactPoints');
       model.manip = model.manip.compile();
-      warning(S);
+      warning(w);
 
       model = setNumDiscStates(model,model.manip.getNumContStates());
       model = setNumInputs(model,model.manip.getNumInputs());
@@ -161,7 +158,7 @@ classdef TimeSteppingRigidBodyManipulator < DrakeSystem
         [obj,z,Mqdn,wqdn] = solveLCP(obj,t,x,u);
       end
 
-      num_q = obj.manip.num_q;
+      num_q = obj.manip.num_positions;
       q=x(1:num_q); qd=x((num_q+1):end);
       h = obj.timestep;
 
@@ -222,7 +219,7 @@ classdef TimeSteppingRigidBodyManipulator < DrakeSystem
         obj.LCP_cache.u = u;
         obj.LCP_cache.nargout = nargout;
 
-        num_q = obj.manip.num_q;
+        num_q = obj.manip.num_positions;
         q=x(1:num_q); qd=x(num_q+(1:num_q));
         h = obj.timestep;
 
@@ -289,7 +286,7 @@ classdef TimeSteppingRigidBodyManipulator < DrakeSystem
           D = vertcat(D{:});
           J(nL+nP+(1:nC),:) = n;
           J(nL+nP+nC+(1:mC*nC),:) = D;
-          
+
           contact_data.normal = normal;
           contact_data.d = d;
           contact_data.xA = xA;
@@ -309,7 +306,7 @@ classdef TimeSteppingRigidBodyManipulator < DrakeSystem
         if (nL > 0)
           if (obj.position_control)
             phiL = q(pos_control_index) - u;
-            JL = sparse(1:obj.manip.num_u,pos_control_index,1,obj.manip.num_u,obj.manip.num_q);
+            JL = sparse(1:obj.manip.num_u,pos_control_index,1,obj.manip.num_u,obj.manip.num_positions);
             phiL = [phiL;-phiL]; JL = [JL;-JL];
             % dJ = 0 by default, which is correct here
             dJL = zeros(length(phiL),num_q^2);
@@ -571,36 +568,18 @@ classdef TimeSteppingRigidBodyManipulator < DrakeSystem
 
     function varargout = pdcontrol(sys,Kp,Kd,index)
       if nargin<4, index=[]; end
-      sys_output_frame = sys.getOutputFrame();
-      try
-        sys_state_frame_num = sys_output_frame.getFrameNum(sys.manip.getStateFrame());
-      catch ex
-        if strcmp(ex.identifier,'Drake:CoordinateFrame:NoFrame')
-          sys_state_frame_num = [];
-        else
-          throw(ex);
-        end
-      end
-      if ~isempty(sys_state_frame_num)
-        [pdff,pdfb] = pdcontrol(sys.manip,Kp,Kd,index);
-        pdfb_input_frame = sys_output_frame.getFrameByNum(sys_state_frame_num);
-        pdfb = setInputFrame(pdfb,pdfb_input_frame);
-        pdfb = setOutputFrame(pdfb,sys.getInputFrame());
-        pdff = setOutputFrame(pdff,sys.getInputFrame());
-        if nargout>1
-          varargout{1} = pdff;
-          varargout{2} = pdfb;
-        else
-          % note: design the PD controller with the (non time-stepping
-          % manipulator), but build the closed loop system with the
-          % time-stepping manipulator:
-          varargout{1} = cascade(pdff,feedback(sys,pdfb));
-        end
+      [pdff,pdfb] = pdcontrol(sys.manip,Kp,Kd,index);
+      pdfb = setInputFrame(pdfb,sys.manip.getStateFrame());
+      pdfb = setOutputFrame(pdfb,sys.getInputFrame());
+      pdff = setOutputFrame(pdff,sys.getInputFrame());
+      if nargout>1
+        varargout{1} = pdff;
+        varargout{2} = pdfb;
       else
-        error('Drake:TimeSteppingRigidBodyManipulator:pdcontrol:OutputFrame', ...
-              ['Cannot find ''%s'' in the output frame of this manipulator. ', ...
-               'Consider adding a state estimator or a full-state sensor'], ...
-              sys.manip.getStateFrame().name);
+        % note: design the PD controller with the (non time-stepping
+        % manipulator), but build the closed loop system with the
+        % time-stepping manipulator:
+        varargout{1} = cascade(pdff,feedback(sys,pdfb));
       end
     end
 
@@ -615,12 +594,8 @@ classdef TimeSteppingRigidBodyManipulator < DrakeSystem
       g = getGravity(obj.manip);
     end
 
-    function num_q = getNumDOF(obj)
-      num_q = obj.manip.num_q;
-    end
-
-    function num_p = getNumPositions(obj)
-      num_p = obj.manip.getNumPositions();
+    function num_q = getNumPositions(obj)
+      num_q = obj.manip.num_positions;
     end
 
     function num_v = getNumVelocities(obj)
@@ -659,16 +634,14 @@ classdef TimeSteppingRigidBodyManipulator < DrakeSystem
 
     function obj=addRobotFromURDF(obj,varargin)
       if obj.twoD
-        S = warning('off','Drake:PlanarRigidBodyManipulator:UnsupportedJointLimits');
-        warning('off','Drake:PlanarRigidBodyManipulator:UnsupportedContactPoints');
+        w = warning('off','Drake:PlanarRigidBodyManipulator:UnsupportedContactPoints');
         warning('off','Drake:RigidBodyManipulator:UnsupportedContactPoints');
       else
-        S = warning('off','Drake:RigidBodyManipulator:UnsupportedJointLimits');
-        warning('off','Drake:RigidBodyManipulator:UnsupportedContactPoints');
+        w = warning('off','Drake:RigidBodyManipulator:UnsupportedContactPoints');
       end
       obj.manip=addRobotFromURDF(obj.manip,varargin{:});
       obj=compile(obj);  % note: compiles the manip twice, but it's ok.
-      warning(S);
+      warning(w);
     end
 
     function varargout = doKinematics(obj,varargin)
@@ -735,9 +708,17 @@ classdef TimeSteppingRigidBodyManipulator < DrakeSystem
       [varargout{:}]=collisionDetectTerrain(obj.manip,varargin{:});
     end
 
-    function varargout = stateConstraints(obj,varargin)
-      varargout = cell(1,nargout);
-      [varargout{:}] = stateConstraints(obj.manip,varargin{:});
+    function [obj,id] = addStateConstraint(obj,con)
+      % keep two copies of the constraints around ... :(
+      % todo: re-evaluate whether that is really necessary
+      [obj,id] = addStateConstraint@DrakeSystem(obj,con);
+      [obj.manip,manip_id] = obj.manip.addStateConstraint(obj,con);
+      assert(id==manip_id);
+    end
+    
+    function obj = updateStateConstraint(obj,id,con)
+      obj = updateStateConstraint@DrakeSystem(obj,id,con);
+      obj.manip = updateStateConstraint(obj.manip,id,con);
     end
 
     function varargout = positionConstraints(obj,varargin)
@@ -802,6 +783,11 @@ classdef TimeSteppingRigidBodyManipulator < DrakeSystem
     function varargout = getCMMdA(obj,varargin)
       varargout=cell(1,nargout);
       [varargout{:}] = getCMMdA(obj.manip,varargin{:});
+    end
+
+    function varargout = parseBodyOrFrameID(obj,varargin)
+      varargout=cell(1,nargout);
+      [varargout{:}] = parseBodyOrFrameID(obj.manip,varargin{:});
     end
 
     function joint_ind = findJointInd(model,varargin)
@@ -888,8 +874,8 @@ classdef TimeSteppingRigidBodyManipulator < DrakeSystem
       obj.manip = replaceContactShapesWithCHull(obj.manip,body_indices,varargin{:});
     end
 
-    function groups = getCollisionGroups(obj)
-      groups = getCollisionGroups(obj.manip);
+    function groups = getContactShapeGroupNames(obj)
+      groups = getContactShapeGroupNames(obj.manip);
     end
 
     function f_friction = computeFrictionForce(obj,qd)
@@ -957,10 +943,6 @@ classdef TimeSteppingRigidBodyManipulator < DrakeSystem
     function model = setParams(model,p)
       model.manip = setParams(model.manip,p);
     end
-    
-    function [lb,ub] = getStateLimits(obj)
-      [lb,ub] = obj.manip.getStateLimits();
-    end
 
     function terrain_contact_point_struct = getTerrainContactPoints(obj,varargin)
       terrain_contact_point_struct = getTerrainContactPoints(obj.manip,varargin{:});
@@ -971,8 +953,11 @@ classdef TimeSteppingRigidBodyManipulator < DrakeSystem
       [varargout{:}] = terrainContactPositions(obj.manip,varargin{:});
     end
 
-    function distance = collisionRaycast(obj, kinsol, origin, point_on_ray)
-      distance = collisionRaycast(obj.manip, kinsol, origin, point_on_ray);
+    function distance = collisionRaycast(obj, kinsol, origin, point_on_ray, use_margins)
+      if nargin < 5
+        use_margins = true;
+      end
+      distance = collisionRaycast(obj.manip, kinsol, origin, point_on_ray, use_margins);
     end
 
 
@@ -980,4 +965,3 @@ classdef TimeSteppingRigidBodyManipulator < DrakeSystem
 
 
 end
-

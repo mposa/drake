@@ -18,7 +18,7 @@ classdef Atlas < TimeSteppingRigidBodyManipulator & Biped
         options.terrain = RigidBodyFlatTerrain;
       end
 
-      addpath(fullfile(getDrakePath,'examples','Atlas','frames'));
+      path_handle = addpathTemporary(fullfile(getDrakePath,'examples','Atlas','frames'));
 
       w = warning('off','Drake:RigidBodyManipulator:UnsupportedVelocityLimits');
       obj = obj@TimeSteppingRigidBodyManipulator(urdf,options.dt,options);
@@ -39,10 +39,13 @@ classdef Atlas < TimeSteppingRigidBodyManipulator & Biped
     function obj = compile(obj)
       obj = compile@TimeSteppingRigidBodyManipulator(obj);
 
+      path_handle = addpathTemporary(fullfile(getDrakePath,'examples','Atlas','frames'));
+      
       atlas_state_frame = AtlasState(obj);
       tsmanip_state_frame = obj.getStateFrame();
-      if isa(tsmanip_state_frame,'MultiCoordinateFrame')
-        tsmanip_state_frame.frame{1} = atlas_state_frame;
+      if tsmanip_state_frame.dim>atlas_state_frame.dim
+        id = findSubFrameEquivalentModuloTransforms(tsmanip_state_frame,atlas_state_frame);
+        tsmanip_state_frame.frame{id} = atlas_state_frame;
         state_frame = tsmanip_state_frame;
       else
         state_frame = atlas_state_frame;
@@ -100,7 +103,7 @@ classdef Atlas < TimeSteppingRigidBodyManipulator & Biped
       x0 = resolveConstraints(obj,x0);
       u0 = zeros(obj.getNumInputs(),1);
 
-      nq = obj.getNumDOF();
+      nq = obj.getNumPositions();
       nu = obj.getNumInputs();
       nz = obj.getNumContacts()*3;
       z0 = zeros(nz,1);
@@ -180,7 +183,8 @@ classdef Atlas < TimeSteppingRigidBodyManipulator & Biped
                                       'nom_upward_step', 0.2,... % m
                                       'nom_downward_step', 0.2,...% m
                                       'max_num_steps', 20,...
-                                      'min_num_steps', 1);
+                                      'min_num_steps', 1,...
+                                      'leading_foot', 1); % 0: left, 1: right
     default_walking_params = struct('step_speed', 0.3,... % speed of the swing foot (m/s)
                                     'step_height', 0.065,... % approximate clearance over terrain (m)
                                     'hold_frac', 0.4,... % fraction of the swing time spent in double support
