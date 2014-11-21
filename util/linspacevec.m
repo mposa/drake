@@ -2,6 +2,11 @@ function y = linspacevec(d1,d2,n)
 % function y = linspacevec(d1,d2,n)
 % acts like linspace, but d1 and d2 may be column vectors
 
+if n==1
+  y = d1;
+  return
+end
+
 if nargin == 2
     n = 100;
 end
