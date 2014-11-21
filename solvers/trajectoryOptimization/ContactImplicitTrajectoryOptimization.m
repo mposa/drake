@@ -55,6 +55,10 @@ classdef ContactImplicitTrajectoryOptimization < DirectTrajectoryOptimization
         options.integration_method = ContactImplicitTrajectoryOptimization.MIDPOINT;
       end
       
+      if ~isfield(options,'use_joint_limits')
+        options.use_joint_limits = false;
+      end
+      
       obj = obj@DirectTrajectoryOptimization(plant,N,duration,options);
 
     end
@@ -236,7 +240,7 @@ classdef ContactImplicitTrajectoryOptimization < DirectTrajectoryOptimization
           [zeros(nv,1) matGradMult(dH0,v1-v0)-h*dBuminusC0 matGradMult(dH1,v1-v0)-h*dBuminusC1 zeros(nv,nu+nl+njl)];
         
         if nl>0
-          [phi,normal,~,~,~,~,~,~,n,D,dn,dD] = obj.plant.contactConstraints(q1,false,obj.options.active_collision_options);
+          [phi,~,~,~,~,~,~,~,n,D,dn,dD] = obj.plant.contactConstraints(q1,false,obj.options.active_collision_options);
           % construct J and dJ from n,D,dn, and dD so they relate to the
           % lambda vector
           J = zeros(nl,nq);
@@ -297,15 +301,21 @@ classdef ContactImplicitTrajectoryOptimization < DirectTrajectoryOptimization
         obj.lfi_inds(:,i) = (2:1+obj.nD)' + (i-1)*(2+obj.nD)*ones(obj.nD,1);
       end            
       
-      obj.nJL = obj.plant.getNumJointLimitConstraints();
-      obj.ljl_inds = reshape(obj.num_vars + (1:N * obj.nJL),obj.nJL,N);
-      
-      % joint limit constraints
-      [jl_lb,jl_ub] = obj.plant.getJointLimits();
-      obj.jl_lb_ind = find(jl_lb ~= -inf);
-      obj.jl_ub_ind = find(jl_ub ~= inf);
-      
-      obj = obj.addDecisionVariable(N * obj.nJL);
+      if obj.options.use_joint_limits
+        obj.nJL = obj.plant.getNumJointLimitConstraints();
+        
+        obj.ljl_inds = reshape(obj.num_vars + (1:N * obj.nJL),obj.nJL,N);
+        
+        % joint limit constraints
+        [jl_lb,jl_ub] = obj.plant.getJointLimits();
+        obj.jl_lb_ind = find(jl_lb ~= -inf);
+        obj.jl_ub_ind = find(jl_ub ~= inf);
+        
+        obj = obj.addDecisionVariable(N * obj.nJL);
+      else
+        obj.nJL = 0;
+        obj.ljl_inds = reshape(obj.num_vars + (1:N * obj.nJL),obj.nJL,N);
+      end
     end
     
     % evaluates the initial trajectories at the sampled times and
