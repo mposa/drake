@@ -1,11 +1,11 @@
-function [p,xtraj,utraj,ltraj,ljltraj,z,F,info,traj_opt] = runHopperTrajOpt(xtraj,utraj,ltraj,ljltraj,scale)
+function [p,xtraj,utraj,ltraj,ljltraj,z,F,info,traj_opt] = trajOptPassiveAnkle(xtraj,utraj,ltraj,ljltraj,scale)
 warning('off','Drake:RigidBodyManipulator:UnsupportedContactPoints');
 warning('off','Drake:RigidBodyManipulator:WeldedLinkInd');
 warning('off','Drake:RigidBodyManipulator:UnsupportedJointLimits');
 options.terrain = RigidBodyFlatTerrain();
 options.floating = true;
 options.ignore_self_collisions = true;
-p = PlanarRigidBodyManipulator('OneLegHopper.urdf',options);
+p = PlanarRigidBodyManipulator('OneLegHopper_passiveankle.urdf',options);
 % trajopt = ContactImplicitTrajectoryOptimization(p,[],[],[],10,[1 1]);
 
 %todo: add joint limits, periodicity constraint
@@ -28,11 +28,11 @@ if nargin < 2
   traj_init.x = PPTrajectory(foh(t_init,linspacevec([q0;zeros(5,1)],[qf;zeros(5,1)],N)));
   traj_init.x = traj_init.x.setOutputFrame(p.getStateFrame);
  
-  traj_init.u = PPTrajectory(foh(t_init,randn(getNumInputs(p),N)));
+  traj_init.u = PPTrajectory(foh(t_init,randn(1,N)));
   
   lp = [1;0;0;0];
   ln = zeros(4,1);
-  traj_init.l = PPTrajectory(foh(t_init,[repmat([ln;ln],1,N1+d) repmat([lp;lp],1,N2-d)]));
+  traj_init.l = PPTrajectory(foh(t_init,[repmat([ln;ln],1,N1-d) repmat([lp;lp],1,N2+d)]));
   traj_init.ljl = [];
   
   scale = 1;
@@ -95,7 +95,7 @@ traj_opt = traj_opt.setSolverOptions('snopt','MajorOptimalityTolerance',1e-5);
 
   function [f,df] = running_cost_fun(h,x,u)
     K = 10;
-    R = eye(getNumInputs(p));
+    R = eye(1);
     f = K*u'*R*u;
     df = [0 zeros(1,10) 2*K*u'*R];
   end

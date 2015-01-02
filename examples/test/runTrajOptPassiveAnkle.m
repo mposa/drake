@@ -22,4 +22,4 @@ display('iter 5')
 %%
 
 keyboard;
-save('data/atlas_passive_ankle_traj.mat','xtraj','utraj','ltraj','ljltraj','z','F');
+save('data/hopper_traj.mat','xtraj','utraj','ltraj','ljltraj','z','F');
