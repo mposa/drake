@@ -92,6 +92,18 @@ classdef DirectTrajectoryOptimization < NonlinearProgram
       end
 
     end
+    
+    function N = getN(obj)
+      N = obj.N;
+    end
+
+    function x_inds = getXinds(obj)
+      x_inds = obj.x_inds;
+    end
+
+    function h_inds = getHinds(obj)
+      h_inds = obj.h_inds;
+    end
 
     function obj = addInputConstraint(obj,constraint,time_index)
       % Add constraint (or composite constraint) that is a function of the
@@ -215,7 +227,7 @@ classdef DirectTrajectoryOptimization < NonlinearProgram
         else
           sys_ol = obj.plant;
         end
-        
+
         if ~isfield(traj_init,'x0')
           [~,x_sim] = sys_ol.simulate([t_init(1) t_init(end)]);
         else

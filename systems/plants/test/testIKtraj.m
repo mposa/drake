@@ -10,22 +10,22 @@ warning(w);
 nom_data = load('../../../examples/Atlas/data/atlas_fp.mat');
 v = r.constructVisualizer();
 
-r_foot = r.findLinkInd('r_foot');
-l_foot = r.findLinkInd('l_foot');
-r_hand = r.findLinkInd('r_hand');
-l_hand = r.findLinkInd('l_hand');
-head = r.findLinkInd('head');
-pelvis = r.findLinkInd('pelvis');
+r_foot = r.findLinkId('r_foot');
+l_foot = r.findLinkId('l_foot');
+r_hand = r.findLinkId('r_hand');
+l_hand = r.findLinkId('l_hand');
+head = r.findLinkId('head');
+pelvis = r.findLinkId('pelvis');
 
-l_hand_shapes = r.getBody(l_hand).getContactShapes;
-r_hand_shapes = r.getBody(r_hand).getContactShapes;
+l_hand_geometry = r.getBody(l_hand).getCollisionGeometry;
+r_hand_geometry = r.getBody(r_hand).getCollisionGeometry;
 l_hand_pts = [];
 r_hand_pts = [];
-for i=1:length(l_hand_shapes),
-  l_hand_pts = [l_hand_pts r.getBody(l_hand).getContactShapes{i}.getPoints];
+for i=1:length(l_hand_geometry),
+  l_hand_pts = [l_hand_pts r.getBody(l_hand).getCollisionGeometry{i}.getPoints];
 end
-for i=1:length(r_hand_shapes),
-  r_hand_pts = [r_hand_pts r.getBody(r_hand).getContactShapes{i}.getPoints];
+for i=1:length(r_hand_geometry),
+  r_hand_pts = [r_hand_pts r.getBody(r_hand).getCollisionGeometry{i}.getPoints];
 end
 
 r_foot_contact_pts = r.getBody(r_foot).getTerrainContactPoints();

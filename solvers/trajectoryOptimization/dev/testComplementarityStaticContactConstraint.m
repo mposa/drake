@@ -3,11 +3,11 @@ robot = RigidBodyManipulator([getDrakePath,'/examples/Atlas/urdf/atlas_minimal_c
 nomdata = load([getDrakePath,'/examples/Atlas/data/atlas_fp.mat']);
 nq = robot.getNumPositions();
 qstar = nomdata.xstar(1:robot.getNumPositions());
-l_foot = robot.findLinkInd('l_foot');
-nLPts = length(robot.getBody(l_foot).getContactShapes);
+l_foot = robot.findLinkId('l_foot');
+nLPts = length(robot.getBody(l_foot).getCollisionGeometry);
 l_foot_pt = zeros(3,nLPts);
 for i=1:nLPts,
-  l_foot_pt(:,i) = robot.getBody(l_foot).getContactShapes{i}.getPoints;
+  l_foot_pt(:,i) = robot.getBody(l_foot).getCollisionGeometry{i}.getPoints;
 end
 num_pts = size(l_foot_pt,2);
 mu = 0.7;

@@ -15,21 +15,21 @@ ignored_bodies = {'ltorso','mtorso','r_talus','l_talus'};
 r_collision = addLinksToCollisionFilterGroup(r_collision,ignored_bodies,'no_collision',1);
 r_collision = r_collision.compile();
 
-l_foot = robot.findLinkInd('l_foot');
-r_foot = robot.findLinkInd('r_foot');
-l_hand = robot.findLinkInd('l_hand');
-r_hand = robot.findLinkInd('r_hand');
-head = robot.findLinkInd('head');
-world = robot.findLinkInd('world');
-l_foot_shapes = robot.getBody(l_foot).getContactShapes;
-r_foot_shapes = robot.getBody(r_foot).getContactShapes;
+l_foot = robot.findLinkId('l_foot');
+r_foot = robot.findLinkId('r_foot');
+l_hand = robot.findLinkId('l_hand');
+r_hand = robot.findLinkId('r_hand');
+head = robot.findLinkId('head');
+world = robot.findLinkId('world');
+l_foot_geometry = robot.getBody(l_foot).getCollisionGeometry;
+r_foot_geometry = robot.getBody(r_foot).getCollisionGeometry;
 l_foot_pts = [];
 r_foot_pts = [];
-for i=1:length(l_foot_shapes),
-  l_foot_pts = [l_foot_pts robot.getBody(l_foot).getContactShapes{i}.getPoints];
+for i=1:length(l_foot_geometry),
+  l_foot_pts = [l_foot_pts robot.getBody(l_foot).getCollisionGeometry{i}.getPoints];
 end
-for i=1:length(r_foot_shapes),
-  r_foot_pts = [r_foot_pts robot.getBody(r_foot).getContactShapes{i}.getPoints];
+for i=1:length(r_foot_geometry),
+  r_foot_pts = [r_foot_pts robot.getBody(r_foot).getCollisionGeometry{i}.getPoints];
 end
 l_hand_pts = [0;0;0];
 r_hand_pts = [0;0;0];
@@ -51,7 +51,7 @@ q_seed = q_nom+1e-2*randn(nq,1);
 ikoptions = IKoptions(robot);
 ikoptions = ikoptions.setDebug(true);
 ikoptions = ikoptions.setMex(false);
-ikoptions = ikoptions.setMajorIterationsLimit(500);
+ikoptions = ikoptions.setMajorIterationsLimit(1000);
 ikmexoptions = ikoptions;
 ikmexoptions = ikmexoptions.setMex(true);
 
@@ -194,9 +194,9 @@ end
 display('Check the infeasible case')
 kc_err = WorldCoMConstraint(robot,[0;0;2],[0;0;inf],tspan);
 if(checkDependency('snopt'))
-[q,info,infeasible_constraint] = inverseKin(robot,q_seed,q_nom,kc_err,kc2l,kc2r,ikoptions);
+% [q,info,infeasible_constraint] = inverseKin(robot,q_seed,q_nom,kc_err,kc2l,kc2r,ikoptions);
 [qmex,info_mex,infeasible_constraint_mex] = inverseKin(robot,q_seed,q_nom,kc_err,kc2l,kc2r,ikmexoptions);
-valuecheck(info_mex,info);
+% valuecheck(info_mex,info);
 if(info_mex ~= 13)
   error('This should be infeasible');
 end
@@ -302,18 +302,18 @@ for i = 1:size(q,2)
 end
 end
 
-if(robot.getMexModelPtr~=0)
-display('Check all-to-all closest distance constraint')
-abcdc = AllBodiesClosestDistanceConstraint(robot,0.05,1e3,tspan);
-q = test_IK_userfun(robot,q_seed,q_nom,kc1,kc2l,kc2r,kc3,kc4,kc5,kc6,abcdc,ikoptions);
-display('Check IK pointwise with all-to-all closest distance constraint')
-q = test_IKpointwise_userfun(robot,[0,1],[q_seed,q_seed+1e-3*randn(nq,1)],[q_nom,q_nom],kc1,pc_knee,kc2l,kc2r,kc3,kc4,kc5,kc6,abcdc,ikoptions);
+if(checkDependency('bullet'))
+  display('Check all-to-all closest distance constraint')
+  abcdc = AllBodiesClosestDistanceConstraint(robot,0.05,1e3,tspan);
+  q = test_IK_userfun(robot,q_seed,q_nom,kc1,kc2l,kc2r,kc3,kc4,kc5,kc6,abcdc,ikoptions);
+  display('Check IK pointwise with all-to-all closest distance constraint')
+  q = test_IKpointwise_userfun(robot,[0,1],[q_seed,q_seed+1e-3*randn(nq,1)],[q_nom,q_nom],kc1,pc_knee,kc2l,kc2r,kc3,kc4,kc5,kc6,abcdc,ikoptions);
 
-display('Check minimum-distance constraint')
-min_dist_cnstr = MinDistanceConstraint(robot,0.05,[],tspan);
-q = test_IK_userfun(robot,q_seed,q_nom,kc1,kc2l,kc2r,kc3,kc4,kc5,kc6,min_dist_cnstr,ikoptions);
-display('Check IK pointwise with minimum-distance constraint')
-q = test_IKpointwise_userfun(robot,[0,1],[q_seed,q_seed+1e-3*randn(nq,1)],[q_nom,q_nom],kc1,pc_knee,kc2l,kc2r,kc3,kc4,kc5,kc6,min_dist_cnstr,ikoptions);
+  display('Check minimum-distance constraint')
+  min_dist_cnstr = MinDistanceConstraint(robot,0.05,[],tspan);
+  q = test_IK_userfun(robot,q_seed,q_nom,kc1,kc2l,kc2r,kc3,kc4,kc5,kc6,min_dist_cnstr,ikoptions);
+  display('Check IK pointwise with minimum-distance constraint')
+  q = test_IKpointwise_userfun(robot,[0,1],[q_seed,q_seed+1e-3*randn(nq,1)],[q_nom,q_nom],kc1,pc_knee,kc2l,kc2r,kc3,kc4,kc5,kc6,min_dist_cnstr,ikoptions);
 end
 display('Check quasi static constraint')
 qsc = QuasiStaticConstraint(robot);
@@ -422,6 +422,7 @@ kc4 = kc4.updateRobot(robot);
 kc5 = kc5.updateRobot(robot);
 kc6 = kc6.updateRobot(robot);
 ikoptions = ikoptions.updateRobot(robot);
+ikoptions = ikoptions.setMajorIterationsLimit(2000);
 ikmexoptions = ikmexoptions.updateRobot(robot);
 nq_aff = length(robot.getStateFrame.frame{2}.coordinates)/2;
 q_seed_aff = zeros(nq_aff,1);
@@ -462,18 +463,19 @@ ikmexoptions = ikoptions;
 ikmexoptions = ikmexoptions.setMex(true);
 % [f,G,iGfun,jGvar,Fupp,Flow,xupp,xlow,iAfun,jAvar,A,nF] = inverseKin(r,q_seed,q_nom,varargin{1:end-1},ikmexoptions);
 % keyboard;
-%tic
-%[q,info] = inverseKin(r,q_seed,q_nom,varargin{1:end-1},ikoptions);
-%toc
-%if(info>10)
-  %error('SNOPT info is %d, IK fails to solve the problem',info);
-%end
-%testConstraint(r,[],q,varargin{1:end-1});
+% tic
+% [q,info] = inverseKin(r,q_seed,q_nom,varargin{1:end-1},ikoptions);
+% toc
+% if(info>10)
+%   error('SNOPT info is %d, IK fails to solve the problem',info);
+% end
+% testConstraint(r,[],q,varargin{1:end-1});
 tic
 ikproblem = InverseKinematics(r,q_nom,varargin{1:end-1});
 ikproblem = ikproblem.setQ(ikoptions.Q);
 ikproblem = ikproblem.setSolverOptions('fmincon','Algorithm','sqp');
 ikproblem = ikproblem.setSolverOptions('fmincon','MaxIter',500);
+ikproblem = ikproblem.setSolverOptions('snopt','MajorIterationsLimit',ikoptions.SNOPT_MajorIterationsLimit);
 [qik,F,info,infeasible_cnstr_ik] = ikproblem.solve(q_seed);
 toc
 % valuecheck(qik,q,1e-6);
@@ -508,7 +510,7 @@ if(checkDependency('snopt'))
   tic
   [qmex,info] = inverseKinPointwise(r,t,q_seed,q_nom,varargin{1:end-1},ikmexoptions);
   toc
-  if(info>10)
+  if(any(info>10))
     error('SNOPT info is %d, IK pointwise mex fails to solve the problem',info);
   end
   for i = 1:length(t)

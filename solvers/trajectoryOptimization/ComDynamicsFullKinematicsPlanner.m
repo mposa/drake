@@ -69,6 +69,122 @@ classdef ComDynamicsFullKinematicsPlanner < SimpleDynamicsFullKinematicsPlanner
         x_name{3*obj.N+(i-1)*3+3} = sprintf('Hdot_z[%d]',i);
       end
       obj = obj.addDecisionVariable(6*obj.N,x_name);
+      
+      obj = addSimpleDynamicConstraints(obj);
+
+      sizecheck(Q,[obj.nq,obj.nq]);
+      if(any(eig(Q)<0))
+        error('Drake:ComDynamicsFullKinematicsPlanner:Q should be PSD');
+      end
+      sizecheck(q_nom,[obj.nq,obj.N]);
+      %posture_err_cost = QuadraticSumConstraint(-inf,inf,Q,q_nom);
+      %obj = obj.addCost(posture_err_cost,reshape(obj.q_inds,[],1));
+      for i = 1:obj.N-1
+        q_cost = FunctionHandleConstraint(-inf,inf,1+obj.nq,@(h,q) qCost(Q,q_nom(:,i+1),h,q));
+        obj = obj.addCost(q_cost,{obj.h_inds(i);obj.q_inds(:,i+1)});
+      end
+
+      sizecheck(Q_comddot,[3,3]);
+      if(any(eig(Q_comddot)<0))
+        error('Drake:ComDynamicsFullKinematicsPlanner:Q_comddot should be PSD');
+      end
+      %com_accel_cost = QuadraticSumConstraint(-inf,inf,Q_comddot,zeros(3,obj.N));
+      %obj = obj.addCost(com_accel_cost,reshape(obj.comddot_inds,[],1));
+      com_accel_cost = FunctionHandleConstraint(-inf,inf,4,@(h,comddot) comAccelCost(Q_comddot,h,comddot));
+      for i = 1:obj.N-1
+        obj = obj.addCost(com_accel_cost,{obj.h_inds(i);obj.comddot_inds(:,i+1)});
+      end
+      sizecheck(Qv,[obj.nv,obj.nv]);
+      if(any(eig(Qv)<0))
+        error('Drake:ComDynamicsFullKinematicsPlanner:Q_v should be PSD');
+      end
+      %v_cost = QuadraticSumConstraint(-inf,inf,Qv,zeros(obj.nv,obj.N));
+      %obj = obj.addCost(v_cost,reshape(obj.v_inds,[],1));
+      v_cost = FunctionHandleConstraint(-inf,inf,1+obj.nv,@(h,v) vCost(Qv,h,v));
+      for i = 1:obj.N-1
+        obj = obj.addCost(v_cost,{obj.h_inds(i);obj.v_inds(:,i+1)});
+      end
+      
+      %e = ones(obj.nq*(obj.N-2),1);
+      %second_diff_mat = spdiags([e,-2*e,e],[-obj.nq,0,obj.nq],obj.nq*(obj.N-2),obj.nq*obj.N);
+      %Qa = second_diff_mat'*kron(eye(obj.N-2),Qv)*second_diff_mat;
+      %obj = obj.addCost(QuadraticConstraint(0,0,Qa,zeros(obj.nq*obj.N,1)),obj.q_inds);;
+
+      function [f,df] = comAccelCost(Q,h,comddot)
+        %f = 0.5*h*(comddot'*Q*comddot);
+        cQc = comddot'*Q*comddot;
+        f = h*cQc;
+        df = [cQc, 2*h*comddot'*Q];
+      end
+
+      function [f,df] = vCost(Q,h,v)
+        %f = h^2*(v'*Q*v);
+        %df = [2*h*(v'*Q*v), 2*h^2*v'*Q];
+        vQv = v'*Q*v;
+        f = h*vQv;
+        df = [vQv, 2*h*v'*Q];
+      end
+
+      function [f,df] = qCost(Q,q_nom,h,q)
+        qQq = ((q-q_nom)'*Q*(q-q_nom));
+        f = h*qQq;
+        df = [qQq, 2*h*(q-q_nom)'*Q];
+      end
+    end
+
+    function obj = addConstraint(obj, constraint, varargin)
+      if isa(constraint, 'RigidBodyConstraint')
+        obj = addRigidBodyConstraint(obj,constraint, varargin{:});
+      else
+        obj = addConstraint@SimpleDynamicsFullKinematicsPlanner(obj,constraint,varargin{:});
+      end
+    end
+    
+    
+    
+    function obj = addCoMBounds(obj,knot_idx,com_lb,com_ub)
+      % @param knot_idx  The indices of the knots on which the com position will be
+      % constrained within the bounding box.
+      knot_idx = knot_idx(:)';
+      num_knots = numel(knot_idx);
+      sizecheck(com_lb,[3,num_knots]);
+      sizecheck(com_ub,[3,num_knots]);
+      obj = obj.addBoundingBoxConstraint(BoundingBoxConstraint(com_lb(:),com_ub(:)),reshape(obj.com_inds(:,knot_idx),[],1));
+    end
+    
+    function obj = addRunningCost(obj,running_cost)
+    end
+    
+    function [q,v,h,t,com,comdot,comddot,H,Hdot,lambda,wrench] = parseSolution(obj,x_sol)
+      nq = obj.robot.getNumPositions;
+      nT = obj.N;
+      q = reshape(x_sol(obj.q_inds(:)),nq,nT);
+      v = reshape(x_sol(obj.v_inds(:)),nq,nT);
+      h = reshape(x_sol(obj.h_inds),1,[]);
+      t = cumsum([0 h]);
+      com = reshape(x_sol(obj.com_inds),3,[]);
+      comdot = reshape(x_sol(obj.comdot_inds),3,[]);
+      comddot = reshape(x_sol(obj.comddot_inds),3,[]);
+      H = reshape(x_sol(obj.H_inds),3,[]);
+      Hdot = reshape(x_sol(obj.Hdot_inds),3,[])*obj.torque_multiplier;
+      lambda = cell(length(obj.unique_contact_bodies),1);
+      for i = 1:length(obj.unique_contact_bodies)
+        lambda{i} = reshape(x_sol(obj.lambda_inds{i}),size(obj.lambda_inds{i},1),[],nT);
+      end
+      wrench = obj.contactWrench(x_sol);
+    end
+    
+    function obj = addDynamicConstraints(obj)
+    end
+  end
+  
+  methods(Access = protected)
+    function obj = addSimpleDynamicConstraints(obj)
+      obj = addCentroidalDynamicConstraints(obj);
+      obj = addSimpleDynamicConstraints@SimpleDynamicsFullKinematicsPlanner(obj);
+    end
+    
+    function obj = addCentroidalDynamicConstraints(obj)
       function [c,dc] = comMatch(kinsol,com)
         [com_q,dcom_q] = obj.robot.getCOM(kinsol);
         c = com_q-com;
@@ -87,71 +203,6 @@ classdef ComDynamicsFullKinematicsPlanner < SimpleDynamicsFullKinematicsPlanner
         H_cnstr = FunctionHandleConstraint(zeros(3,1),zeros(3,1),obj.nq+obj.nv+3,@(~,v,H,kinsol) angularMomentumMatch(kinsol,v,H));
         H_cnstr = H_cnstr.setName([{sprintf('A_x*v=H_x[%d]',i)};{sprintf('A_y*v=H_y[%d]',i)};{sprintf('A_z*v=H_z[%d]',i)}]);
         obj = obj.addConstraint(H_cnstr,[{obj.q_inds(:,i)};{obj.v_inds(:,i)};{obj.H_inds(:,i)}],obj.kinsol_dataind(i));
-      end
-      obj.add_dynamic_constraint_flag = true;
-      obj = obj.addDynamicConstraints();
-
-      sizecheck(Q,[obj.nq,obj.nq]);
-      if(any(eig(Q)<0))
-        error('Drake:ComDynamicsFullKinematicsPlanner:Q should be PSD');
-      end
-      sizecheck(q_nom,[obj.nq,obj.N]);
-      %posture_err_cost = QuadraticSumConstraint(-inf,inf,Q,q_nom);
-      %obj = obj.addCost(posture_err_cost,reshape(obj.q_inds,[],1));
-      q_cost = FunctionHandleConstraint(-inf,inf,2+obj.nq,@(h,q) qCost(0.5*Q,q_nom(:,1),h,q));
-      obj = obj.addCost(q_cost,{obj.h_inds([1,1]);obj.q_inds(:,1)});
-      for i = 2:obj.N-1
-        q_cost = FunctionHandleConstraint(-inf,inf,2+obj.nq,@(h,q) qCost(Q,q_nom(:,i),h,q));
-        obj = obj.addCost(q_cost,{obj.h_inds([i-1,i]);obj.q_inds(:,i)});
-      end
-      q_cost = FunctionHandleConstraint(-inf,inf,2+obj.nq,@(h,q) qCost(0.5*Q,q_nom(:,end),h,q));
-      obj = obj.addCost(q_cost,{obj.h_inds([end,end]);obj.q_inds(:,end)});
-
-      sizecheck(Q_comddot,[3,3]);
-      if(any(eig(Q_comddot)<0))
-        error('Drake:ComDynamicsFullKinematicsPlanner:Q_comddot should be PSD');
-      end
-      %com_accel_cost = QuadraticSumConstraint(-inf,inf,Q_comddot,zeros(3,obj.N));
-      %obj = obj.addCost(com_accel_cost,reshape(obj.comddot_inds,[],1));
-      com_accel_cost = FunctionHandleConstraint(-inf,inf,5,@(h,comddot) comAccelCost(Q_comddot,h,comddot));
-      obj = obj.addCost(com_accel_cost,{obj.h_inds([1,1]);obj.comddot_inds(:,1)});
-      for i = 2:obj.N-1
-        obj = obj.addCost(com_accel_cost,{obj.h_inds([i-1,i]);obj.comddot_inds(:,i)});
-      end
-      obj = obj.addCost(com_accel_cost,{obj.h_inds([N-1,N-1]);obj.comddot_inds(:,1)});
-      sizecheck(Qv,[obj.nv,obj.nv]);
-      if(any(eig(Qv)<0))
-        error('Drake:ComDynamicsFullKinematicsPlanner:Q_v should be PSD');
-      end
-      %v_cost = QuadraticSumConstraint(-inf,inf,Qv,zeros(obj.nv,obj.N));
-      %obj = obj.addCost(v_cost,reshape(obj.v_inds,[],1));
-      v_cost = FunctionHandleConstraint(-inf,inf,1+obj.nv,@(h,v) vCost(Qv,h,v));
-      for i = 1:obj.N-1
-        obj = obj.addCost(v_cost,{obj.h_inds(i);obj.v_inds(:,i+1)});
-      end
-      
-      %e = ones(obj.nq*(obj.N-2),1);
-      %second_diff_mat = spdiags([e,-2*e,e],[-obj.nq,0,obj.nq],obj.nq*(obj.N-2),obj.nq*obj.N);
-      %Qa = second_diff_mat'*kron(eye(obj.N-2),Qv)*second_diff_mat;
-      %obj = obj.addCost(QuadraticConstraint(0,0,Qa,zeros(obj.nq*obj.N,1)),obj.q_inds);;
-
-      function [f,df] = comAccelCost(Q,h,comddot)
-        %f = 0.5*(h(1)+h(2))^2*(comddot'*Q*comddot);
-        %df = [(h(1)+h(2))*(comddot'*Q*comddot)*[1,1], (h(1)+h(2))^2*comddot'*Q];
-        f = 0.5*(h(1)+h(2))*(comddot'*Q*comddot);
-        df = [0.5*(comddot'*Q*comddot)*[1,1], (h(1)+h(2))*comddot'*Q];
-      end
-
-      function [f,df] = vCost(Q,h,v)
-        %f = h^2*(v'*Q*v);
-        %df = [2*h*(v'*Q*v), 2*h^2*v'*Q];
-        f = h*(v'*Q*v);
-        df = [v'*Q*v, 2*h*v'*Q];
-      end
-
-      function [f,df] = qCost(Q,q_nom,h,q)
-        f = 0.5*(h(1)+h(2))*((q-q_nom)'*Q*(q-q_nom));
-        df = [0.5*(q-q_nom)'*Q*(q-q_nom)*[1,1], (h(1)+h(2))*(q-q_nom)'*Q];
       end
     end
     
@@ -304,38 +355,6 @@ classdef ComDynamicsFullKinematicsPlanner < SimpleDynamicsFullKinematicsPlanner
           lambda1_start_idx = lambda1_start_idx+obj.contact_wrench{wrench_idx1}.num_pt_F*obj.contact_wrench{wrench_idx1}.num_pts;
         end
       end
-    end
-    
-    function obj = addCoMBounds(obj,knot_idx,com_lb,com_ub)
-      % @param knot_idx  The indices of the knots on which the com position will be
-      % constrained within the bounding box.
-      knot_idx = knot_idx(:)';
-      num_knots = numel(knot_idx);
-      sizecheck(com_lb,[3,num_knots]);
-      sizecheck(com_ub,[3,num_knots]);
-      obj = obj.addBoundingBoxConstraint(BoundingBoxConstraint(com_lb(:),com_ub(:)),reshape(obj.com_inds(:,knot_idx),[],1));
-    end
-    
-    function obj = addRunningCost(obj,running_cost)
-    end
-    
-    function [q,v,h,t,com,comdot,comddot,H,Hdot,lambda,wrench] = parseSolution(obj,x_sol)
-      nq = obj.robot.getNumPositions;
-      nT = obj.N;
-      q = reshape(x_sol(obj.q_inds(:)),nq,nT);
-      v = reshape(x_sol(obj.v_inds(:)),nq,nT);
-      h = reshape(x_sol(obj.h_inds),1,[]);
-      t = cumsum([0 h]);
-      com = reshape(x_sol(obj.com_inds),3,[]);
-      comdot = reshape(x_sol(obj.comdot_inds),3,[]);
-      comddot = reshape(x_sol(obj.comddot_inds),3,[]);
-      H = reshape(x_sol(obj.H_inds),3,[]);
-      Hdot = reshape(x_sol(obj.Hdot_inds),3,[])*obj.torque_multiplier;
-      lambda = cell(length(obj.unique_contact_bodies),1);
-      for i = 1:length(obj.unique_contact_bodies)
-        lambda{i} = reshape(x_sol(obj.lambda_inds{i}),size(obj.lambda_inds{i},1),[],nT);
-      end
-      wrench = obj.contactWrench(x_sol);
     end
   end
 end

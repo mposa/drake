@@ -26,22 +26,8 @@ classdef RigidBodyMesh < RigidBodyGeometry
     end
     
     function [pts,ind,normals] = loadFile(obj)
-      [path,name,ext] = fileparts(obj.filename);
-      wrlfile=[];
-      if strcmpi(ext,'.wrl') || exist(fullfile(path,[name,'.wrl']),'file')
-        if ~strcmpi(ext,'.wrl'), ext = '.wrl'; end
-        wrlfile = fullfile(path,[name,ext]);
-      elseif strcmpi(ext,'.stl') || exist(fullfile(path,[name,'.stl']),'file')
-        if ~strcmpi(ext,'.stl'), ext = '.stl'; end
-        wrlfile = fullfile(tempdir,[name,'.wrl']);
-        if ~exist(wrlfile,'file')
-          stl2vrml(fullfile(path,[name,ext]),tempdir);
-        end
-      else
-        error(['unknown mesh file extension ',obj.filename]);
-      end
-      
-      txt=fileread(wrlfile);
+      obj = convertToWRL(obj);
+      txt=fileread(obj.filename);
         
       pts=regexp(txt,'point[\s\n]*\[([^\]]*)\]','tokens'); pts = pts{1}{1};
       pts=strread(pts,'%f','delimiter',' ,');
@@ -80,17 +66,43 @@ classdef RigidBodyMesh < RigidBodyGeometry
       pts = loadFile(obj);
     end
 
+    function geom = convertToWRL(geom)
+      [path,name,ext] = fileparts(geom.filename);
+      if ~exist(fullfile(path,[name,'.wrl']),'file')
+        if strcmpi(ext,'.stl') || exist(fullfile(path,[name,'.stl']),'file')
+          stl2vrml(fullfile(path,[name,'.stl']),path);
+        else
+          error(['unknown mesh file extension ',geom.filename]);
+        end
+      end
+      geom.filename = fullfile(path,[name,'.wrl']);
+    end
     
-    function shape = serializeToLCM(obj)
-      shape = drake.lcmt_viewer_geometry_data();
-      shape.type = shape.MESH;
-      shape.string_data = obj.filename;
-      shape.num_float_data = 1;
-      shape.float_data = obj.scale;  % scale
+    function geom = convertToOBJ(geom)
+      [path,name,ext] = fileparts(geom.filename);
+      if ~strcmpi(ext,'.obj') && ~exist(fullfile(path,[name,'.obj']),'file')
+        exe = ''; if ispc, exe = '.exe'; end
+        converter = fullfile(pods_get_bin_path,['convert_to_obj',exe]);
+        if exist(converter)
+          systemWCMakeEnv([converter,' ',geom.filename]);
+        else
+          error('can''t convert %s to OBJ format',geom.filename);
+        end
+      end
+      geom.filename = fullfile(path,[name,'.obj']);
+    end
+    
+    function geometry = serializeToLCM(obj)
+      obj = convertToOBJ(obj);
+      geometry = drake.lcmt_viewer_geometry_data();
+      geometry.type = geometry.MESH;
+      geometry.string_data = obj.filename;
+      geometry.num_float_data = 1;
+      geometry.float_data = obj.scale;  % scale
 
-      shape.position = obj.T(1:3,4);
-      shape.quaternion = rotmat2quat(obj.T(1:3,1:3));
-      shape.color = [obj.c(:);1.0];
+      geometry.position = obj.T(1:3,4);
+      geometry.quaternion = rotmat2quat(obj.T(1:3,1:3));
+      geometry.color = [obj.c(:);1.0];
     end
     
     function writeWRLShape(obj,fp,td)
@@ -103,37 +115,22 @@ classdef RigidBodyMesh < RigidBodyGeometry
       tabprintf(fp,'translation %f %f %f\n',obj.T(1:3,4));
       tabprintf(fp,'rotation %f %f %f %f\n',rotmat2axis(obj.T(1:3,1:3)));
 
-      [path,name,ext] = fileparts(obj.filename);
-      wrlfile=[];
-      if strcmpi(ext,'.wrl') || exist(fullfile(path,[name,'.wrl']),'file')
-        if ~strcmpi(ext,'.wrl'), ext = '.wrl'; end
-        wrlfile = fullfile(path,[name,ext]);
-
-        txt=fileread(wrlfile);
-        txt = regexprep(txt,'#.*\n','','dotexceptnewline');
+      obj = obj.convertToWRL();
       
-        tabprintf(fp,'children [\n'); 
-        fprintf(fp,'%s',txt); 
-        tabprintf(fp,']\n'); % end children
+      txt=fileread(obj.filename);
+      txt = regexprep(txt,'#.*\n','','dotexceptnewline');
+      
+      tabprintf(fp,'children [\n');
+      fprintf(fp,'%s',txt);
+      tabprintf(fp,']\n'); % end children
 
-      elseif strcmpi(ext,'.stl') || exist(fullfile(path,[name,'.stl']),'file')
-        if ~strcmpi(ext,'.stl'), ext = '.stl'; end
-        wrlfile = fullfile(tempdir,[name,'.wrl']);
-        stl2vrml(fullfile(path,[name,ext]),tempdir);
-
-        txt=fileread(wrlfile);
-        txt = regexprep(txt,'#.*\n','','dotexceptnewline');
-
-        % add appearance info back in manually
-        appearanceString = sprintf('appearance Appearance { material Material { diffuseColor %f %f %f } }\n',obj.c(1),obj.c(2),obj.c(3));
-        txt = regexprep(txt,'geometry',[appearanceString,'geometry']);
-        
-        tabprintf(fp,'children [\n'); 
-        fprintf(fp,'%s',txt); 
-        tabprintf(fp,']\n'); % end children
-      else
-        error('unknown mesh file extension');
-      end
+      % add appearance info back in manually
+      appearanceString = sprintf('appearance Appearance { material Material { diffuseColor %f %f %f } }\n',obj.c(1),obj.c(2),obj.c(3));
+      txt = regexprep(txt,'geometry',[appearanceString,'geometry']);
+      
+      tabprintf(fp,'children [\n');
+      fprintf(fp,'%s',txt);
+      tabprintf(fp,']\n'); % end children
       
       td=td-1; tabprintf(fp,'}\n'); % end Transform {
     end

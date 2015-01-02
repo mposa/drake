@@ -7,27 +7,30 @@
 #include <Eigen/StdVector> //#include <vector>
 
 #include "collision/DrakeCollision.h"
+#include "KinematicPath.h"
 
+#undef DLLEXPORT_RBM
 #if defined(WIN32) || defined(WIN64)
   #if defined(drakeRBM_EXPORTS)
-    #define DLLEXPORT __declspec( dllexport )
+    #define DLLEXPORT_RBM __declspec( dllexport )
   #else
-    #define DLLEXPORT __declspec( dllimport )
+    #define DLLEXPORT_RBM __declspec( dllimport )
   #endif
 #else
-  #define DLLEXPORT
-  #include "DrakeJoint.h"  // todo: move this out of here
+  #define DLLEXPORT_RBM
 #endif
+
 
 #include "RigidBody.h"
 #include "RigidBodyFrame.h"
 
-#define INF -2147483648
+#define INF -2147483648    // this number is only used for checking the pitch to see if it's a revolute joint or a helical joint, and is set to match the value handed to us for inf from matlab.
+
 using namespace Eigen;
 
 //extern std::set<int> emptyIntSet;  // was const std:set<int> emptyIntSet, but valgrind said I was leaking memory
 
-class DLLEXPORT RigidBodyManipulator 
+class DLLEXPORT_RBM RigidBodyManipulator 
 {
 public:
   RigidBodyManipulator(int num_dof, int num_featherstone_bodies=-1, int num_rigid_body_objects=-1, int num_rigid_body_frames=0);
@@ -37,6 +40,8 @@ public:
 
   void compile(void);  // call me after the model is loaded
   void doKinematics(double* q, bool b_compute_second_derivatives=false, double* qd=NULL);
+
+  void doKinematicsNew(double* q, bool compute_gradients = false, double* v = nullptr, bool compute_JdotV = false);
 
   template <typename Derived>
   void getCMM(double* const q, double* const qd, MatrixBase<Derived> &A, MatrixBase<Derived> &Adot);
@@ -64,6 +69,10 @@ public:
   template <typename Derived>
     void getContactPositionsJacDot(MatrixBase<Derived> &Jdot, const std::set<int> &body_idx);// = emptyIntSet);
 
+  void findAncestorBodies(std::vector<int>& ancestor_bodies, int body);
+
+  void findKinematicPath(KinematicPath& path, int start_body_or_frame_idx, int end_body_or_frame_idx);
+
   template <typename DerivedA, typename DerivedB>
   void forwardKin(const int body_or_frame_ind, const MatrixBase<DerivedA>& pts, const int rotation_type, MatrixBase<DerivedB> &x);
 
@@ -79,6 +88,8 @@ public:
   template <typename DerivedA, typename DerivedB, typename DerivedC, typename DerivedD>
   void bodyKin(const int body_ind, const MatrixBase<DerivedA>& pts, MatrixBase<DerivedB> &x, MatrixBase<DerivedC> *J=NULL, MatrixBase<DerivedD> *P=NULL);
 
+  template<typename DerivedA>
+  void geometricJacobian(int base_body_or_frame_ind, int end_effector_body_or_frame_ind, int expressed_in_body_or_frame_ind, PlainObjectBase<DerivedA>& J, std::vector<int>* v_indices);
 
   template <typename DerivedA, typename DerivedB, typename DerivedC, typename DerivedD, typename DerivedE, typename DerivedF>
   void HandC(double* const q, double * const qd, MatrixBase<DerivedA> * const f_ext, MatrixBase<DerivedB> &H, MatrixBase<DerivedC> &C, MatrixBase<DerivedD> *dH=NULL, MatrixBase<DerivedE> *dC=NULL, MatrixBase<DerivedF> * const df_ext=NULL);
@@ -140,7 +151,7 @@ public:
 
   //bool closestDistanceAllBodies(VectorXd& distance, MatrixXd& Jd);
   
-  int findLinkInd(std::string linkname, int robot = -1);
+  int findLinkId(std::string linkname, int robot = -1);
   //@param robot   the index of the robot. robot = -1 means to look at all the robots
   
   std::string getBodyOrFrameName(int body_or_frame_id);
@@ -148,7 +159,7 @@ public:
 public:
   std::vector<std::string> robot_name;
 
-  int num_dof;
+  int num_dof; // treated as nq now; TODO: rename to nq
   VectorXd joint_limit_min;
   VectorXd joint_limit_max;
 
@@ -175,9 +186,11 @@ public:
 
   VectorXd cached_q, cached_qd;  // these should be private
 
+  bool use_new_kinsol;
+
 
 private:
-  int parseBodyOrFrameID(const int body_or_frame_id, Matrix4d& Tframe);
+  int parseBodyOrFrameID(const int body_or_frame_id, Matrix4d* Tframe = nullptr);
 
   // variables for featherstone dynamics
   std::vector<VectorXd> S;
@@ -226,21 +239,27 @@ private:
   bool kinematicsInit;
   int secondDerivativesCached;
 
+  // collision_model and collision_model_no_margins both maintain
+  // a collection of the collision geometry in the RBM for use in
+  // collision detection of different kinds. collision_model has
+  // small margins applied to all collision geometry when that
+  // geometry is added, to improve the numerical stability of
+  // contact gradients taken using the model. collision_model_no_margins
+  // does not apply these margins, such that it can be used for
+  // precise raycasting, e.g. for simulating a laser scanner
+  // These models are switched between with the use_margins flag
+  // to collision-relevant methods of the RBM.
   std::shared_ptr< DrakeCollision::Model > collision_model;
   std::shared_ptr< DrakeCollision::Model > collision_model_no_margins;  
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-// The following was required for building w/ DLLEXPORT on windows (due to the unique_ptrs).  See
+// The following was required for building w/ DLLEXPORT_RBM on windows (due to the unique_ptrs).  See
 // http://stackoverflow.com/questions/8716824/cannot-access-private-member-error-only-when-class-has-export-linkage
 private:
   RigidBodyManipulator(const RigidBodyManipulator&) {}
   RigidBodyManipulator& operator=(const RigidBodyManipulator&) { return *this; }
 };
 
-/*
-template<typename T> int sgn(T val) {
-  return (T(0) < val) - (val < T(0));
-};
-*/
+
 #endif

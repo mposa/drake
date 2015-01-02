@@ -17,7 +17,8 @@ if (nargin<1); use_mex = true; end
 if (nargin<2); use_bullet = false; end
 if (nargin<3); use_angular_momentum = false; end
 if (nargin<4)
-  navgoal = [randn();0.25*randn();0;0;0;0];
+%  navgoal = [2*rand();0.25*randn();0;0;0;0];
+  navgoal = [1.5;0;0;0;0;0];
 end
 
 % silence some warnings
@@ -94,13 +95,14 @@ ctrl_data = QPControllerData(true,struct(...
   'y0',walking_plan_data.zmptraj,...
   'ignore_terrain',false,...
   'plan_shift',[0;0;0],...
-  'constrained_dofs',[findJointIndices(r,'arm');findJointIndices(r,'back');findJointIndices(r,'neck')]));
+  'constrained_dofs',[findPositionIndices(r,'arm');findPositionIndices(r,'back');findPositionIndices(r,'neck')]));
 
 options.dt = 0.003;
 options.slack_limit = 100;
 options.use_bullet = use_bullet;
 options.w_qdd = zeros(nq,1);
-options.w_grf = 0;
+options.w_grf = 1e-8;
+options.w_slack = 5.0;
 options.debug = false;
 options.contact_threshold = 0.002;
 options.solver = 0; % 0 fastqp, 1 gurobi
@@ -113,14 +115,19 @@ else
   options.W_kdot = zeros(3);
 end
 
+options.Kp =150*ones(6,1);
+options.Kd = 2*sqrt(options.Kp);
 lfoot_motion = BodyMotionControlBlock(r,'l_foot',ctrl_data,options);
 rfoot_motion = BodyMotionControlBlock(r,'r_foot',ctrl_data,options);
+options.Kp = [100; 100; 100; 150; 150; 150];
+options.Kd = 2*sqrt(options.Kp);
 pelvis_motion = PelvisMotionControlBlock(r,'pelvis',ctrl_data,options);
 motion_frames = {lfoot_motion.getOutputFrame,rfoot_motion.getOutputFrame,...
 pelvis_motion.getOutputFrame};
 
-options.body_accel_input_weights = 0.5*[1 1 1];
-qp = QPController(r,motion_frames,ctrl_data,options);
+options.body_accel_input_weights = [.1 .1 .1];
+options.min_knee_angle = 0.7;
+qp = AtlasQPController(r,motion_frames,ctrl_data,options);
 
 % feedback QP controller with atlas
 ins(1).system = 1;
@@ -140,6 +147,7 @@ clear ins outs;
 
 % feedback foot contact detector with QP/atlas
 options.use_lcm=false;
+options.use_contact_logic_OR=false;
 fc = FootContactBlock(r,ctrl_data,options);
 ins(1).system = 2;
 ins(1).input = 1;
@@ -156,6 +164,8 @@ clear ins outs;
 
 % feedback PD block
 options.use_ik = false;
+options.Kp = 160.0*ones(nq,1);
+options.Kd = 19.0*ones(nq,1);
 pd = IKPDBlock(r,ctrl_data,options);
 ins(1).system = 1;
 ins(1).input = 1;
@@ -223,8 +233,8 @@ if plot_comtraj
   dtraj = fnder(PPTrajectory(spline(tts,x_smooth)));
   qddtraj = dtraj(nq+(1:nq));
 
-  lfoot = findLinkInd(r,'l_foot');
-  rfoot = findLinkInd(r,'r_foot');
+  lfoot = findLinkId(r,'l_foot');
+  rfoot = findLinkId(r,'r_foot');
 
   lstep_counter = 0;
   rstep_counter = 0;
@@ -271,8 +281,10 @@ if plot_comtraj
       rfoot_steps(:,rstep_counter) = rfoot_p;
     end
 
-    rfoottraj = walking_plan_data.link_constraints(1).traj;
-    lfoottraj = walking_plan_data.link_constraints(2).traj;
+    rfoottraj = PPTrajectory(pchip(walking_plan_data.link_constraints(1).ts,...
+                                   walking_plan_data.link_constraints(1).poses));
+    lfoottraj = PPTrajectory(pchip(walking_plan_data.link_constraints(2).ts,...
+                                   walking_plan_data.link_constraints(2).poses));
 
     lfoot_des = eval(lfoottraj,t);
     lfoot_des(3) = max(lfoot_des(3), 0.0811);     % hack to fix footstep planner bug
@@ -366,6 +378,9 @@ if rms_com > length(footstep_plan.footsteps)*0.5
   error('runAtlasWalking unit test failed: error is too large');
   navgoal
 end
+
+% make sure we're at least vaguely close to the goal
+valuecheck(com(1:3,end), [navgoal(1:2); 0.9], 0.2);
 
 end
 

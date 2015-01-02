@@ -14,27 +14,27 @@ kinsol_star = robot.doKinematics(qstar,false,false);
 nv = robot.getNumVelocities();
 vstar = zeros(nv,1);
 
-l_foot = robot.findLinkInd('l_foot');
-r_foot = robot.findLinkInd('r_foot');
-l_foot_shapes_heel = robot.getBody(l_foot).getContactShapes('heel');
-l_foot_shapes_toe = robot.getBody(l_foot).getContactShapes('toe');
-r_foot_shapes_heel = robot.getBody(r_foot).getContactShapes('heel');
-r_foot_shapes_toe = robot.getBody(r_foot).getContactShapes('toe');
+l_foot = robot.findLinkId('l_foot');
+r_foot = robot.findLinkId('r_foot');
+l_foot_geometry_heel = robot.getBody(l_foot).getCollisionGeometry('heel');
+l_foot_geometry_toe = robot.getBody(l_foot).getCollisionGeometry('toe');
+r_foot_geometry_heel = robot.getBody(r_foot).getCollisionGeometry('heel');
+r_foot_geometry_toe = robot.getBody(r_foot).getCollisionGeometry('toe');
 l_foot_toe = [];
 l_foot_heel = [];
 r_foot_toe = [];
 r_foot_heel = [];
-for i = 1:length(l_foot_shapes_heel)
-  l_foot_heel = [l_foot_heel l_foot_shapes_heel{i}.getPoints];
+for i = 1:length(l_foot_geometry_heel)
+  l_foot_heel = [l_foot_heel l_foot_geometry_heel{i}.getPoints];
 end
-for i = 1:length(l_foot_shapes_toe)
-  l_foot_toe = [l_foot_toe l_foot_shapes_toe{i}.getPoints];
+for i = 1:length(l_foot_geometry_toe)
+  l_foot_toe = [l_foot_toe l_foot_geometry_toe{i}.getPoints];
 end
-for i = 1:length(r_foot_shapes_heel)
-  r_foot_heel = [r_foot_heel r_foot_shapes_heel{i}.getPoints];
+for i = 1:length(r_foot_geometry_heel)
+  r_foot_heel = [r_foot_heel r_foot_geometry_heel{i}.getPoints];
 end
-for i = 1:length(r_foot_shapes_toe)
-  r_foot_toe = [r_foot_toe r_foot_shapes_toe{i}.getPoints];
+for i = 1:length(r_foot_geometry_toe)
+  r_foot_toe = [r_foot_toe r_foot_geometry_toe{i}.getPoints];
 end
 l_foot_bottom = [l_foot_toe l_foot_heel];
 r_foot_bottom = [r_foot_toe r_foot_heel];
@@ -58,7 +58,7 @@ FC_edge = FC_edge*robot.getMass*g;
 l_foot_contact_wrench = struct('active_knot',1:nT,'cw',LinearFrictionConeWrench(robot,l_foot,l_foot_bottom,FC_edge));
 r_foot_contact_wrench = struct('active_knot',1:nT,'cw',LinearFrictionConeWrench(robot,r_foot,r_foot_bottom,FC_edge));
 
-bky_idx = robot.getBody(robot.findJointInd('back_bky')).position_num;
+bky_idx = robot.getBody(robot.findJointId('back_bky')).position_num;
 
 tf_range = [1 1.5];
 q_nom = bsxfun(@times,qstar,ones(1,nT));

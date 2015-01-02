@@ -5,20 +5,20 @@ options.floating = true;
 r = RigidBodyManipulator(urdf,options);
 nq = r.getNumPositions();
 
-l_foot = r.findLinkInd('l_foot');
-r_foot = r.findLinkInd('r_foot');
-l_hand = r.findLinkInd('l_hand');
-r_hand = r.findLinkInd('r_hand');
-head = r.findLinkInd('head');
-nLPts = length(r.getBody(l_foot).getContactShapes);
+l_foot = r.findLinkId('l_foot');
+r_foot = r.findLinkId('r_foot');
+l_hand = r.findLinkId('l_hand');
+r_hand = r.findLinkId('r_hand');
+head = r.findLinkId('head');
+nLPts = length(r.getBody(l_foot).getCollisionGeometry);
 l_foot_pts = zeros(3,nLPts);
 for i=1:nLPts,
-  l_foot_pts(:,i) = r.getBody(l_foot).getContactShapes{i}.getPoints;
+  l_foot_pts(:,i) = r.getBody(l_foot).getCollisionGeometry{i}.getPoints;
 end
-nRPts = length(r.getBody(r_foot).getContactShapes);
+nRPts = length(r.getBody(r_foot).getCollisionGeometry);
 r_foot_pts = zeros(3,nRPts);
 for i=1:nRPts,
-  r_foot_pts(:,i) = r.getBody(r_foot).getContactShapes{i}.getPoints;
+  r_foot_pts(:,i) = r.getBody(r_foot).getCollisionGeometry{i}.getPoints;
 end
 l_hand_pts = [0;0;0];
 r_hand_pts = [0;0;0];

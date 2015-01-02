@@ -6,8 +6,9 @@
 #include <set>
 #include <Eigen/StdVector>
 #include <memory>
+#include "DrakeJoint.h"
 
-class DLLEXPORT IndexRange {
+class DLLEXPORT_RBM IndexRange {
  public:
   int start;
   int length;
@@ -21,11 +22,10 @@ class RigidBodyManipulator;
 
 using namespace Eigen;
 
-class DLLEXPORT RigidBody {
-#if !defined(_WIN32) && !defined(_WIN64)
+class DLLEXPORT_RBM RigidBody {
 private:
   std::unique_ptr<DrakeJoint> joint;
-#endif
+  typedef Matrix<double, 6,1> Vector6d;
 
 public:
   RigidBody();
@@ -33,10 +33,10 @@ public:
   void setN(int n);
   void computeAncestorDOFs(RigidBodyManipulator* model);
 
-#if !defined(_WIN32) && !defined(_WIN64)
   void setJoint(std::unique_ptr<DrakeJoint> joint);
   const DrakeJoint& getJoint() const;
-#endif
+
+  bool hasParent() const;
 
 public:
   std::string linkname;
@@ -57,13 +57,36 @@ public:
   std::set<IndexRange> ddTdqdq_nonzero_rows_grouped;
 
   Matrix4d T;
-  MatrixXd dTdq;
+  MatrixXd dTdq; // floatingbase TODO: replace with dTdq_new
   MatrixXd dTdqdot;
   Matrix4d Tdot;
   MatrixXd ddTdqdq;
 
   double mass;
   Vector4d com;  // this actually stores [com;1] (because that's what's needed in the kinematics functions)
+
+  DrakeJoint::MotionSubspaceType S;
+  MatrixXd dSdqi;
+  DrakeJoint::MotionSubspaceType J;
+  MatrixXd dJdq;
+
+  MatrixXd qdot_to_v;
+  MatrixXd dqdot_to_v_dqi;
+  MatrixXd v_to_qdot;
+  MatrixXd dv_to_qdot_dqi;
+
+  Vector6d twist;
+  Gradient<Vector6d, Eigen::Dynamic>::type dtwistdq;
+
+  Vector6d SdotV;
+  Gradient<Vector6d, Eigen::Dynamic>::type dSdotVdqi;
+  Gradient<Vector6d, Eigen::Dynamic>::type dSdotVdvi;
+
+  Vector6d JdotV;
+  Gradient<Vector6d, Eigen::Dynamic>::type dJdotVdq;
+  Gradient<Vector6d, Eigen::Dynamic>::type dJdotVdv;
+
+  Gradient<Isometry3d::MatrixType, Eigen::Dynamic>::type dTdq_new;
 
   friend std::ostream& operator<<( std::ostream &out, const RigidBody &b);
 

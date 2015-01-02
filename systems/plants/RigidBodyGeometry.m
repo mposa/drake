@@ -98,6 +98,17 @@ classdef RigidBodyGeometry
       pts = [];
     end
     
+    function obj = setColor(obj, color)
+      % Sets the color of the geometry for drawing
+      %
+      % @param color 3x1 color rgb array (defaults to [.7 .7 .7]
+      %
+      % @retval obj updated object
+      
+      obj.c = color;
+      
+    end
+    
   end
   
   methods (Static)
@@ -110,7 +121,7 @@ classdef RigidBodyGeometry
         switch (lower(char(thisNode.getNodeName())))
           case 'box'
             size = parseParamString(model,robotnum,char(thisNode.getAttribute('size')));
-            obj = RigidBodyBox(size);
+            obj = RigidBodyBox(size(:));
           case 'sphere'
             r = parseParamString(model,robotnum,char(thisNode.getAttribute('radius')));
             obj = RigidBodySphere(r);
@@ -152,6 +163,78 @@ classdef RigidBodyGeometry
       end
     end
 
+    function obj = parseSDFNode(node,x0,rpy,model,robotnum,options)
+      T= [rpy2rotmat(rpy),x0; 0 0 0 1];
+      
+      obj=[];
+      childNodes = node.getChildNodes();
+      for i=1:childNodes.getLength()
+        thisNode = childNodes.item(i-1);
+        switch (lower(char(thisNode.getNodeName())))
+          case 'box'
+            size_node = thisNode.getElementsByTagName('size').item(0);
+            size = parseParamString(model,robotnum,char(getNodeValue(getFirstChild(size_node))));
+            obj = RigidBodyBox(size);
+          case 'mesh'
+            uriNode = thisNode.getElementsByTagName('uri').item(0);
+            filename = char(getNodeValue(getFirstChild(uriNode)));
+
+            scale = 1;
+            scaleNode = thisNode.getElementsByTagName('scale').item(0);
+            if ~isempty(scaleNode)
+              scale = parseParamString(model,robotnum,char(getNodeValue(getFirstChild(scaleNode))));
+            end
+            
+            % parse strings with forward and backward slashes
+            filename = strrep(filename,'/',filesep);
+            filename = strrep(filename,'\',filesep);
+            
+            if ~isempty(strfind(filename,['model:',filesep,filesep]))
+              filename=strrep(filename,['model:',filesep,filesep],'');
+              [model,filename]=strtok(filename,filesep);
+              filename=[gazeboModelPath(model),filename];
+            else
+              strrep(filename,'file://','');
+              if ~isempty(strfind(filename,'http://'))
+                error('urls not supported yet -- but might not be too hard');
+              end
+              [path,name,ext] = fileparts(filename);
+              if (isempty(path) || path(1)~=filesep)  % the it's a relative path
+                path = fullfile(options.urdfpath,path);
+              end
+              filename = fullfile(path,[name,ext]);
+            end
+            obj = RigidBodyMesh(GetFullPath(filename));
+            obj.scale = scale;
+          case 'plane'
+            size_node = thisNode.getElementsByTagName('size').item(0);
+            size = parseParamString(model,robotnum,char(getNodeValue(getFirstChild(size_node))));
+            normal_node = thisNode.getElementsByTagName('normal').item(0);
+            normal = parseParamString(model,robotnum,char(getNodeValue(getFirstChild(normal_node))));
+            
+            pts = diag([size/2,0])*[ 1 1 -1 -1; 1 -1 -1 1; 0 0 0 0];
+            
+            % now rotate [0;0;1] onto the normal
+            % http://math.stackexchange.com/questions/180418/calculate-rotation-matrix-to-align-vector-a-to-vector-b-in-3d
+            v = [ -normal(2); normal(1); 0];
+            s = norm(v); c = normal(3);
+            if abs(s)<eps^2
+              R = diag([sign(c),1,sign(c)]);
+            else
+              vx = [ 0, -v(3), v(2); v(3), 0, -v(1); -v(2), v(1), 0];
+              R = eye(3) + vx + vx*vx*(1-c)/(s^2);
+            end
+            obj = RigidBodyMeshPoints(R*pts);            
+          case {'#text','#comment'}
+            % intentionally do nothing
+          otherwise
+            model.warning_manager.warnOnce(['Drake:RigidBodyGeometry:UnsupportedGeometry:',char(thisNode.getNodeName())],['SDF geometry ',char(thisNode.getNodeName()),' not implemented yet']);
+        end
+      end
+      if ~isempty(obj)
+        obj.T = T;
+      end
+    end    
   end
   
   properties  % note: constructModelmex currently depends on these being public

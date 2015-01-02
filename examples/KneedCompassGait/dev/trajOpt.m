@@ -47,14 +47,14 @@ figure(1)
 t = xtraj5.pp.breaks;
 l = ltraj5.eval(t);
 plot(t,l(1:4:end,:))
-v = p.constructVisualizer; v.playback(xtraj5);
+v = p.constructVisualizer; v.playback(xtraj5,struct('slider',true));
 display('iter 5')
 %%
 if info5 ~= 1 || true
   tic
 [p,xtraj5,utraj5,ltraj5,ljltraj5,z5,F5,info5,traj_opt5] = testNewTrajOpt(xtraj5,utraj5,ltraj5,ljltraj5,0);
 toc
-v = p.constructVisualizer; v.playback(xtraj5);
+v = p.constructVisualizer; v.playback(xtraj5,struct('slider',true));
 display('iter 5.2')
 end
 
