@@ -83,6 +83,9 @@ classdef ColocatedContactImplicitTrajectoryOptimization < DirectTrajectoryOptimi
       gamma_cnstr =  FunctionHandleConstraint(zeros(2*obj.nC*obj.nD,1),inf(2*obj.nC*obj.nD,1),nX+obj.nC*(3+obj.nD),@obj.gamma_fun);
       dgamma_cnstr =  FunctionHandleConstraint(zeros(obj.nD*obj.nC,1),inf(obj.nD*obj.nC,1),2*nq+obj.nC,@obj.dgamma_fun);
       
+      nGammacVars = 1 + 2*nX + 2*nU + 3*obj.nC*(1+obj.nD) + 2*obj.nJL + obj.nC;
+      gammac_cnstr = FunctionHandleConstraint(zeros(obj.nD*obj.nC,1),inf(obj.nD*obj.nC,1),nGammacVars,@obj.gammac_fun);
+      
       [~,~,~,~,~,~,~,mu] = obj.plant.contactConstraints(zeros(nq,1),false,obj.options.active_collision_options);
       mu = 1;
       
@@ -136,11 +139,25 @@ classdef ColocatedContactImplicitTrajectoryOptimization < DirectTrajectoryOptimi
           
           % gamma slack variables
           obj = obj.addConstraint(gamma_cnstr,{obj.x_inds(1:nq,i);obj.x_inds(nq+1:end,i);obj.L_inds(:,i);obj.gammam_inds(:,i);obj.gammap_inds(:,i)},shared_data_index+i);
-%               function [f,df] = dgamma_fun(obj,q0,q1,dgamma,data0,data1)          
-          if i~=obj.N
-            %dgamma slack
-            obj = obj.addConstraint(dgamma_cnstr,{obj.x_inds(1:nq,i);obj.x_inds(1:nq,i+1);obj.dgamma_inds(:,i)},[shared_data_index+i;shared_data_index+i+1]);
+          %               function [f,df] = dgamma_fun(obj,q0,q1,dgamma,data0,data1)
+          
+          
+          
+          use_gammac = 1;
+          %using dgamma OR gammac
+          if use_gammac
+            if i~=obj.N
+              gammac_cnstr_inds = {dyn_inds{i}{:},obj.dgamma_inds(:,i)};
+              obj = obj.addConstraint(gammac_cnstr,gammac_cnstr_inds,[shared_data_index+i;shared_data_index+i+1]);
+            end
+          else
+            if i~=obj.N
+              %dgamma slack
+              %gammac_fun(obj,h,x0,x1,u0,u1,lambda0,lambda_jl0,lambda1,lambda_jl1,gammac,data0,data1)
+              obj = obj.addConstraint(dgamma_cnstr,{obj.x_inds(1:nq,i);obj.x_inds(1:nq,i+1);obj.dgamma_inds(:,i)},[shared_data_index+i;shared_data_index+i+1]);
+            end
           end
+          
           
           % friction limits
           obj = obj.addConstraint(fric_cnstr,obj.lm_inds(:,i));
@@ -267,6 +284,64 @@ classdef ColocatedContactImplicitTrajectoryOptimization < DirectTrajectoryOptimi
       
       f = [fm;fp];
       df = [dfm;dfp];
+    end
+    
+    function [f,df] = gammac_fun(obj,h,x0,x1,u0,u1,lambda0,lambda_jl0,lambda1,lambda_jl1,Lambda,gammac,data0,data1)
+      use_data = (nargin > 11);
+      
+      nq = obj.plant.getNumPositions;
+      nv = obj.plant.getNumVelocities;
+      nX = obj.plant.getNumStates();
+      nU = obj.plant.getNumInputs();
+      nl = length(lambda0);
+      njl = length(lambda_jl0);
+      
+      q0 = x0(1:nq);
+      
+      if use_data
+        v0p = data0.vp;
+        dv0pdLambda = data0.dvp(:,nX+1:end);
+        dv0pdx0 = data0.dvp(:,1:nX);
+        dx0pdx0 = [eye(nq) zeros(nq,nv); dv0pdx0];
+        x0p = [q0;v0p];
+        
+        [xdot0,dxdot0p] = constrained_dynamics(obj,x0p(1:nq),x0p(nq+1:end),u0,lambda0,lambda_jl0,data0);
+        v0p_inds = 1+nq:nq+nv;
+        dxdot0 = [dxdot0p dxdot0p(:,v0p_inds)*dv0pdLambda];
+        dxdot0(:,2:1+nX) = dxdot0(:,2:1+nX)*dx0pdx0;
+        
+        %dxdot0 and dxdot1 different sizes, clearly something's wrong here
+        
+        [xdot1,dxdot1] = constrained_dynamics(obj,x1(1:nq),x1(nq+1:end),u1,lambda1,lambda_jl1,data1);
+      else
+        error('Not implemented')               
+      end
+                  
+      
+      % cubic interpolation to get xcol and xdotcol, as well as
+      % derivatives
+      xcol = .5*(x0p+x1) + h/8*(xdot0-xdot1);
+      dxcol = [1/8*(xdot0-xdot1), (.5*dx0pdx0 + h/8*dxdot0(:,1:nX)), ...
+        (.5*eye(nX) - h/8*dxdot1(:,1:nX)), h/8*dxdot0(:,nX+1:nX+nU) -h/8*dxdot1(:,nX+1:nX+nU), ...
+        h/8*dxdot0(:,nX+nU+1:nX+nU+nl+njl), -h/8*dxdot1(:,nX+nU+1:end), h/8*dxdot0(:,nX+nU+nl+njl+1:end)+.5*[zeros(nq,nl); dv0pdLambda]];
+      
+%       dxcol(:,2+2*nX+2*nU+2*nl+2*njl:end) = dxcol(:,2+2*nX+2*nU+2*nl+2*njl:end) + dxcol(:,2+nq:1+nX)*dv0pdLambda;
+%       dxcol(:,2:1+nX) = dxcol(:,2:1+nX)*dx0pdx0;
+      
+      qc = xcol(1:nq);
+      vc = xcol(nq+1:end);
+      
+      [phi,~,d,xA,xB,idxA,idxB,~,n,D,dn,dD] = obj.plant.contactConstraints(qc,false,obj.options.active_collision_options);
+      
+      f = zeros(obj.nC*obj.nD,1);
+      df = zeros(obj.nC*obj.nD,1+2*nX+2*nU+3*nl+2*njl+obj.nC);
+      
+      for j=1:obj.nD,
+        f(j:obj.nD:end) = gammac + D{j}*vc;
+        
+        df(j:obj.nD:end,end-obj.nC+1:end) = eye(size(D{j},1));  %d/dgammac                
+        df(j:obj.nD:end,1:end-obj.nC) = D{j}*dxcol(nq+1:end,:) + matGradMult(dD{j}*dxcol(1:nq,:),vc);%d/dv
+      end      
     end
     
     function data = contact_data_fun(obj,q,vm,Lambda)

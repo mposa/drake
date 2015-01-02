@@ -9,9 +9,9 @@ p = PlanarRigidBodyManipulator('KneedCompassGait_nolimits.urdf',options);
 
 %todo: add joint limits, periodicity constraint
 
-N = 20;
+N = 15;
 T = 5;
-T0 = 5;
+T0 = 1;
 
 % periodic constraint
 R_periodic = zeros(p.getNumStates,2*p.getNumStates);
@@ -46,6 +46,8 @@ if nargin < 2
   %Try to come up with a reasonable trajectory
   x1 = [.3;1;pi/8-pi/16;pi/8;-pi/8;pi/8;zeros(6,1)];
   t_init = linspace(0,T0,N);
+  x1 = x0;
+  xf = x0;
 %   traj_init.x = PPTrajectory(foh(t_init,linspacevec(x0,xf,N)));
   traj_init.x = PPTrajectory(foh(t_init,[linspacevec(x0,x1,N2), linspacevec(x1,xf,N-N2)]));
   traj_init.u = PPTrajectory(foh(t_init,randn(3,N)));
@@ -69,7 +71,8 @@ T_span = [1 T];
 
 x0_min = [x0(1:5);-inf; -inf; 0; -inf(4,1)];
 x0_max = [x0(1:5);inf;  inf; 0; inf(4,1)];
-xf_min = [.4;-inf(11,1)];
+xf_min = [0;-inf(11,1)];
+% xf_min = [.4;-inf(11,1)];
 xf_max = inf(12,1);
 
 % x0_min = x0;
@@ -80,13 +83,13 @@ xf_max = inf(12,1);
 
 to_options.nlcc_mode = 2;
 to_options.lincc_mode = 1;
-to_options.compl_slack = .01;
-to_options.lincompl_slack = .1;
+% to_options.compl_slack = .01; %not used
+to_options.lincompl_slack = .0001;
 to_options.jlcompl_slack = .01;
 to_options.lambda_mult = p.getMass*9.81;
-% to_options.Lambda_mult = p.getMass;
+to_options.Lambda_mult = 100;%p.getMass;
 to_options.lambda_jl_mult = T0/N;
-to_options.time_option = 1;
+to_options.time_option = 2;
 
 
 traj_opt = ColocatedContactImplicitTrajectoryOptimization(p,N,T_span,to_options);
@@ -94,11 +97,16 @@ traj_opt = traj_opt.addRunningCost(@running_cost_fun);
 traj_opt = traj_opt.addStateConstraint(BoundingBoxConstraint(x0_min,x0_max),1);
 traj_opt = traj_opt.addStateConstraint(BoundingBoxConstraint(xf_min,xf_max),N);
 traj_opt = traj_opt.addStateConstraint(periodic_constraint,{[1 N]});
+
+h_cons = LinearConstraint(.01*ones(N-1,1),2*T/(N-1)*ones(N-1,1),eye(N-1));
+traj_opt = traj_opt.addConstraint(h_cons,traj_opt.h_inds);
+
 % traj_opt = traj_opt.setCheckGrad(true);
 snprint('snopt.out');
-traj_opt = traj_opt.setSolverOptions('snopt','MajorIterationsLimit',200);
-traj_opt = traj_opt.setSolverOptions('snopt','MinorIterationsLimit',20000);
-traj_opt = traj_opt.setSolverOptions('snopt','IterationsLimit',200000);
+traj_opt = traj_opt.setSolverOptions('snopt','MajorIterationsLimit',400);
+traj_opt = traj_opt.setSolverOptions('snopt','MinorIterationsLimit',2e6);
+traj_opt = traj_opt.setSolverOptions('snopt','IterationsLimit',2e6);
+% traj_opt = traj_opt.setSolverOptions('snopt','ScaleOption',2);
 z0 = traj_opt.getInitialVars(t_init,traj_init);
 [f,df] = traj_opt.objectiveAndNonlinearConstraints(z0);
 [xtraj,utraj,ltraj,ljltraj,z,F,info] = traj_opt.solveTraj(t_init,traj_init);
@@ -106,8 +114,9 @@ z0 = traj_opt.getInitialVars(t_init,traj_init);
 [f,df] = traj_opt.objectiveAndNonlinearConstraints(z);
 
 function [f,df] = running_cost_fun(h,x,u)
-  f = h*u'*u;
-  df = [u'*u zeros(1,12) 2*h*u'];
+  Kh = 100;
+  f = Kh*h^2 + h*u'*u;
+  df = [2*Kh*h+u'*u zeros(1,12) 2*h*u'];
 end
 
 end
