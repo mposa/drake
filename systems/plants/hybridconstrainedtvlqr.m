@@ -1,4 +1,4 @@
-function [c,Ktraj,Straj,Ptraj,Btraj,tvec,Straj_full,Ftraj,xtraj,utraj] = hybridconstrainedtvlqr(obj,xtraj,utraj,ltraj,Q,R,Qf,options)
+function [c,Ktraj,Straj,Ptraj,Btraj,tvec,Straj_full,Ftraj,data] = hybridconstrainedtvlqr(obj,xtraj,utraj,ltraj,Q,R,Qf,options)
 %HYBRIDCONSTRAINEDTVLQR
 % TVLQR for a hybrid model with constraints
 % @input obj The plant object
@@ -95,7 +95,7 @@ jl_indices = l(1:nJL,:) > options.force_threshold;
 contact_indices = l([1:4:end],:) > options.force_threshold;
 
 if options.shift_times
-  mask = [ones(size(contact_indices,1),1) contact_indices(:,1:end-1)]
+  mask = [ones(size(contact_indices,1),1) contact_indices(:,1:end-1)];
   contact_indices = contact_indices.*mask;
 end
 
@@ -159,7 +159,9 @@ if options.periodic
   for j = 1:3
     for i = length(mode_data):-1:1,
       ts = mode_data{i}.tspan;
-      [c{i},Ktraj{i},Straj{i},Ptraj{i},Btraj{i}] = constrainedtvlqr(obj,xtraj,utraj,Q,R,Qfi,mode_data{i}.constraint_ind,struct('tspan',ts));
+      sub_options = options;
+      sub_options.tspan = ts;
+      [c{i},Ktraj{i},Straj{i},Ptraj{i},Btraj{i},Ftraj{i},Straj_full{i}] = constrainedtvlqr(obj,xtraj,utraj,Q,R,Qfi,mode_data{i}.constraint_ind,sub_options);
       P0 = Ptraj{i}.eval(ts(1));
       S0 = Straj{i}.eval(ts(1));
       Qfi = pinv(P0*P0')*P0*S0*P0'*pinv(P0*P0')';  %extract least squares full rank solution
@@ -169,13 +171,17 @@ if options.periodic
       else
         Qfi = options.periodic_jump'*Qfi*options.periodic_jump;
       end
+      Qfi = Qfi + 1e-6*eye(size(Qfi,1));      
     end
     
-    c_bkp{j} = c;
-    K_bkp{j} = Ktraj;
-    S_bkp{j} = Straj;
-    P_bkp{j} = Ptraj;
-    B_bkp{j} = Btraj;
+    data.c{j} = c;
+    data.Ktraj{j} = Ktraj;
+    data.Straj{j} = Straj;
+    data.Straj{j} = Straj;
+    data.Ptraj{j} = Ptraj;
+    data.Btraj{j} = Btraj;
+    data.Ftraj{j} = Ftraj;
+    data.Straj_full{j} = Straj_full;
   end
 else
   Qfi = Qf;
