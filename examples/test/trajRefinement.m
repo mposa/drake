@@ -10,7 +10,7 @@ p = PlanarRigidBodyManipulator('OneLegHopper.urdf',options);
 
 %todo: add joint limits, periodicity constraint
 
-N = 3;
+N = 10;
 
 T = tf-t0;
 t_init = linspace(0,T,N);
@@ -36,11 +36,10 @@ end
 
 x0_min = x0;% - .001*ones(12,1);
 x0_max = x0;% + .001*ones(12,1);
-xf_min = [xf(1:5);-inf(5,1)];%xf - .001*ones(12,1);
-xf_max = [xf(1:5);inf(5,1)];%xf + .001*ones(12,1);
+xf_min = [xf(1:5);-zeros(5,1)];%xf - .001*ones(12,1);
+xf_max = [xf(1:5);zeros(5,1)];%xf + .001*ones(12,1);
 
-T_span = [T T];
-
+T_span = [T*.95 T*1.05];
 
 to_options.compl_slack = scale*.01;
 to_options.lincompl_slack = scale*.001;
@@ -52,7 +51,8 @@ to_options.lambda_mult = p.getMass*9.81*T*N/2;
 to_options.lambda_jl_mult = T/N;
 
 % to_options.integration_method = ContactImplicitTrajectoryOptimization.MIDPOINT;
-to_options.integration_method = ContactImplicitTrajectoryOptimization.MIXED;
+% to_options.integration_method = ContactImplicitTrajectoryOptimization.MIXED;
+to_options.integration_method = ContactImplicitTrajectoryOptimization.FORWARD_EULER;
 
 traj_opt = ContactImplicitTrajectoryOptimization(p,N,T_span,to_options);
 traj_opt = traj_opt.addRunningCost(@running_cost_fun);

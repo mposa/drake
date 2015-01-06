@@ -1,4 +1,4 @@
-function [p,xtraj,utraj,ltraj,ljltraj,z,F,info,traj_opt] = trajOpt(xtraj,utraj,ltraj,ljltraj,scale)
+function [p,xtraj,utraj,ltraj,ljltraj,z,F,info,traj_opt] = trajOpt(xtraj,utraj,ltraj,ljltraj,scale,t_init)
 warning('off','Drake:RigidBodyManipulator:UnsupportedContactPoints');
 warning('off','Drake:RigidBodyManipulator:WeldedLinkInd');
 warning('off','Drake:RigidBodyManipulator:UnsupportedJointLimits');
@@ -10,9 +10,13 @@ p = PlanarRigidBodyManipulator('OneLegHopper.urdf',options);
 
 %todo: add joint limits, periodicity constraint
 
-N = 20;
+if nargin <6
+  N = 40;
+else
+  N = length(t_init);
+end
 
-distance = .3;
+distance = .1;
 
 q0 = [0;0;.6;-1.2;.6+pi/2];
 phi_f = p.contactConstraints(q0);
@@ -48,10 +52,16 @@ if nargin < 2
   
   scale = 1;
 else
-  t_init = xtraj.pp.breaks;
-  if length(t_init) ~= N
-    t_init = linspace(0,t_init(end),N);
+  if nargin < 6
+    t_init = xtraj.pp.breaks;      
+    if length(t_init) ~= N
+      t_init = linspace(0,t_init(end),N);
+    end
+  else
+    to_options.time_option = 3;
+    to_options.time_scaling = 1./diff(t_init);
   end
+  
   traj_init.x = xtraj;
   traj_init.u = utraj;
   traj_init.l = ltraj;
