@@ -17,6 +17,8 @@ else
 end
 
 distance = .1;
+
+x_vel = -0.0;
 qd_init = [x_vel;zeros(4,1)];
 
 q0 = [0;0;.6;-1.2;.6+pi/2];
@@ -88,7 +90,8 @@ to_options.lambda_mult = p.getMass*9.81*tf0/N/2;
 to_options.lambda_jl_mult = tf0/N;
 
 % to_options.integration_method = ContactImplicitTrajectoryOptimization.MIDPOINT;
-to_options.integration_method = ContactImplicitTrajectoryOptimization.MIXED;
+% to_options.integration_method = ContactImplicitTrajectoryOptimization.MIXED;
+to_options.integration_method = ContactImplicitTrajectoryOptimization.BACKWARD_EULER;
 
 traj_opt = ContactImplicitTrajectoryOptimization(p,N,T_span,to_options);
 traj_opt = traj_opt.addRunningCost(@running_cost_fun);
