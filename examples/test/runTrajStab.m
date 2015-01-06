@@ -19,6 +19,7 @@ options.terrain = RigidBodyFlatTerrain();
 options.floating = true;
 options.ignore_self_collisions = true;
 options.use_bullet = false;
+options.enable_fastqp = false;
 s = 'OneLegHopper.urdf';
 dt = 0.001;
 r = TimeSteppingRigidBodyManipulator(s,dt,options);
@@ -33,6 +34,9 @@ v = r.constructVisualizer;
 v.display_dt = 0.01;
 
 load('data/hopper_traj_lqr.mat');
+
+[xtraj,utraj,Btraj,Straj,Straj_full] = repeatTraj(xtraj,utraj,Btraj,Straj,Straj_full,5);
+
 xtraj = xtraj.setOutputFrame(getStateFrame(r));
 v.playback(xtraj);
 
@@ -46,12 +50,36 @@ options.left_foot_name = 'thigh'; % junk for now
 
 foot_ind = findLinkId(r,'foot');
 
-support_times(2) = support_times(2);
-% manually specifiy modes for now
-supports = [RigidBodySupportState(r,foot_ind); ...
-  RigidBodySupportState(r,foot_ind,{{'toe'}}); ...
-  RigidBodySupportState(r,[]); ...
-  RigidBodySupportState(r,foot_ind)];
+[ts,modes] = extractHybridModes(r,xtraj,support_times+0.03); % hack add time to make sure it's fully into the next mode
+
+% support_times = ts([1 find(diff(modes_))]);
+% modes = modes_([1 1+find(diff(modes_))]);
+
+if length(support_times) ~= length(Straj)
+  disp('these should be equal');
+  keyboard;
+end
+
+supports = [];
+for i=1:length(modes)
+  switch modes(i)
+    case 1
+      supp = RigidBodySupportState(r,foot_ind);
+    case 2
+      supp = RigidBodySupportState(r,foot_ind,{{'heel'}}); 
+    case 3
+      supp = RigidBodySupportState(r,foot_ind,{{'toe'}}); 
+    case 4
+      supp = RigidBodySupportState(r,[]);
+  end
+  supports = [supports; supp];
+end
+
+% % manually specifiy modes for now
+% supports = [RigidBodySupportState(r,foot_ind); ...
+%   RigidBodySupportState(r,foot_ind,{{'toe'}}); ...
+%   RigidBodySupportState(r,[]); ...
+%   RigidBodySupportState(r,foot_ind)];
 
 if segment_number<1
   B=Btraj;
@@ -104,6 +132,32 @@ warning(S);
 tspan = xtraj.tspan();
 traj = simulate(sys,[t0 tf],xtraj.eval(t0));
 playback(v,traj,struct('slider',true));
+
+if 0
+  % plot position tracking
+  pptraj = PPTrajectory(foh(traj.getBreaks,traj.eval(traj.getBreaks)));
+  for i=1:10
+    figure(100+i);
+    hold on;
+    fnplt(xtraj(i));
+    fnplt(pptraj(i));
+    hold off;
+  end
+end
+
+if 1
+  % plot mode sequence
+  pptraj = PPTrajectory(foh(traj.getBreaks,traj.eval(traj.getBreaks)));
+  
+  [ts,modes] = extractHybridModes(r,xtraj);
+  [ts_,modes_] = extractHybridModes(r,pptraj);
+
+  figure(999);
+  plot(ts,modes,'b');
+  hold on;
+  plot(ts_,modes_,'r');
+  hold off;
+end
 
 end
 
