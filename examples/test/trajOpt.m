@@ -5,6 +5,7 @@ warning('off','Drake:RigidBodyManipulator:UnsupportedJointLimits');
 options.terrain = RigidBodyFlatTerrain();
 options.floating = true;
 options.ignore_self_collisions = true;
+options.use_bullet = false;
 p = PlanarRigidBodyManipulator('OneLegHopper.urdf',options);
 % trajopt = ContactImplicitTrajectoryOptimization(p,[],[],[],10,[1 1]);
 
@@ -17,8 +18,8 @@ else
 end
 
 distance = .1;
-
 x_vel = -0.0;
+
 qd_init = [x_vel;zeros(4,1)];
 
 q0 = [0;0;.6;-1.2;.6+pi/2];
@@ -77,8 +78,8 @@ T_span = [tf0 tf0];
 x0_min = [q0;qd_init];
 x0_max = [q0;qd_init];
 
-xf_min = [qf;qd_init] - [.05;zeros(9,1)];
-xf_max = [qf;qd_init] + [.05;zeros(9,1)];
+xf_min = [qf;qd_init] - [.0;zeros(9,1)];
+xf_max = [qf;qd_init] + [.0;zeros(9,1)];
 
 to_options.compl_slack = scale*.01;
 to_options.lincompl_slack = scale*.001;
@@ -89,9 +90,9 @@ to_options.lincc_mode = 1;
 to_options.lambda_mult = p.getMass*9.81*tf0/N/2;
 to_options.lambda_jl_mult = tf0/N;
 
-% to_options.integration_method = ContactImplicitTrajectoryOptimization.MIDPOINT;
+to_options.integration_method = ContactImplicitTrajectoryOptimization.MIDPOINT;
 % to_options.integration_method = ContactImplicitTrajectoryOptimization.MIXED;
-to_options.integration_method = ContactImplicitTrajectoryOptimization.BACKWARD_EULER;
+% to_options.integration_method = ContactImplicitTrajectoryOptimization.BACKWARD_EULER;
 
 traj_opt = ContactImplicitTrajectoryOptimization(p,N,T_span,to_options);
 traj_opt = traj_opt.addRunningCost(@running_cost_fun);

@@ -33,11 +33,12 @@ nu = getNumInputs(r);
 v = r.constructVisualizer;
 v.display_dt = 0.01;
 
-load('data/hopper_traj_lqr_40_knots.mat');
-% load('data/hopper_traj_lqr_refined.mat');
-N_hops = 5;
+% load('data/hopper_traj_lqr_40_knots.mat');
+load('data/hopper_traj_lqr_refined.mat');
+N_hops = 1;
 
-[xtraj,utraj,Btraj,Straj,Straj_full] = repeatTraj(xtraj,utraj,Btraj,Straj,Straj_full,N_hops);
+[xtraj,utraj,Btraj,Straj,Straj_full] = repeatTraj(xtraj,utraj,Btraj,Straj,Straj_full,N_hops-1);
+%mode_data = repmat(mode_data,1,N_hops+1);
 
 xtraj = xtraj.setOutputFrame(getStateFrame(r));
 v.playback(xtraj);
@@ -104,6 +105,8 @@ ctrl_data = FullStateQPControllerData(true,struct(...
   'support_times',support_times,...
   'supports',supports));
 
+%ctrl_data.mode_data = mode_data;
+
 % instantiate QP controller
 options.slack_limit = 10;
 options.w_qdd = 0*ones(nq,1);
@@ -134,7 +137,7 @@ warning(S);
 tspan = xtraj.tspan();
 traj = simulate(sys,[t0 tf],xtraj.eval(t0));
 playback(v,traj,struct('slider',true));
-
+keyboard
 if 0
   % plot position tracking
   pptraj = PPTrajectory(foh(traj.getBreaks,traj.eval(traj.getBreaks)));
@@ -154,7 +157,7 @@ if 1
   [ts,modes] = extractHybridModes(r,xtraj);
   [ts_,modes_] = extractHybridModes(r,pptraj);
 
-  figure(998);
+  figure(999);
   plot(ts,modes,'b');
   hold on;
   plot(ts_,modes_,'r');

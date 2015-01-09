@@ -1,4 +1,4 @@
-function [p,xtraj,utraj,ltraj,ljltraj,z,F,info,traj_opt] = trajRefinement(xtraj,utraj,ltraj,ljltraj,scale,t0,tf,is_iter)
+function [p,xtraj,utraj,ltraj,ljltraj,z,F,info,traj_opt] = trajRefinement(xtraj,utraj,ltraj,ljltraj,scale,t_refine,N_refine,fix_first,fix_second)
 warning('off','Drake:RigidBodyManipulator:UnsupportedContactPoints');
 warning('off','Drake:RigidBodyManipulator:WeldedLinkInd');
 warning('off','Drake:RigidBodyManipulator:UnsupportedJointLimits');
@@ -8,38 +8,62 @@ options.ignore_self_collisions = true;
 p = PlanarRigidBodyManipulator('OneLegHopper.urdf',options);
 % trajopt = ContactImplicitTrajectoryOptimization(p,[],[],[],10,[1 1]);
 
-%todo: add joint limits, periodicity constraint
-
-N = 10;
-
-T = tf-t0;
-t_init = linspace(0,T,N);
-
-if is_iter
-  traj_init.x = xtraj;
-  traj_init.u = utraj;
-  traj_init.l = ltraj;
-  traj_init.ljl = ljltraj;
-  
-  x0 = xtraj.eval(0);
-  xf = xtraj.eval(T);
-else
-  x0 = xtraj.eval(t0);
-  xf = xtraj.eval(tf);
-  t_sample = linspace(t0,tf,N);
-  traj_init.x = PPTrajectory(foh(t_init,xtraj.eval(t_sample)));
-  traj_init.u = PPTrajectory(foh(t_init,utraj.eval(t_sample)));
-  traj_init.l = PPTrajectory(foh(t_init,ltraj.eval(t_sample)));
-  traj_init.ljl = [];%PPTrajectory(foh(t_init,ljltraj.eval(t_sample)));
+if nargin < 8
+  fix_first = false;
+  fix_second = false;
 end
 
+%todo: add joint limits, periodicity constraint
 
-x0_min = x0;% - .001*ones(12,1);
-x0_max = x0;% + .001*ones(12,1);
-xf_min = [xf(1:5);-zeros(5,1)];%xf - .001*ones(12,1);
-xf_max = [xf(1:5);zeros(5,1)];%xf + .001*ones(12,1);
+t_init = xtraj.pp.breaks;
+i0 = find(t_init <= t_refine(1),1,'last');
+iend = find(t_init >= t_refine(2),1);
 
-T_span = [T*.95 T*1.05];
+t_init = [t_init(1:i0-1) linspace(t_init(i0),t_init(iend),N_refine + iend - i0 + 1) t_init(iend+1:end)];
+
+N = length(t_init);
+
+distance = .1;
+x_vel = -0.0;
+
+qd_init = [x_vel;zeros(4,1)];
+
+q0 = [0;0;.6;-1.2;.6+pi/2];
+phi_f = p.contactConstraints(q0);
+q0(2) = -phi_f(1);
+x0 = [q0;qd_init];
+
+q1 = [-distance/2;0;.6;-1.2;.2+pi/2];
+phi_f = p.contactConstraints(q1);
+q1(2) = -phi_f(1) + 0.15;
+x1 = [q1;qd_init];
+
+qf = [-distance;0;.6;-1.2;.6+pi/2];
+phi_f = p.contactConstraints(qf);
+qf(2) = -phi_f(1);
+xf = [qf;qd_init];
+
+N1 = floor(N/2);
+N2 = N-N1;
+d = floor(N/4);
+tf0 = 0.5;
+
+to_options.time_option = 3;
+to_options.time_scaling = 1./diff(t_init);
+
+traj_init.x = xtraj;
+traj_init.u = utraj;
+traj_init.l = ltraj;
+traj_init.ljl = ljltraj;
+
+T_span = [tf0 tf0];
+
+
+x0_min = [q0;qd_init];
+x0_max = [q0;qd_init];
+
+xf_min = [qf;qd_init] - [.0;zeros(9,1)];
+xf_max = [qf;qd_init] + [.0;zeros(9,1)];
 
 to_options.compl_slack = scale*.01;
 to_options.lincompl_slack = scale*.001;
@@ -47,12 +71,12 @@ to_options.jlcompl_slack = scale*.01;
 
 to_options.nlcc_mode = 2;
 to_options.lincc_mode = 1;
-to_options.lambda_mult = p.getMass*9.81*T*N/2;
-to_options.lambda_jl_mult = T/N;
+to_options.lambda_mult = p.getMass*9.81*tf0/N/2;
+to_options.lambda_jl_mult = tf0/N;
 
 % to_options.integration_method = ContactImplicitTrajectoryOptimization.MIDPOINT;
 % to_options.integration_method = ContactImplicitTrajectoryOptimization.MIXED;
-to_options.integration_method = ContactImplicitTrajectoryOptimization.FORWARD_EULER;
+to_options.integration_method = ContactImplicitTrajectoryOptimization.BACKWARD_EULER;
 
 traj_opt = ContactImplicitTrajectoryOptimization(p,N,T_span,to_options);
 traj_opt = traj_opt.addRunningCost(@running_cost_fun);
@@ -60,6 +84,64 @@ traj_opt = traj_opt.addRunningCost(@running_cost_fun);
 % traj_opt = traj_opt.addFinalCost(@final_cost_fun);
 traj_opt = traj_opt.addStateConstraint(BoundingBoxConstraint(x0_min,x0_max),1);
 traj_opt = traj_opt.addStateConstraint(BoundingBoxConstraint(xf_min,xf_max),N);
+traj_opt = traj_opt.addInputConstraint(LinearConstraint(zeros(2,1),zeros(2,1),[eye(2),-eye(2)]),{[1,N-1]});% force first and next-to-last inputs to be equal (we drop the last input because it's junk)
+
+
+for i=1:i0-1,
+  li = ltraj.eval(t_init(i));
+  if li(1) > .1
+    traj_opt = traj_opt.addConstraint(BoundingBoxConstraint(.1,inf),traj_opt.l_inds(1,i));
+  elseif li(1) < 1e-3
+    traj_opt = traj_opt.addConstraint(BoundingBoxConstraint(0,0),traj_opt.l_inds(1,i));
+  end
+  
+  if li(5) > .1
+    traj_opt = traj_opt.addConstraint(BoundingBoxConstraint(.1,inf),traj_opt.l_inds(5,i));
+  elseif li(5) < 1e-3
+    traj_opt = traj_opt.addConstraint(BoundingBoxConstraint(0,0),traj_opt.l_inds(5,i));
+  end
+end
+
+if fix_first
+  for i=i0:iend+N_refine,
+    li = ltraj.eval(t_init(i));
+    if li(1) > .1
+      traj_opt = traj_opt.addConstraint(BoundingBoxConstraint(.1,inf),traj_opt.l_inds(1,i));
+    elseif li(1) < 1e-3
+      traj_opt = traj_opt.addConstraint(BoundingBoxConstraint(0,0),traj_opt.l_inds(1,i));
+    end
+  end
+end
+
+if fix_second
+  for i=i0:iend+N_refine,
+    li = ltraj.eval(t_init(i));
+    if li(5) > .1
+      traj_opt = traj_opt.addConstraint(BoundingBoxConstraint(.1,inf),traj_opt.l_inds(5,i));
+    elseif li(5) < 1e-3
+      traj_opt = traj_opt.addConstraint(BoundingBoxConstraint(0,0),traj_opt.l_inds(5,i));
+    end
+  end
+end
+
+
+for i=iend + 1 + N_refine:N,
+  li = ltraj.eval(t_init(i));
+  if li(1) > .1
+    traj_opt = traj_opt.addConstraint(BoundingBoxConstraint(.1,inf),traj_opt.l_inds(1,i));
+  elseif li(1) < 1e-3
+    traj_opt = traj_opt.addConstraint(BoundingBoxConstraint(0,0),traj_opt.l_inds(1,i));
+  end
+  
+  if li(5) > .1
+    traj_opt = traj_opt.addConstraint(BoundingBoxConstraint(.1,inf),traj_opt.l_inds(5,i));
+  elseif li(5) < 1e-3
+    traj_opt = traj_opt.addConstraint(BoundingBoxConstraint(0,0),traj_opt.l_inds(5,i));
+  end
+end
+
+% traj_opt = traj_opt.addConstraint(BoundingBoxConstraint(.1*ones(1,10),inf(1,10)),traj_opt.l_inds(5,1:10));
+
 
 % traj_opt = traj_opt.setCheckGrad(true);
 traj_opt = traj_opt.setSolverOptions('snopt','print','snopt.out');

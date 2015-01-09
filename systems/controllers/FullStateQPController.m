@@ -93,6 +93,13 @@ classdef FullStateQPController < MIMODrakeSystem
     end
     obj.solver = options.solver;
     
+    if isfield(options,'offset_x')
+      typecheck(options.offset_x,'logical');
+      obj.offset_x = options.offset_x;
+    else
+      obj.offset_x = true;
+    end
+    
     if isfield(options,'left_foot_name')
       obj.lfoot_idx = findLinkId(r,options.left_foot_name);
     else
@@ -229,13 +236,7 @@ classdef FullStateQPController < MIMODrakeSystem
       % compute foor placement error
       kinsol0 = r.doKinematics(q0);
       xp0 = forwardKin(r,kinsol0,active_supports,xz_pts,0);
-      if size(xp,2) > 2 && false
-        xoffset = mean(xp(1,end-1:end) - xp0(1,end-1:end));
-      else
-        xoffset = mean(xp(1,:) - xp0(1,:));
-      end
-      x0(1) = x0(1) - xoffset;
-      display(sprintf('t=%f, offset=%f',t,xoffset));
+      obj.controller_data.xoffset = mean(xp0(1,:)-xp(1,:));
       
       % delete y rows
       yind = 2:3:nc*3;
@@ -246,8 +247,10 @@ classdef FullStateQPController < MIMODrakeSystem
       nc = 0;
     end
     neps = nc*dim;
-
-
+    if obj.offset_x
+      xoffset = obj.controller_data.xoffset
+      x0(1) = x0(1) - obj.controller_data.xoffset;
+    end
     %----------------------------------------------------------------------
     % Build handy index matrices ------------------------------------------
 
@@ -270,7 +273,7 @@ classdef FullStateQPController < MIMODrakeSystem
     Aeq_ = cell(1,2);
     beq_ = cell(1,2);
 
-    % constrained dynamics
+    % dynamics constraints
     if nc>0
       Aeq_{1} = H*Iqdd - B*Iu - Dbar*Ibeta;
     else
@@ -287,6 +290,12 @@ classdef FullStateQPController < MIMODrakeSystem
     % linear equality constraints: Aeq*alpha = beq
     Aeq = sparse(vertcat(Aeq_{:}));
     beq = vertcat(beq_{:});
+    
+%     phi = contactConstraints(r,x0(1:nq),false,struct('terrain_only',1));
+%     active_constraints = ctrl_data.mode_data{supp_idx}.constraint_ind;
+%     dynamicsFun = @(t,x,u) constrainedDynamics(r,t,x0,u,active_constraints);
+%     [~,dxd] = geval(dynamicsFun,t,x0,u0,struct('grad_method','numerical'));
+%     B_ls = dxd(:,getNumStates(r)+1+(1:nu));
     
     %----------------------------------------------------------------------
     % QP cost function ----------------------------------------------------
@@ -356,8 +365,8 @@ classdef FullStateQPController < MIMODrakeSystem
       qp_active_set = find(abs(Ain_fqp*alpha - bin_fqp)<1e-6);
       obj.controller_data.qp_active_set = qp_active_set;
     end
-    beta=Ibeta*alpha;
-    y = Iu*alpha;
+%     beta=Ibeta*alpha
+    y = Iu*alpha     
     
   end
   end
@@ -380,5 +389,6 @@ classdef FullStateQPController < MIMODrakeSystem
     ineq_array = repmat('<',100,1); % so we can avoid using repmat in the loop
     jlmin;
     jlmax;
+    offset_x; % whether or not to offset the nominal state in the x-dimension
   end
 end
