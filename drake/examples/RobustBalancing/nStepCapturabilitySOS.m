@@ -60,8 +60,12 @@ Vdot = diff(V,x)*f + diff(V,t);
 
 Vdot_degree = even_degree(Vdot,[x;u]);
 
+%% State constraint
+A = diag(1./(R_diag.^2));
+h_X = 1 - x'*A*x;
 
-%% Goal region
+%% SOS constraints
+sos = msspoly;
 if n > 0
   % jump equation
   xp = model.reset(t, x, s);
@@ -69,17 +73,7 @@ if n > 0
   % for n > 0, goal region is based off V from 0-step model
   % V0p(x) = V0(0,xp)
   V0p = subs(V0,[x;t],[xp;0]);
-else
-  V0p = target(x);
-end
 
-% State constraint
-A = diag(1./(R_diag.^2));
-h_X = 1 - x'*A*x;
-
-%% SOS constraints
-sos = msspoly;
-if n > 0
   % (1) V(T,x) >= 0 for x in goal region
   % goal region
   [prog, goal_sos] = spotless_add_sprocedure(prog, (subs(V,t,T))*(1+x'*x + s'*s), V0p,[W_vars;s],2);
@@ -89,15 +83,24 @@ if n > 0
 
   % reset map input limits
   [prog, goal_sos] = spotless_add_sprocedure(prog, goal_sos, model.resetInputLimits(s),[W_vars;s],degree);
+  sos = [sos; goal_sos];
 else
-  % (1) V(t,x) >= 0 for x in goal region
-  [prog, goal_sos] = spotless_add_sprocedure(prog, V, V0p,V_vars,degree-2);
-
-  if time_varying
-    [prog, goal_sos] = spotless_add_sprocedure(prog, goal_sos, T^2-t^2,V_vars,degree-2);
+  if isa(target, 'function_handle')
+    V0p = target(x);
+    
+    % (1) V(t,x) >= 0 for x in goal region
+    [prog, goal_sos] = spotless_add_sprocedure(prog, V, V0p,V_vars,degree-2);
+    
+    if time_varying
+      [prog, goal_sos] = spotless_add_sprocedure(prog, goal_sos, t * (T - t), V_vars, degree-2);
+    end
+    sos = [sos; goal_sos];
+  else
+    prog = prog.withPos(subs(V, [t; x], [T; target]));
   end
 end
-sos = [sos; goal_sos];
+  
+
 
 % (2) -Vdot(t,x,u) <= 0 for x in X
 [prog, Vdot_sos] = spotless_add_sprocedure(prog, -Vdot, h_X,[V_vars;u],Vdot_degree-2);
@@ -109,7 +112,7 @@ input_limit_degree = even_degree(model.inputLimits(u,x),[x;u]);
 % 0 <= t < = T
 % could also write this with two constraints
 if time_varying
-  [prog, Vdot_sos] = spotless_add_sprocedure(prog, Vdot_sos, T^2-t^2,[V_vars;u],Vdot_degree-2);
+  [prog, Vdot_sos] = spotless_add_sprocedure(prog, Vdot_sos, t * (T - t),[V_vars;u],Vdot_degree-2);
 end
 sos = [sos; Vdot_sos];
 
