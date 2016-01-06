@@ -10,7 +10,7 @@
 
 #include "DrakeJointImpl.h"
 
-class DLLEXPORT_DRAKEJOINT FixedJoint: public DrakeJointImpl<FixedJoint> {
+class DRAKEJOINTS_EXPORT FixedJoint: public DrakeJointImpl<FixedJoint> {
 public:
   FixedJoint(const std::string &name, const Eigen::Isometry3d &transform_to_parent_body)
           : DrakeJointImpl(*this, name, transform_to_parent_body, 0, 0) { };
@@ -69,14 +69,9 @@ public:
   };
 
   template <typename DerivedV>
-  GradientVar<typename DerivedV::Scalar, Eigen::Dynamic, 1> frictionTorque(const Eigen::MatrixBase<DerivedV> &v, int gradient_order) const
+  Eigen::Matrix<typename DerivedV::Scalar, Eigen::Dynamic, 1> frictionTorque(const Eigen::MatrixBase<DerivedV> &v) const
   {
-    GradientVar<typename DerivedV::Scalar, Eigen::Dynamic, 1> ret(getNumVelocities(), 1, getNumVelocities(), gradient_order);
-    ret.value().setZero();
-    if (gradient_order > 0) {
-      ret.gradient().value().setZero();
-    }
-    return ret;
+    return Eigen::Matrix<typename DerivedV::Scalar, Eigen::Dynamic, 1>(getNumVelocities(), 1);
   }
 
     virtual std::string getPositionName(int index) const;
