@@ -27,4 +27,27 @@ target = [];
 
 nStepCapturabilitySOS(model, T, R_diag, target, n, options)
 
+if n == 0 && options.control_design
+  sol = load(['V0_' class(model) '.mat']);
+  t = sol.t;
+  x = sol.x;
+
+  test_manual_controller = true;
+  if test_manual_controller
+    q = x(1 : 2);
+    v = x(3 : 4);
+    omega0 = sqrt(g / z_nom);
+    ric = q + v / omega0;
+    k = 3; % >= 1 works
+    u = k * ric / model.cop_max;
+  else
+    u = clean(sol.u_sol);
+  end
+
+  B = barrierFunctionForClosedLoopSystem(model, R_diag, t, x, u, struct('B_degree', 4));
+  figure(5);
+  contourSpotless(B, x(1), x(3), [-1 1], [-1 1], [x(2); x(4); t], [0; 0; 0], 0);
+  xlabel('q_1'); ylabel('v_1'); legend('B(x)');
+end
+
 end
