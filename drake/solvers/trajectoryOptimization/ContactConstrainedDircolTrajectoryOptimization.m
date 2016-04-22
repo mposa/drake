@@ -65,10 +65,17 @@ classdef ContactConstrainedDircolTrajectoryOptimization < AccelConstrainedDircol
         error('ContactConstrainedDircolTrajectoryOptimization only supports a single value for options.relative_constraints');
       end
       
+      if ~isfield(options,'joint_limit_indices')
+        joint_limit_indices = [];
+      else
+        joint_limit_indices = options.joint_limit_indices;
+      end
+      
       
       [phi,normal,d,xA,xB,idxA,idxB,mu] = plant.contactConstraints(options.contact_q0,false,struct('terrain_only',true));
       mu = mu(1);
-      for i=1:length(indices),
+      nC = length(indices);
+      for i=1:nC,
         xA_i = xA(:,indices(i));
         xB_i = xB(:,indices(i));
         
@@ -90,6 +97,13 @@ classdef ContactConstrainedDircolTrajectoryOptimization < AccelConstrainedDircol
         position_constraint.grad_level = 2;
         
         plant = plant.addPositionEqualityConstraint(position_constraint);
+      end
+      
+      for i=1:length(joint_limit_indices)
+        [phi,J] = plant.jointLimitConstraints(zeros(plant.getNumPositions,1));
+        joint_lim = -phi(joint_limit_indices(i));
+        joint_limit_constraint = LinearConstraint(joint_lim,joint_lim,J);
+        plant = plant.addPositionEqualityConstraint(joint_limit_constraint);
       end
       
       for i=1:length(options.additional_constraints)
@@ -118,11 +132,11 @@ classdef ContactConstrainedDircolTrajectoryOptimization < AccelConstrainedDircol
       if obj.options.friction_limits
         if plant.dim == 2
           if obj.options.collocation_friction_limits
-            lz_inds = reshape([obj.l_inds(2:2:end,:) obj.lc_inds(2:2:end,:)],[],1);
-            lx_inds = reshape([obj.l_inds(1:2:end,:) obj.lc_inds(1:2:end,:)],[],1);
+            lz_inds = reshape([obj.l_inds(2:2:2*nC,:) obj.lc_inds(2:2:2*nC,:)],[],1);
+            lx_inds = reshape([obj.l_inds(1:2:2*nC,:) obj.lc_inds(1:2:2*nC,:)],[],1);
           else
-            lz_inds = reshape(obj.l_inds(2:2:end,:),[],1);
-            lx_inds = reshape(obj.l_inds(1:2:end,:),[],1);
+            lz_inds = reshape(obj.l_inds(2:2:2*nC,:),[],1);
+            lx_inds = reshape(obj.l_inds(1:2:2*nC,:),[],1);
           end
           nlz = length(lz_inds);
           
@@ -135,13 +149,13 @@ classdef ContactConstrainedDircolTrajectoryOptimization < AccelConstrainedDircol
         else
           mu = .7;
           if obj.options.collocation_friction_limits
-            lz_inds = reshape([obj.l_inds(3:3:end,:) obj.lc_inds(3:3:end,:)],[],1);
-            lx_inds = reshape([obj.l_inds(1:3:end,:) obj.lc_inds(1:3:end,:)],[],1);
-            ly_inds = reshape([obj.l_inds(2:3:end,:) obj.lc_inds(2:3:end,:)],[],1);
+            lz_inds = reshape([obj.l_inds(3:3:3*nC,:) obj.lc_inds(3:3:3*nC,:)],[],1);
+            lx_inds = reshape([obj.l_inds(1:3:3*nC,:) obj.lc_inds(1:3:3*nC,:)],[],1);
+            ly_inds = reshape([obj.l_inds(2:3:3*nC,:) obj.lc_inds(2:3:3*nC,:)],[],1);
           else
-            lz_inds = reshape(obj.l_inds(3:3:end,:),[],1);
-            lx_inds = reshape(obj.l_inds(1:3:end,:),[],1);
-            ly_inds = reshape(obj.l_inds(2:3:end,:),[],1);
+            lz_inds = reshape(obj.l_inds(3:3:3*nC,:),[],1);
+            lx_inds = reshape(obj.l_inds(1:3:3*nC,:),[],1);
+            ly_inds = reshape(obj.l_inds(2:3:3*nC,:),[],1);
           end
           
           nlz = length(lz_inds);
@@ -154,6 +168,12 @@ classdef ContactConstrainedDircolTrajectoryOptimization < AccelConstrainedDircol
           obj = obj.addConstraint(LinearConstraint(zeros(2*nlz,1),inf(2*nlz,1),A_fric),[lz_inds;lx_inds]);
           obj = obj.addConstraint(LinearConstraint(zeros(2*nlz,1),inf(2*nlz,1),A_fric),[lz_inds;ly_inds]);
         end
+      end
+      
+      if ~isempty(joint_limit_indices)
+        nJL = length(joint_limit_indices);
+        l_jl_inds = obj.l_inds(plant.dim*nC+(1:nJL),:);
+        obj = obj.addConstraint(BoundingBoxConstraint(zeros(nJL,1),inf(nJL,1)),l_jl_inds);
       end
     end
     
