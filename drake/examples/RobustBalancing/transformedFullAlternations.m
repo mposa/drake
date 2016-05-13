@@ -2,10 +2,12 @@ load V0_TransformedFull2DModel
 options.zero_origin = true;
 u_bnd = boundController(model,uCoeff,uMomentBasis,T,R_diag,options);
 
+u_bnd = 2*u_bnd-1;
+
 %% Get an initial quadratic Lyapunov candidate
 x = msspoly('x',model.num_states);
 t = msspoly('t',1);
-f = model.dynamics(t,x,2*u_bnd-1);
+f = model.dynamics(t,x,u_bnd);
 
 prog = spotsosprog();
 [prog,R] = prog.newPSD(model.num_states);

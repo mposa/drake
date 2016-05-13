@@ -1,14 +1,19 @@
 g = 10;
 z_nom = 1;
+R_diag = [1, 1, 1, 2, 2, 2];
+% R_diag = [2, 1, 1, 4, 2, 2];
+% f_min = .5;
+% f_max = 1.5;
+uz_bnd = .3;
+ux_bnd = .1;
+foot_radius = .05;
+% inertia_ratio = .3^2/2; 
+inertia_ratio = .6^2/2; 
 step_max = .7;
-step_time = 0.3;
-cop_max = .05; % set to 0 to get point foot model with no continuous inputs
-fz_range = .5;
-fx_range = .5;
-inertia_ratio = .6^2/2;
+step_time = .3;
+z_inv_degree = 1;
 
-model = TransformedFull2DModel(g, inertia_ratio, z_nom, step_max, step_time, fz_range, fx_range, cop_max);
-
+model = LIPMVariation2D(g, z_nom, step_max, step_time, inertia_ratio, ux_bnd, uz_bnd, foot_radius, z_inv_degree);
 
 %% Get an initial quadratic Lyapunov candidate
 x = msspoly('x',model.num_states);
@@ -19,22 +24,28 @@ f = model.dynamics(t,x,u);
 A = double(subs(diff(f,x),[t;x;u],zeros(1+model.num_states+model.num_inputs,1)));
 B = double(subs(diff(f,u),[t;x;u],zeros(1+model.num_states+model.num_inputs,1)));
 
-Q = 100*eye(model.num_states);
+Q = 10*eye(model.num_states);
 R = eye(model.num_inputs);
 [K,Q] = lqr(A,B,Q,R);
 
 %%
 % A_state = diag([0;0;.5;pi/2;0;0]);
-A_state{1} = diag([0;0;1/.5^2;0;0;0]);
-A_state{2} = diag([0;0;0;1/(pi/2)^2;0;0]);
+A_state{1} = diag([0;1/.5^2;0;0;0;0]);
+A_state{2} = diag([0;0;1/(pi/2)^2;0;0;0]);
 V0 = x'*Q*x;
 [V,u_fn] = quadraticControlLyapunovAlternations(x,u,f,V0*100,A_state)
+figure(1)
+contourSpotless(V,x(1),x(4),[-1 1],[-2 2],[t;x([2;3;5;6])],zeros(model.num_states-1,1),1,{'r'});
 %%
 for i=1:30,
   [V,u_fn] = quadraticControlLyapunovAlternations(x,u,f,V,A_state);
 %   figure(1)
   hold on
-  contourSpotless(V,x(1),x(2),[-3 3],[-1 1],[t;x(3:end)],zeros(model.num_states-1,1),1,{'r'});
+  if mod(i,2) == 0,
+    contourSpotless(V,x(1),x(4),[-1 1],[-2 2],[t;x([2;3;5;6])],zeros(model.num_states-1,1),1,{'r'});
+  else
+    contourSpotless(V,x(1),x(4),[-1 1],[-2 2],[t;x([2;3;5;6])],zeros(model.num_states-1,1),1,{'b'});
+  end
 end;
 % keyboard
 
@@ -53,23 +64,29 @@ b = 2*x'*Q_V0*c;
 d = x'*Q_V0*x - 1;
 %%
 rho2 = msspoly(1) + 10*t;
-V2 = x'*Q*x*100;
+% V2 = x'*Q*x*100;
 V2 = V_0step*10;
 % [V2,u2,rho2] =  quadraticControlAlternationsWithResetNoGThreeSteps(x,u,f,V2,step_time,rho2,a,b,d);
 
+%% construct alt-model
+f_alt = subs(f,u(1),1);
+u_alt = u(2:3);
+constraint_alt = (x(4) + sqrt(model.gravity/model.z_nom)*x(1));
+
 %%
-for i=1:10,
+for i=1:5,
   [V2,u2,rho2] =  quadraticControlAlternationsWithResetNoGThreeSteps(x,u,f,V2,step_time,rho2,a,b,d);
+% [V2,u2,rho2] =  quadraticControlAlternationsWithResetNoGThreeSteps(x,u_alt,f_alt,V2,step_time,rho2,a,b,d,constraint_alt);
 %   figure(2)
 
   hold off
-  contourSpotless(V,x(1),x(2),[-8 8],[-3 3],[t;x(3:end)],zeros(model.num_states-1,1),1,{'g'});
+  contourSpotless(V,x(1),x(4),[-1 1],[-3 3],[t;x([2;3;5;6])],zeros(model.num_states-1,1),1,{'g'});
   hold on
-  contourSpotless(V2,x(1),x(2),[-8 8],[-3 3],[t;x(3:end)],zeros(model.num_states-1,1),dmsubs(rho2,t,0),{'k'});
-  contourSpotless(V2,x(1),x(2),[-8 8],[-3 3],[t;x(3:end)],[step_time;zeros(model.num_states-2,1)],dmsubs(rho2,t,step_time),{'r'});
-  contourSpotless(b^2-4*a*d,x(1),x(2),[-8 8],[-3 3],[t;x(3:end)],[step_time;zeros(model.num_states-2,1)],0,{'y'});
-  contourSpotless(b,x(1),x(2),[-8 8],[-3 3],[t;x(3:end)],[step_time;zeros(model.num_states-2,1)],0,{'b'});
-  contourSpotless(2*a-b,x(1),x(2),[-8 8],[-3 3],[t;x(3:end)],[step_time;zeros(model.num_states-2,1)],0,{'b'});
+  contourSpotless(V2,x(1),x(4),[-1 1],[-3 3],[t;x([2;3;5;6])],zeros(model.num_states-1,1),dmsubs(rho2,t,0),{'k'});
+  contourSpotless(V2,x(1),x(4),[-1 1],[-3 3],[t;x([2;3;5;6])],[step_time;zeros(model.num_states-2,1)],dmsubs(rho2,t,step_time),{'r'});
+  contourSpotless(b^2-4*a*d,x(1),x(4),[-1 1],[-3 3],[t;x([2;3;5;6])],[step_time;zeros(model.num_states-2,1)],0,{'y'});
+  contourSpotless(b,x(1),x(4),[-1 1],[-3 3],[t;x([2;3;5;6])],[step_time;zeros(model.num_states-2,1)],0,{'b'});
+  contourSpotless(2*a-b,x(1),x(4),[-1 1],[-3 3],[t;x([2;3;5;6])],[step_time;zeros(model.num_states-2,1)],0,{'b'});
 
   hold off
   
@@ -147,13 +164,13 @@ end
 % % [gmult_v,gmult_vdot,gmult_rad,gmult_ab] = initQuadraticControlAlternationWithReset(x,u,f,V2,step_time,rho2,a,b,d);
 
 %%
-for i=1:1,
-  [V2,u2,rho2,gmult_v,gmult_vdot,gmult_rad,gmult_ab] =  quadraticControlAlternationsWithReset(x,u,f,V2,step_time,rho2,a,b,d,gmult_v,gmult_vdot,gmult_rad,gmult_ab);
-  figure(2)
-  hold off
-  contourSpotless(V_inner,x(1),x(2),[-2 2],[-2 2],[t;x(3:end)],zeros(model.num_states-1,1),1,{'g'});
-  hold on
-  contourSpotless(V2,x(1),x(2),[-2 2],[-2 2],[t;x(3:end)],zeros(model.num_states-1,1),dmsubs(rho2,t,0),{'k'});
-  contourSpotless(V2,x(1),x(2),[-2 2],[-2 2],[t;x(3:end)],[step_time;zeros(model.num_states-2,1)],dmsubs(rho2,t,step_time),{'r'});
-  hold off
-end
+% for i=1:1,
+%   [V2,u2,rho2,gmult_v,gmult_vdot,gmult_rad,gmult_ab] =  quadraticControlAlternationsWithReset(x,u,f,V2,step_time,rho2,a,b,d,gmult_v,gmult_vdot,gmult_rad,gmult_ab);
+%   figure(2)
+%   hold off
+%   contourSpotless(V_inner,x(1),x(4),[-2 2],[-2 2],[t;x([2;3;5;6])],zeros(model.num_states-1,1),1,{'g'});
+%   hold on
+%   contourSpotless(V2,x(1),x(4),[-2 2],[-2 2],[t;x([2;3;5;6])],zeros(model.num_states-1,1),dmsubs(rho2,t,0),{'k'});
+%   contourSpotless(V2,x(1),x(4),[-2 2],[-2 2],[t;x([2;3;5;6])],[step_time;zeros(model.num_states-2,1)],dmsubs(rho2,t,step_time),{'r'});
+%   hold off
+% end

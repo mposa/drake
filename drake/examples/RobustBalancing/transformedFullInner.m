@@ -1,11 +1,12 @@
 load V0_TransformedFull2DModel
 options.zero_origin = true;
 u_bnd = boundController(model,uCoeff,uMomentBasis,T,R_diag,options);
+u_bnd = 2*u_bnd - 1;
 
 %% Get an initial quadratic Lyapunov candidate
 x = msspoly('x',model.num_states);
 t = msspoly('t',1);
-f = model.dynamics(t,x,2*u_bnd-1);
+f = model.dynamics(t,x,u_bnd);
 
 prog = spotsosprog();
 [prog,R] = prog.newPSD(model.num_states);
@@ -14,7 +15,7 @@ prog = spotsosprog();
 % calculate hessian of Vdot
 V = x'*(R + rho*eye(model.num_states))*x;
 Vdot = diff(V,x)*f;
-H=.5*subs(diff(diff(Vdot,x)',x),[t;x],zeros(model.num_states+1,1));
+H=.1*subs(diff(diff(Vdot,x)',x),[t;x],zeros(model.num_states+1,1));
 prog = prog.withEqs(R(1) - 1);
 
 prog = prog.withPSD(-H - rho*eye(model.num_states));
@@ -27,11 +28,14 @@ sol = prog.minimize(-rho,solver,spot_options);
 
 V0 = sol.eval(V);
 %%
-[ V_inner] = quadraticLyapunovAlternations(x,f,V0*100)
+[ V_inner] = quadraticLyapunovAlternations(x,f,V0*100);
+% [ V_inner] = quadraticLyapunovAlternations(x,f,V_inner);
+% [ V_inner] = quarticLyapunovAlternations(x,f,V0*100);
 
+% [ V_inner] = alternateQuadraticLyapunovAlternations(x,f,V0*100);
 %%
-u_bnd = 2*u_bnd - 1;
-save('V0_TransformedFull2DModel_inner','Vsol','model','T','R_diag','u_bnd','V_inner')
+% u_bnd = 2*u_bnd - 1;
+save('V0_TransformedFull2DModel_inner_2','Vsol','model','T','R_diag','u_bnd','V_inner')
 %%
 load V0_TransformedFull2DModel_inner
 

@@ -1,4 +1,4 @@
-N = 6;
+N = 1;
 for n=1:N,
   data{n} = load(sprintf('V%d_LIPM3D',n-1));
 end

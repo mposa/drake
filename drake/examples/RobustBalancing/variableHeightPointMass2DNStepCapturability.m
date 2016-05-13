@@ -28,9 +28,9 @@ options.do_backoff = false;
 options.backoff_ratio = 1.02;
 options.scale = 1;
 options.scale_input = 1;
-options.control_design = true;
+options.control_design = false;
 options.korda_control_design = true;
-options.beta = .01;
+options.beta = .0;
 options.infinite_time = false;
 
 % R_diag = 2 * ones(1, model.num_states);

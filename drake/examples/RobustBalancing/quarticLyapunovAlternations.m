@@ -1,4 +1,4 @@
-function [ V ] = quadraticLyapunovAlternations(x,f,V0)
+function [ V ] = quarticLyapunovAlternations(x,f,V0)
 N = 1;
 nX = length(x);
 V = V0;
@@ -8,8 +8,8 @@ for i=1:5,
   [prog,gamma] = prog.newPos(1);
   Vdot = diff(V,x)*f;
   
-  [prog, Vdot_sos,mult,coeff] = spotless_add_sprocedure(prog, -Vdot, 1-V,x,4);
-  prog = prog.withSOS(Vdot_sos - gamma*(1+x'*x)^3);
+  [prog, Vdot_sos,mult,coeff] = spotless_add_sprocedure(prog, -Vdot, 1-V,x,6);
+  prog = prog.withSOS(Vdot_sos - gamma*(1+x'*x)^4);
   
   spot_options = spotprog.defaultOptions;
   spot_options.verbose = true;
@@ -19,22 +19,23 @@ for i=1:5,
   
 %   keyboard
   
-  mult = sol.eval(mult);
-  
+  mult = sol.eval(mult);  
   prog = spotsosprog;
   prog = prog.withIndeterminate(x);
   [prog,gamma] = prog.newPos(1);
-  [prog,Q] = prog.newPSD(nX);
-  V = x'*Q*x;
+  [prog,V] = prog.newFreePoly(monomials(x,1:4));
+%   [prog,Q] = prog.newPSD(nX);
+%   V = x'*Q*x;
   Vdot = diff(V,x)*f;
   
-  prog = prog.withSOS(-Vdot + mult*(V-1) + (1+x'*x)^3*1e-6);
+  prog = prog.withSOS(-Vdot + mult*(V-1) + (x'*x)^4*1e-6);
+  prog = prog.withSOS(V);
   
   spot_options = spotprog.defaultOptions;
   spot_options.verbose = true;
   spot_options.do_fr = true;
   solver = @spot_mosek;
-  sol = prog.minimize(trace(Q) + 10*Q(2,2),solver,spot_options);
+  sol = prog.minimize(subs(trace(diff(diff(V,x)',x)),x,zeros(nX,1)),solver,spot_options);
   
 %   keyboard
   

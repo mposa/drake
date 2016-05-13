@@ -17,7 +17,7 @@ else
 end
 options.degree = 4;
 options.scale = 1;
-options.control_design = true;
+options.control_design = false;
 % options.free_final_time = true;
 
 % radius of ball around the origin used as goal for 0-step capturability

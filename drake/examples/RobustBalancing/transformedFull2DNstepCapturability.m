@@ -6,35 +6,39 @@ g = 10;
 z_nom = 1;
 step_max = .7;
 step_time = 0.3;
-cop_max = .1; % set to 0 to get point foot model with no continuous inputs
+cop_max = .05; % set to 0 to get point foot model with no continuous inputs
 fz_range = .3;
 fx_range = .3;
 inertia_ratio = .6^2/2;
 
 model = TransformedFull2DModel(g, inertia_ratio, z_nom, step_max, step_time, fz_range, fx_range, cop_max);
-R_diag = [1 cop_max*3*sqrt(g/z_nom) 1 1 2 2];
+if n==0,
+  R_diag = [2 cop_max*3*sqrt(g/z_nom) 1 1 2 2];
+else
+  R_diag = [5 2+cop_max*3*sqrt(g/z_nom) 1 1 2 2];
+end
 if n > 0
   options.infinite_time = false;
   T = step_time;
 else
   options.infinite_time = true;
-  T = 2;
+  T = 1;
 end
-options.degree = 4;
-options.scale = 1;
-options.control_design = true;
-options.korda_control_design = true;
+options.degree = 6;
+options.scale = 1;%./R_diag';
+options.control_design = false;
+options.korda_control_design = false;
 options.beta = 1;
 
 options.free_final_time = false;
 
 % radius of ball around the origin used as goal for 0-step capturability
-goal_radius = 0.05;
+goal_radius = 0.01;
 target = @(x) goal_radius^2 - x'*x;
-target = [];
+% target = [];
 
 [Vsol,Wsol] = nStepCapturabilitySOS(model, T, R_diag, target, n, options);
-Vsol
+clean(Vsol)
 % keyboard
 %%
 

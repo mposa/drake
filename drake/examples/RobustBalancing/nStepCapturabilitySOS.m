@@ -100,6 +100,8 @@ if n > 0
     end
     data = load(filename);
     V0 = subs(data.Vsol,x,x.*scale_inv);
+% data=load('V0_TransformedFull2DModel_inner_2')
+% V0 = subs(data.V_inner,x,x.*scale_inv);
   end
 end
 
@@ -226,7 +228,7 @@ else
 end
 
 
-% (2) -Vdot(t,x,u) <= 0 for x in X
+% (2) Vdot(t,x,u) <= 0 for x in X
 if options.control_design
   Vdot_vars = V_vars;
 else

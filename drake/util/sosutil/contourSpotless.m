@@ -1,4 +1,4 @@
-function h=contourSpotless(poly,x_var,y_var,x_range,y_range,const_vars,const_vals,contour_value,color,x_count,y_count,offset)
+function h=contourSpotless(poly,x_var,y_var,x_range,y_range,const_vars,const_vals,contour_value,color,x_count,y_count,offset,invert)
 % function h = contourSpotless(poly,x_var,y_var,x_range,y_range,...
 %               [const_vars],[const_vals],[contour_value],[color],[x_count],[y_count])
 % Utility function for contour plotting of a spotless polynomial
@@ -41,6 +41,14 @@ if nargin < 12
   offset = 0;
 end
 
+if nargin < 13
+  invert = false;
+end
+
+if invert && ~isempty(contour_value)
+  contour_value = 1./contour_value;
+end
+
 
 [X_VALS,Y_VALS] = meshgrid(linspace(x_range(1),x_range(2),x_count),linspace(y_range(1),y_range(2),y_count));
 if ~isempty(const_vars)
@@ -54,6 +62,10 @@ h = zeros(n_contour,1);
 for i=1:n_contour
   POLY_VAL = reshape(msubs(poly(i),[x_var;y_var],[X_VALS(:)';Y_VALS(:)']),size(X_VALS,1),[]) + offset;
   
+  if invert
+    POLY_VAL = 1./POLY_VAL;
+  end
+
   if ~isempty(color) && ~isempty(contour_value)
     [cl,h(i)]=contour(X_VALS,Y_VALS,POLY_VAL,[contour_value(i) contour_value(i)]+offset,color{i});
   elseif ~isempty(color)
@@ -63,7 +75,7 @@ for i=1:n_contour
   else
     [cl,h(i)]=contour(X_VALS,Y_VALS,POLY_VAL);
   end
-  clabel(cl);
+%   clabel(cl);
   
   if i == 1
     hold on

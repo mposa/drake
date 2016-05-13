@@ -1,8 +1,10 @@
 % clear all
 % load V1_LIPM3D
-V0 = load('V0_LIPM2D');
+V0 = load('V0_TransformedLIPM2D');
 data = {V0};
 model = V0.model;
+num = V0.u_sol;
+den = msspoly(1);
 % data{1}.u_sol = usol;
 % p = HybridCapturabilityPlant(model,data);
 
@@ -16,12 +18,12 @@ p = feedback(plant,controller);
 
 % x0 = [1;-.1;.5];
 % x0 = [1;-.29;.31];
-x0 = [0;.1];
+x0 = [.8;.25];
 % x0 = [1;-0;.1];
 % x0 = [1;0;0];
 % x0 = [1;-.2;0;.75;0];
 % x0(2) = -x0(4)/sqrt(model.g);
-T = 1;
+T = 2;
 
 traj = p.simulate([0 T],[x0;0;0;0]);
 plant = NStepCapturabilityPlant(model);
@@ -47,6 +49,3 @@ plot(t_sim,sqrt(sum(x_sim(1:2,:).*x_sim(1:2,:),1)))
 grid on
 
 min(sqrt(sum(x_sim(1:2,:).*x_sim(1:2,:),1)))
-
-norm(min(sqrt(sum(x_sim(1:2,:).*x_sim(1:2,:),1))))
-V0 = load('V0_LIPM2D');
