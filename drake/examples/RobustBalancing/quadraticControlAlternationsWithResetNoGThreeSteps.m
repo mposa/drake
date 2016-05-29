@@ -1,7 +1,15 @@
-function [ V,u,rho] = quadraticControlAlternationsWithResetNoGThreeSteps(x_mss,u_mss,f,V0,T,rho0,a,b,d,constraint)
+function [ V,u,rho] = quadraticControlAlternationsWithResetNoGThreeSteps(x_mss,u_mss,f,V0,T,rho0,a,b,d,constraint,sample_time)
+do_backoff = false;
+backoff_ratio = .08;
+
 if nargin < 10
   constraint = [];
 end
+
+if nargin < 11
+  sample_time = false;
+end
+t_sample = linspace(0,T,5);
 
 N = 1;
 nX = length(x_mss);
@@ -15,30 +23,53 @@ for i=1:1,
   %% step 1
   prog = spotsosprog;
   prog = prog.withIndeterminate(x_mss);
-  prog = prog.withIndeterminate(t);
-  [prog,gamma] = prog.newFree(1);
+  if ~sample_time
+    prog = prog.withIndeterminate(t);
+    sproc_vars = [t;x_mss];
+  else
+    sproc_vars = x_mss;
+  end
+  [prog,gamma] = prog.newPos(1);
   prog = prog.withPos(1 - gamma);
-  [prog,u] = prog.newFreePoly(monomials([t;x_mss],0:3),length(u_mss));
+  [prog,u] = prog.newFreePoly(monomials(sproc_vars,0:3),length(u_mss));
   Vdot = diff(V,x_mss)*subs(f,u_mss,u) + diff(V,t);
   rhodot = diff(rho,t);
   
-  [prog, Vdot_sos,mult] = spotless_add_eq_sprocedure(prog, rhodot-Vdot, rho-V,[t;x_mss],4);
-  [prog, Vdot_sos] = spotless_add_sprocedure(prog, Vdot_sos, t*(T-t),[t;x_mss],4);
-  
-  if ~isempty(constraint)
-    [prog, Vdot_sos] = spotless_add_sprocedure(prog, Vdot_sos, constraint,[t;x_mss],[]);
+  [prog, Vdot_sos,mult] = spotless_add_eq_sprocedure(prog, rhodot-Vdot, rho-V,sproc_vars,4);
+  if ~sample_time
+    [prog, Vdot_sos] = spotless_add_sprocedure(prog, Vdot_sos, t*(T-t),sproc_vars,4);
   end
   
-  Vdot_degree = even_degree(Vdot_sos,[t;x_mss]);
+  if ~isempty(constraint)
+    [prog, Vdot_sos] = spotless_add_sprocedure(prog, Vdot_sos, constraint,sproc_vars,[]);
+  end
   
-  prog = prog.withSOS(Vdot_sos - gamma*(x_mss'*x_mss)^(Vdot_degree/2));
+  Vdot_degree = even_degree(Vdot_sos,sproc_vars);
+  
+  if ~sample_time
+    prog = prog.withSOS(Vdot_sos - gamma*(x_mss'*x_mss)^(Vdot_degree/2));
+  else
+    for i=1:length(t_sample),
+      prog = prog.withSOS(subs(Vdot_sos - gamma*(x_mss'*x_mss)^(Vdot_degree/2),t,t_sample(i)));
+    end
+  end
+  
   for i=1:length(u),
-    [prog, u_sos,upmult{i}] = spotless_add_sprocedure(prog, 1-u(i), rho-V,[t;x_mss],2);
-    [prog, u_sos] = spotless_add_sprocedure(prog, u_sos, t*(T-t),[t;x_mss],2);
-    prog = prog.withSOS(u_sos - gamma*(x_mss'*x_mss)^2);
-    [prog, u_sos,ummult{i}] = spotless_add_sprocedure(prog, u(i)+1, rho-V,[t;x_mss],2);
-    [prog, u_sos] = spotless_add_sprocedure(prog, u_sos, t*(T-t),[t;x_mss],2);
-    prog = prog.withSOS(u_sos - gamma*(x_mss'*x_mss)^2);
+    [prog, up_sos,upmult{i}] = spotless_add_sprocedure(prog, 1-u(i), rho-V,sproc_vars,2);
+    [prog, um_sos,ummult{i}] = spotless_add_sprocedure(prog, u(i)+1, rho-V,sproc_vars,2);
+    
+    if ~sample_time
+      [prog, up_sos] = spotless_add_sprocedure(prog, up_sos, t*(T-t),sproc_vars,2);
+      prog = prog.withSOS(up_sos - gamma*(x_mss'*x_mss)^2);
+      
+      [prog, um_sos] = spotless_add_sprocedure(prog, um_sos, t*(T-t),sproc_vars,2);
+      prog = prog.withSOS(um_sos - gamma*(x_mss'*x_mss)^2);
+    else
+      for j=1:length(t_sample),
+        prog = prog.withSOS(subs(up_sos - gamma*(x_mss'*x_mss)^2,t,t_sample(j)));
+        prog = prog.withSOS(subs(um_sos - gamma*(x_mss'*x_mss)^2,t,t_sample(j)));
+      end
+    end
   end
   
   [prog, rad_sos,rad_mult] = spotless_add_sprocedure(prog, (b^2-4*a*d)*(1+x_mss'*x_mss), subs(rho-V,t,T),x_mss,2);
@@ -68,34 +99,52 @@ for i=1:1,
   
   
   
-
+keyboard
   %% step 2
   prog = spotsosprog;
   prog = prog.withIndeterminate(x_mss);
-  prog = prog.withIndeterminate(t);
-  [prog,u] = prog.newFreePoly(monomials([t;x_mss],0:3),length(u_mss));
+  if ~sample_time
+    prog = prog.withIndeterminate(t);
+  end
+  
+  [prog,u] = prog.newFreePoly(monomials(sproc_vars,0:3),length(u_mss));
   Vdot = diff(V,x_mss)*subs(f,u_mss,u) + diff(V,t);
   
   [prog,rho] = prog.newFreePoly(monomials(t,0:2));
   rhodot = diff(rho,t);
   
   Vdot_sos = rhodot - Vdot - (rho-V)*mult;
-  [prog, Vdot_sos] = spotless_add_sprocedure(prog, Vdot_sos, t*(T-t),[t;x_mss],4);
-    if ~isempty(constraint)
-    [prog, Vdot_sos] = spotless_add_sprocedure(prog, Vdot_sos, constraint,[t;x_mss],[]);
-    end  
-        
-  Vdot_degree = even_degree(Vdot_sos,[t;x_mss]);
-  prog = prog.withSOS(Vdot_sos + 1e-6*(x_mss'*x_mss)^(Vdot_degree/2));
+  if ~sample_time
+    [prog, Vdot_sos] = spotless_add_sprocedure(prog, Vdot_sos, t*(T-t),sproc_vars,4);
+  end
+  if ~isempty(constraint)
+    [prog, Vdot_sos] = spotless_add_sprocedure(prog, Vdot_sos, constraint,sproc_vars,[]);
+  end
+  
+  Vdot_degree = even_degree(Vdot_sos,sproc_vars);
+  if ~sample_time
+    prog = prog.withSOS(Vdot_sos + 1e-6*(x_mss'*x_mss)^(Vdot_degree/2));
+  else
+    for i=1:length(t_sample),
+        prog = prog.withSOS(subs(Vdot_sos + 1e-6*(x_mss'*x_mss)^(Vdot_degree/2),t,t_sample(i)));
+    end
+  end
   
   for i=1:length(u),
-    u_sos = 1 - u(i) - upmult{i}*(rho-V);
-    [prog, u_sos] = spotless_add_sprocedure(prog, u_sos, t*(T-t),[t;x_mss],2);
-    prog = prog.withSOS(u_sos);
+    up_sos = 1 - u(i) - upmult{i}*(rho-V);
+    um_sos = 1 + u(i) - ummult{i}*(rho-V);
     
-    u_sos = 1 + u(i) - ummult{i}*(rho-V);
-    [prog, u_sos] = spotless_add_sprocedure(prog, u_sos, t*(T-t),[t;x_mss],2);
-    prog = prog.withSOS(u_sos);
+    if ~sample_time
+      [prog, up_sos] = spotless_add_sprocedure(prog, up_sos, t*(T-t),sproc_vars,2);
+      [prog, um_sos] = spotless_add_sprocedure(prog, um_sos, t*(T-t),sproc_vars,2);
+      prog = prog.withSOS(up_sos);
+      prog = prog.withSOS(um_sos);
+    else
+      for j=1:length(t_sample)
+        prog = prog.withSOS(subs(up_sos,t,t_sample(j)));
+        prog = prog.withSOS(subs(um_sos,t,t_sample(j)));
+      end
+    end
   end
   
   rad_sos = (b^2-4*a*d)*(1+x_mss'*x_mss) -  subs(rho-V,t,T)*rad_mult;
@@ -110,14 +159,29 @@ for i=1:1,
   spot_options.verbose = true;
   spot_options.do_fr = false;
   solver = @spot_mosek;
-  sol = prog.minimize(-subs(rho,t,0),solver,spot_options);
+  cost = -.1*subs(rho,t,0) - subs(rho,t,T);
+  sol = prog.minimize(cost,solver,spot_options);
+  
+  if do_backoff
+    prog_bkp = prog;
+    [prog,slack] = prog.newPos(1);
+    display('Backing off in iter 2 and resolving');
+    % cost < sol.eval(cost) + ratio*abs(sol.eval(cost))
+%     prog = prog.withPos(-cost + double(sol.eval(cost)) + .2*abs(double(sol.eval(cost))));
+    sol = prog.minimize(slack,solver,spot_options);
+%     keyboard
+  end
+  
   u = sol.eval(u)
   rho = sol.eval(rho);
   
   %% step 3
   prog = spotsosprog;
   prog = prog.withIndeterminate(x_mss);
-  prog = prog.withIndeterminate(t);
+  if ~sample_time
+    prog = prog.withIndeterminate(t);
+  end
+  
 %   [prog,gamma] = prog.newPos(1);
 
   rho_T_nom = double(subs(rho,t,T));
@@ -137,24 +201,38 @@ for i=1:1,
   rhodot = diff(rho,t);
     
   Vdot_sos = rhodot - Vdot - (rho-V)*mult;
-  [prog, Vdot_sos] = spotless_add_sprocedure(prog, Vdot_sos, t*(T-t),[t;x_mss],4);
+  if ~sample_time
+    [prog, Vdot_sos] = spotless_add_sprocedure(prog, Vdot_sos, t*(T-t),sproc_vars,4);
+  end
   if ~isempty(constraint)
-    [prog, Vdot_sos] = spotless_add_sprocedure(prog, Vdot_sos, constraint,[t;x_mss],[]);
+    [prog, Vdot_sos] = spotless_add_sprocedure(prog, Vdot_sos, constraint,sproc_vars,[]);
   end  
   
-  Vdot_degree = even_degree(Vdot_sos,[t;x_mss]);
-  prog = prog.withSOS(Vdot_sos + 1e-6*(x_mss'*x_mss)^(Vdot_degree/2));
-  
-  for i=1:length(u),
-    u_sos = 1 - u(i) - upmult{i}*(rho-V);
-    [prog, u_sos] = spotless_add_sprocedure(prog, u_sos, t*(T-t),[t;x_mss],2);
-    prog = prog.withSOS(u_sos);
-    
-    u_sos = 1 + u(i) - ummult{i}*(rho-V);
-    [prog, u_sos] = spotless_add_sprocedure(prog, u_sos, t*(T-t),[t;x_mss],2);
-    prog = prog.withSOS(u_sos);
+  Vdot_degree = even_degree(Vdot_sos,sproc_vars);
+  if ~sample_time
+    prog = prog.withSOS(Vdot_sos + 1e-6*(x_mss'*x_mss)^(Vdot_degree/2));
+  else
+    for i=1:length(t_sample)
+      prog = prog.withSOS(subs(Vdot_sos + 1e-6*(x_mss'*x_mss)^(Vdot_degree/2),t,t_sample(i)));
+    end
   end
   
+  for i=1:length(u),
+    up_sos = 1 - u(i) - upmult{i}*(rho-V);
+    um_sos = 1 + u(i) - ummult{i}*(rho-V);
+    
+    if ~sample_time
+      [prog, up_sos] = spotless_add_sprocedure(prog, up_sos, t*(T-t),sproc_vars,2);
+      [prog, um_sos] = spotless_add_sprocedure(prog, um_sos, t*(T-t),sproc_vars,2);
+      prog = prog.withSOS(up_sos);
+      prog = prog.withSOS(um_sos);
+    else
+      for j=1:length(t_sample)
+        prog = prog.withSOS(subs(up_sos,t,t_sample(j)));
+        prog = prog.withSOS(subs(um_sos,t,t_sample(j)));
+      end
+    end
+  end
   
   rad_sos = (b^2-4*a*d)*(1+x_mss'*x_mss) -  subs(rho-V,t,T)*rad_mult;
   [prog, rad_sos] = spotless_add_sprocedure(prog, rad_sos, b,x_mss,2);
@@ -183,14 +261,20 @@ for i=1:1,
   cost_rho = -length(x_mss)/rho_T_nom*det_init_T*subs(rho,t,T); 
    
   cost = 1*sum(sum(scale_mat*(S0-Q_init)*scale_mat'.*cost_coeffs));
-  cost = cost + .01*(sum(sum(scale_mat*(ST-Q_init_T)*scale_mat'.*cost_coeffs_T)) + cost_rho);
+  cost = .1*cost + 1*(sum(sum(scale_mat*(ST-Q_init_T)*scale_mat'.*cost_coeffs_T)) + cost_rho);
   
   cost = cost/norm(cost_coeffs(:),inf);
   
   sol = prog.minimize(cost,solver,spot_options);
   
+  if do_backoff
+    display('Backing off in iter 2 and resolving');
+    prog = prog.withPos(cost + backoff_ratio*abs(double(sol.eval(cost))));
+    sol = prog.minimize(0,solver,spot_options);
+  end
+  
  
-  det_new = det(scale_mat*sol.eval(S0)*scale_mat');
+  det_new = det(scale_mat*double(sol.eval(S0))*scale_mat');
   display(sprintf('Determinant from %f to %f, percent change %f',det_init,det_new,100-100*det_new/det_init));
   
 %   keyboard
@@ -198,7 +282,7 @@ for i=1:1,
   
   V = sol.eval(V);
   rho = sol.eval(rho);
-  %   keyboard
+    keyboard
   
 end
 

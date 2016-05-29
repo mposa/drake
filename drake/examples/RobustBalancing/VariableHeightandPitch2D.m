@@ -49,6 +49,16 @@ classdef VariableHeightandPitch2D < NStepCapturabilitySOSSystem
       xdot = [v; vdot];
     end
     
+    function [f,g] = controlAffineDynamics(obj,t,x)
+      q = x(1 : 3);
+      q(2) = q(2) + obj.z_nom;
+      v = x(4 : 6);      
+      f_v = [0; -obj.g;0];
+      g_v = [ [q(1:2) * obj.g;0], [1; 0; q(2)/obj.inertia_ratio]];
+      f = [v;f_v];
+      g = [zeros(3,2);g_v];
+    end
+    
     function xp = reset(obj, t, xm, s)
       % control input changes q(1) only
       % qp = qm - u

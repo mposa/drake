@@ -28,7 +28,7 @@ hold off
   contourSpotless(V,x(1),x(2),[-1 1],[-3 3],[t;x(3:end)],zeros(model.num_states-1,1),1);
 
 %%
-for i=1:15,
+for i=1:60,
   [V,u_fn] = quadraticControlLyapunovAlternations(x,u,f,V);
 %   figure(1)
   hold off
@@ -56,10 +56,10 @@ V2 = V_0step*20;
 
 
 %%
-for i=1:1,
-  [V2,u2,rho2] =  quadraticControlAlternationsWithResetNoGThreeSteps(x,u,f,V2,step_time,rho2,a,b,d);
+for i=1:5,
+  [V2,u2,rho2] =  quadraticControlAlternationsWithResetNoGThreeSteps(x,u,f,V2,step_time,rho2,a,b,d,[],false);
 % [V2,u2,rho2] =  quadraticControlAlternationsWithResetNoGThreeSteps(x,u_alt,f_alt,V2,step_time,rho2,a,b,d,constraint_alt);
-%   figure(2)
+  figure(2)
 
   hold off
   contourSpotless(V,x(1),x(2),[-2 2],[-3 3],t,zeros(model.num_states-1,1),1,{'g'});

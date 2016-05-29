@@ -99,12 +99,12 @@ for i=1:1,
   spot_options.verbose = true;
 %   spot_options.do_fr = true;
   solver = @spot_mosek;
-  cost = trace(Q) + 50*Q(1,1);
+%   cost = trace(Q) + 50*Q(1,1);
   % linearization of determinant
-%   scale_mat = eye(length(x_mss));
-%   cost_coeffs = det(scale_mat*Q_init*scale_mat')*inv(scale_mat*Q_init*scale_mat');
-%   cost_coeffs = cost_coeffs/norm(cost_coeffs(:),inf);
-%   cost = sum(sum(scale_mat*(Q-Q_init)*scale_mat'.*cost_coeffs));
+  scale_mat = eye(length(x_mss));
+  cost_coeffs = det(scale_mat*Q_init*scale_mat')*inv(scale_mat*Q_init*scale_mat');
+  cost_coeffs = cost_coeffs/norm(cost_coeffs(:),inf);
+  cost = sum(sum(scale_mat*(Q-Q_init)*scale_mat'.*cost_coeffs));
 
   sol = prog.minimize(cost,solver,spot_options);
 %   

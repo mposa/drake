@@ -24,7 +24,7 @@ options.backoff_ratio = 1.02;
 options.free_final_time = false;
 options.scale = 1/3;
 options.scale_input = 1;
-options.control_design = true;
+options.control_design = false;
 options.korda_control_design = true;
 
 target = [];
