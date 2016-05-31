@@ -7,7 +7,7 @@ cop_max = .1; % set to 0 to get point foot model with no continuous inputs
 model = LIPM2D(g, z_nom, step_max, step_time, cop_max);
 
 
-%% Get an initial quadratic Lyapunov candidate
+% Get an initial quadratic Lyapunov candidate
 x = msspoly('x',model.num_states);
 t = msspoly('t',1);
 u = msspoly('u',model.num_inputs);
@@ -20,7 +20,7 @@ Q = 100*eye(model.num_states);
 R = eye(model.num_inputs);
 [K,Q] = lqr(A,B,Q,R);
 
-%%
+%
 V0 = x'*Q*x;
 [V,u_fn] = quadraticControlLyapunovAlternations(x,u,f,V0*200)
 figure(1)

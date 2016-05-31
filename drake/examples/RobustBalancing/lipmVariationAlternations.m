@@ -75,10 +75,10 @@ u_alt = u(2:3);
 constraint_alt = (x(4) + sqrt(model.gravity/model.z_nom)*x(1));
 
 %%
-for i=1:1,
-  V2_bkp = V2;
-  u2_bkp = u2;
-  rho2_bkp = rho2;
+for i=1:21,
+  V2_i{i} = V2;
+  u2_i{i} = u2;
+  rho2_i{i} = rho2;
   [V2,u2,rho2] =  quadraticControlAlternationsWithResetNoGThreeSteps(x,u,f,V2,step_time,rho2,a,b,d,[],false);
 % [V2,u2,rho2] =  quadraticControlAlternationsWithResetNoGThreeSteps(x,u_alt,f_alt,V2,step_time,rho2,a,b,d,constraint_alt);
 %   figure(2)
@@ -93,7 +93,8 @@ for i=1:1,
   contourSpotless(2*a-b,x(1),x(4),[-1 1],[-3 3],[t;x([2;3;5;6])],[step_time;zeros(model.num_states-2,1)],0,{'b'});
 
   hold off
-  %NOTETOSELF: CONSIDER WEIGHTING RHO(T) IN 2ND ITER
+  
+  sqrt(1./diag(.5*double(diff(diff(subs(V2,t,0),x)',x))))
 end
 %%
 % s = msspoly('s',model.num_reset_inputs);

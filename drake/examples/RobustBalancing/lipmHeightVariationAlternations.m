@@ -1,6 +1,6 @@
 g = 10;
 z_nom = 1;
-uz_bnd = .3;
+uz_bnd = .5;
 foot_radius = .1;
 step_max = .7;
 step_time = .3;
@@ -8,7 +8,7 @@ z_inv_degree = 1;
 
 model = LIPMHeightVariation2D(g, z_nom, step_max, step_time, uz_bnd, foot_radius, z_inv_degree);
 
-%% Get an initial quadratic Lyapunov candidate
+% Get an initial quadratic Lyapunov candidate
 x = msspoly('x',model.num_states);
 t = msspoly('t',1);
 u = msspoly('u',model.num_inputs);
@@ -17,11 +17,11 @@ f = model.dynamics(t,x,u);
 A = double(subs(diff(f,x),[t;x;u],zeros(1+model.num_states+model.num_inputs,1)));
 B = double(subs(diff(f,u),[t;x;u],zeros(1+model.num_states+model.num_inputs,1)));
 
-Q = 10*eye(model.num_states);
+Q = diag([100;100;100;100]);
 R = eye(model.num_inputs);
 [K,Q] = lqr(A,B,Q,R);
 
-%%
+%
 A_state = {};
 % A_state = diag([0;0;.5;pi/2;0;0]);
 % A_state{1} = diag([0;1/.5^2;0;0]);
@@ -36,9 +36,9 @@ for i=1:10,
 %   figure(1)
   hold on
   if mod(i,2) == 0,
-    contourSpotless(V,x(1),x(3),[-1 1],[-2 2],[t;x([2;4])],zeros(model.num_states-1,1),1,{'r'});
+    contourSpotless(V,x(1),x(3),[-.5 .5],[-1 1],[t;x([2;4])],zeros(model.num_states-1,1),1,{'r'});
   else
-    contourSpotless(V,x(1),x(3),[-1 1],[-2 2],[t;x([2;4])],zeros(model.num_states-1,1),1,{'b'});
+    contourSpotless(V,x(1),x(3),[-.5 .5],[-1 1],[t;x([2;4])],zeros(model.num_states-1,1),1,{'b'});
   end
 end;
 % keyboard

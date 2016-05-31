@@ -44,7 +44,7 @@ for i=1:1,
     [prog, Vdot_sos] = spotless_add_sprocedure(prog, Vdot_sos, constraint,sproc_vars,[]);
   end
   
-  Vdot_degree = even_degree(Vdot_sos,sproc_vars);
+  Vdot_degree = even_degree(Vdot_sos,sproc_vars)-2;
   
   if ~sample_time
     prog = prog.withSOS(Vdot_sos - gamma*(x_mss'*x_mss)^(Vdot_degree/2));
@@ -60,14 +60,14 @@ for i=1:1,
     
     if ~sample_time
       [prog, up_sos] = spotless_add_sprocedure(prog, up_sos, t*(T-t),sproc_vars,2);
-      prog = prog.withSOS(up_sos - gamma*(x_mss'*x_mss)^2);
+      prog = prog.withSOS(up_sos - 0*gamma*(x_mss'*x_mss)^2);
       
       [prog, um_sos] = spotless_add_sprocedure(prog, um_sos, t*(T-t),sproc_vars,2);
-      prog = prog.withSOS(um_sos - gamma*(x_mss'*x_mss)^2);
+      prog = prog.withSOS(um_sos - 0*gamma*(x_mss'*x_mss)^2);
     else
       for j=1:length(t_sample),
-        prog = prog.withSOS(subs(up_sos - gamma*(x_mss'*x_mss)^2,t,t_sample(j)));
-        prog = prog.withSOS(subs(um_sos - gamma*(x_mss'*x_mss)^2,t,t_sample(j)));
+        prog = prog.withSOS(subs(up_sos - 0*gamma*(x_mss'*x_mss)^2,t,t_sample(j)));
+        prog = prog.withSOS(subs(um_sos - 0*gamma*(x_mss'*x_mss)^2,t,t_sample(j)));
       end
     end
   end
@@ -98,8 +98,8 @@ for i=1:1,
   mult = sol.eval(mult);
   
   
-  
-keyboard
+  %%
+% keyboard
   %% step 2
   prog = spotsosprog;
   prog = prog.withIndeterminate(x_mss);
@@ -158,10 +158,11 @@ keyboard
   spot_options = spotprog.defaultOptions;
   spot_options.verbose = true;
   spot_options.do_fr = false;
+  spot_options.sos_slack = 0e-6;
   solver = @spot_mosek;
-  cost = -.1*subs(rho,t,0) - subs(rho,t,T);
+  cost = -subs(rho,t,0) - subs(rho,t,T);
   sol = prog.minimize(cost,solver,spot_options);
-  
+%   keyboard
   if do_backoff
     prog_bkp = prog;
     [prog,slack] = prog.newPos(1);
@@ -174,6 +175,8 @@ keyboard
   
   u = sol.eval(u)
   rho = sol.eval(rho);
+  %%
+%   keyboard
   
   %% step 3
   prog = spotsosprog;
@@ -190,6 +193,7 @@ keyboard
   rho = rho  + 1; % set rho(0) = 1
 
   [prog,V] = prog.newFreePoly(reshape(monomials(x_mss,2:2)*monomials(t,(0:2))',[],1));
+% V = V0
   S0 = diff(diff(subs(V,t,0),x_mss)',x_mss)/2;
   ST = diff(diff(subs(V,t,T),x_mss)',x_mss)/2;
 %   [prog,Q] = prog.newPSD(nX);
@@ -245,23 +249,25 @@ keyboard
   spot_options = spotprog.defaultOptions;
   spot_options.verbose = true;
   spot_options.do_fr = false;
+  spot_options.sos_slack = 0e-6;
   solver = @spot_mosek;
   
 %   cost = 0.01*trace(S0)+5*S0(2,2);
 
   scale_mat = eye(length(x_mss));
-
+%   scale_mat(1) = 3;
+  
   det_init = det(scale_mat*Q_init*scale_mat');
   det_init_T = det(scale_mat*Q_init_T*scale_mat');
 
   % linearization of determinant
   cost_coeffs = det_init*inv(scale_mat*Q_init*scale_mat');
-  cost_coeffs_T = det_init*inv(scale_mat*Q_init_T*scale_mat');
+  cost_coeffs_T = det_init_T*inv(scale_mat*Q_init_T*scale_mat');
   
   cost_rho = -length(x_mss)/rho_T_nom*det_init_T*subs(rho,t,T); 
    
   cost = 1*sum(sum(scale_mat*(S0-Q_init)*scale_mat'.*cost_coeffs));
-  cost = .1*cost + 1*(sum(sum(scale_mat*(ST-Q_init_T)*scale_mat'.*cost_coeffs_T)) + cost_rho);
+  cost = cost + .0*(sum(sum(scale_mat*(ST-Q_init_T)*scale_mat'.*cost_coeffs_T)) + cost_rho);
   
   cost = cost/norm(cost_coeffs(:),inf);
   
@@ -276,13 +282,12 @@ keyboard
  
   det_new = det(scale_mat*double(sol.eval(S0))*scale_mat');
   display(sprintf('Determinant from %f to %f, percent change %f',det_init,det_new,100-100*det_new/det_init));
-  
-%   keyboard
 
   
   V = sol.eval(V);
   rho = sol.eval(rho);
-    keyboard
+  %%
+%     keyboard
   
 end
 
