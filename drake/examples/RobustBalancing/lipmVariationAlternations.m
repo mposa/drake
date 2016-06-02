@@ -1,6 +1,6 @@
 g = 10;
 z_nom = 1;
-R_diag = [1, 1, 1, 2, 2, 2];
+% R_diag = [1, 1, 1, 2, 2, 2];
 % R_diag = [2, 1, 1, 4, 2, 2];
 % f_min = .5;
 % f_max = 1.5;
@@ -75,11 +75,11 @@ u_alt = u(2:3);
 constraint_alt = (x(4) + sqrt(model.gravity/model.z_nom)*x(1));
 
 %%
-for i=1:21,
+for i=1:50,
   V2_i{i} = V2;
   u2_i{i} = u2;
   rho2_i{i} = rho2;
-  [V2,u2,rho2] =  quadraticControlAlternationsWithResetNoGThreeSteps(x,u,f,V2,step_time,rho2,a,b,d,[],false);
+  [V2,u2,rho2] =  quadraticControlAlternationsWithResetNoGThreeStepsAltBounds(x,u,f,V2,step_time,rho2,a,b,d,[],false);
 % [V2,u2,rho2] =  quadraticControlAlternationsWithResetNoGThreeSteps(x,u_alt,f_alt,V2,step_time,rho2,a,b,d,constraint_alt);
 %   figure(2)
 
@@ -91,6 +91,7 @@ for i=1:21,
   contourSpotless(b^2-4*a*d,x(1),x(4),[-1 1],[-3 3],[t;x([2;3;5;6])],[step_time;zeros(model.num_states-2,1)],0,{'y'});
   contourSpotless(b,x(1),x(4),[-1 1],[-3 3],[t;x([2;3;5;6])],[step_time;zeros(model.num_states-2,1)],0,{'b'});
   contourSpotless(2*a-b,x(1),x(4),[-1 1],[-3 3],[t;x([2;3;5;6])],[step_time;zeros(model.num_states-2,1)],0,{'b'});
+  contourSpotless(-a+b-d,x(1),x(4),[-1 1],[-3 3],[t;x([2;3;5;6])],[step_time;zeros(model.num_states-2,1)],0,{'c'});
 
   hold off
   

@@ -159,8 +159,9 @@ classdef LIPMVariation2D < NStepCapturabilitySOSSystem
       set(h,'LineWidth',5,'Color','black')
       radius = .1;
       rectangle('Position',[x_stance+x(1)-radius/2,x(2)+obj.z_nom-radius/2,radius,radius],'Curvature',[1,1], 'FaceColor','k')
-      xlim([-.5 1.5])
+      xlim([-.5 .5])
       ylim([-.5 1.5])
+      axis equal
       axis off
     end
   end

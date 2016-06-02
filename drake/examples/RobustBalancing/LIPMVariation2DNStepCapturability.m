@@ -4,11 +4,11 @@ n = 0;
 end
 g = 10;
 z_nom = 1;
-R_diag = [1, 1, 1, 2, 2, 2];
+R_diag = [1, .5, pi/2, 2, 2, 2];
 % R_diag = [2, 1, 1, 4, 2, 2];
 % f_min = .5;
 % f_max = 1.5;
-uz_bnd = .1;
+uz_bnd = .3;
 ux_bnd = .1;
 foot_radius = .05;
 % inertia_ratio = .3^2/2; 
@@ -25,7 +25,7 @@ options.backoff_ratio = 1.02;
 options.free_final_time = false;
 options.scale = 1;
 options.scale_input = 1;
-options.control_design = true;
+options.control_design = false;
 options.korda_control_design = true;
 
 target = [];

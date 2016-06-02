@@ -1,0 +1,89 @@
+clear all
+load lipmVariationWorkspace_7
+data_outer = load('V0_LIPMVariation2D');
+data_outer_1 = load('V1_LIPMVariation2D');
+data_samples = load('lipmVariation_samples')
+
+
+% zero step region
+% figure(1)
+
+
+dN = lipmCaptureLimit(model.T,model.foot_radius,model.step_max,model.z_nom,model.gravity,0)
+
+r_ic = x(1) + x(2)*sqrt(model.z_nom / model.gravity);
+
+figure(1)
+colormap default
+
+hold off
+
+offset = .0;
+scale = 1;
+h=contourSpotless(scale*r_ic'*r_ic,x(1),x(2),[-1 1],[-3 3],[t;x(3:end)],zeros(model.num_states-1,1),[scale*dN^2]+offset,{'k'},500,500,offset,true);
+% set(h,'Fill','On')
+% set(h','Alpha',.5)
+set(h,'LineWidth',2)
+hold on
+% caxis([-1 1])
+offset = 0;
+scale = -1;
+h=contourSpotless(V*scale,x(1),x(4),[-1 1],[-3 3],[t;x([2;3;5;6])],zeros(model.num_states-1,1),1*scale,{'k'},500,500,0,false);
+set(h,'LineWidth',2)
+
+h=contourSpotless(data_outer.Vsol,x(1),x(4),[-1 1],[-3 3],[t;x([2;3;5;6])],zeros(model.num_states-1,1),0,{'k'},500,500,0,false);
+set(h,'LineWidth',2)
+
+h=contour(reshape(data_samples.X,30,30),reshape(data_samples.XD,30,30),reshape(dmsubs(V,x,data_samples.xf),30,30),[1 1])
+
+% h=contourSpotless([subs(V,x(1:2),[sqrt(model.g/model.z_nom)*x(1) - x(2);sqrt(model.g/model.z_nom)*x(1) + x(2)])],x(1),x(2),[-.2 .2],[-.5 .5],[t;x(3:end)],zeros(model.num_states-1,1),1+offset,{'k'},500,500,offset,true);
+% set(h,'Fill','On')
+set(gca,'LooseInset',get(gca,'TightInset'))
+
+xlabel('x_c_m','FontSize',24)
+ylabel('xdot_c_m','FontSize',24)
+title('0-Step Regions','FontSize',24)
+hold off
+axis([-.5 .5 -1.5 1.5])
+% colorbar
+
+
+%%
+figure(2)
+hold off
+dN = lipmCaptureLimit(model.T,model.foot_radius,model.step_max,model.z_nom,model.gravity,1)
+h=contourSpotless(scale*r_ic'*r_ic,x(1),x(2),[-1 1],[-3 3],[t;x(3:end)],zeros(model.num_states-1,1),[scale*dN^2]+offset,{'k'},500,500,offset,true);
+set(h,'LineWidth',2)
+
+hold on
+h=contourSpotless(V2,x(1),x(4),[-1 1],[-3 3],[t;x([2;3;5;6])],zeros(model.num_states-1,1),dmsubs(rho2,t,0),{'k'});
+set(h,'LineWidth',2)
+
+h=contourSpotless(data_outer_1.Vsol,x(1),x(4),[-1 1],[-3 3],[t;x([2;3;5;6])],zeros(model.num_states-1,1),0,{'k'},500,500,0,false);
+set(h,'LineWidth',2)
+
+
+xlabel('x_c_m','FontSize',24)
+ylabel('xdot_c_m','FontSize',24)
+title('1-Step Regions','FontSize',24)
+hold off
+
+ %% simulate
+% NS = 10;
+% [X,XD] = meshgrid(linspace(-.5,.5,NS),linspace(-1.5,1.5,NS));
+% xf = zeros(6,length(X));
+% for i=1:numel(X),
+%   xfi = simLIPMVariationAlt(model,u2,false,[X(i);0;0;XD(i);0;0]);
+%   xf(:,i) = xfi;
+%   i
+% end
+% 
+% for i=1:numel(X)
+%   Vfi = subs(V,x,xf(:,i) + x - r);
+%   V0(i) = double(min(dmsubs(Vfi,s,linspace(-1,1,100))));
+% %   i
+% end
+% V0 = double(V0)
+% [cl,h]=contour(X,XD,reshape(V0,NS,NS),[1 1]*1)
+% set(h,'LineWidth',2)
+% set(h','LineColor','r')

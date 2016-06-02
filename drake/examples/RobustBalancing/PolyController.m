@@ -50,15 +50,16 @@ classdef PolyController < DrakeSystem
       [umin, umax, A] = obj.sos_plant.simpleInputLimits(x);
       
       if any(u > umax)
-        display('u>umax');
-        u
+%         display('u>umax');
+%         u
       elseif any(u < umin)
-        display('u<umin')
-        u
+%         display('u<umin')
+%         u
       end
-      u
-%       u = max(u,umin);
-%       u = min(u,umax);
+%       u
+% u(1) = 1;
+      u = max(u,umin);
+      u = min(u,umax);
     end
   end
 end

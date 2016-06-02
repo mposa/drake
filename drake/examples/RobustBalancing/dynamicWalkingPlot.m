@@ -13,6 +13,7 @@ h=contourSpotless([subs(V_inner,x(1:2),[sqrt(model.g/model.z_nom)*x(1) - x(2);sq
 set(h,'Fill','On')
 hold on
 
+scale = 1
 h=contourSpotless(scale*r_ic'*r_ic,x(1),x(2),[-.2 .2],[-.5 .5],[t;x(3:end)],zeros(model.num_states-1,1),[scale*dN^2],{'k'},500,500,0,false);
 % set(h,'Fill','On')
 % % set(h','Alpha',.5)

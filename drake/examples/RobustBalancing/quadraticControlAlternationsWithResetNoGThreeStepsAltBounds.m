@@ -1,4 +1,4 @@
-function [ V,u,rho] = quadraticControlAlternationsWithResetNoGThreeSteps(x_mss,u_mss,f,V0,T,rho0,a,b,d,constraint,sample_time)
+function [ V,u,rho] = quadraticControlAlternationsWithResetNoGThreeStepsAltBounds(x_mss,u_mss,f,V0,T,rho0,a,b,d,constraint,sample_time)
 do_backoff = false;
 backoff_ratio = .08;
 
@@ -72,13 +72,24 @@ for i=1:1,
     end
   end
   
-  [prog, rad_sos,rad_mult] = spotless_add_sprocedure(prog, (b^2-4*a*d)*(1+x_mss'*x_mss), subs(rho-V,t,T),x_mss,2);
+  rad_sos = subs(V-rho,t,T)*(1+x_mss'*x_mss);
+  [prog, rad_sos] = spotless_add_sprocedure(prog, rad_sos, 4*a*d-b^2,x_mss,2);
   [prog, rad_sos] = spotless_add_sprocedure(prog, rad_sos, b,x_mss,2);
-  prog = prog.withSOS(rad_sos);  
+  prog = prog.withSOS(rad_sos);
   
-  [prog, ab_sos,ab_mult] = spotless_add_sprocedure(prog, (2*a-b)*(1+x_mss'*x_mss), subs(rho-V,t,T),x_mss,2);
-  [prog, ab_sos] = spotless_add_sprocedure(prog, ab_sos, b,x_mss,2);
+  ab_sos = subs(V-rho,t,T)*(1+x_mss'*x_mss);
+  [prog, ab_sos] = spotless_add_sprocedure(prog, ab_sos, 2*a-b,x_mss,2);
+  [prog, ab_sos] = spotless_add_sprocedure(prog, ab_sos, -a+b-d,x_mss,2);
+  [prog, ab_sos] = spotless_add_sprocedure(prog, ab_sos, -b,x_mss,2);
   prog = prog.withSOS(ab_sos);  
+
+%   [prog, rad_sos,rad_mult] = spotless_add_sprocedure(prog, (b^2-4*a*d)*(1+x_mss'*x_mss), subs(rho-V,t,T),x_mss,2);
+%   [prog, rad_sos] = spotless_add_sprocedure(prog, rad_sos, b,x_mss,2);
+%   prog = prog.withSOS(rad_sos);  
+  
+%   [prog, ab_sos,ab_mult] = spotless_add_sprocedure(prog, (2*a-b)*(1+x_mss'*x_mss), subs(rho-V,t,T),x_mss,2);
+%   [prog, ab_sos] = spotless_add_sprocedure(prog, ab_sos, b,x_mss,2);
+%   prog = prog.withSOS(ab_sos);  
   
   spot_options = spotprog.defaultOptions;
   spot_options.verbose = true;
@@ -91,8 +102,8 @@ for i=1:1,
     upmult{i} = sol.eval(upmult{i});
     ummult{i} = sol.eval(ummult{i});
   end
-  ab_mult = sol.eval(ab_mult);
-  rad_mult = sol.eval(rad_mult);
+%   ab_mult = sol.eval(ab_mult);
+%   rad_mult = sol.eval(rad_mult);
 %   keyboard
   
   mult = sol.eval(mult);
@@ -147,13 +158,22 @@ for i=1:1,
     end
   end
   
-  rad_sos = (b^2-4*a*d)*(1+x_mss'*x_mss) -  subs(rho-V,t,T)*rad_mult;
-  [prog, rad_sos] = spotless_add_sprocedure(prog, rad_sos, b,x_mss,2);
-  prog = prog.withSOS(rad_sos);  
+  rad_sos = subs(V-rho,t,T)*(1+x_mss'*x_mss);
+  [prog, rad_sos] = spotless_add_sprocedure(prog, rad_sos, 4*a*d-b^2,x_mss,2);
+  prog = prog.withSOS(rad_sos);
   
-  ab_sos = (2*a-b)*(1+x_mss'*x_mss) - subs(rho-V,t,T)*ab_mult;
-  [prog, ab_sos] = spotless_add_sprocedure(prog, ab_sos, b,x_mss,2);
-  prog = prog.withSOS(ab_sos);  
+  ab_sos = subs(V-rho,t,T)*(1+x_mss'*x_mss);
+  [prog, ab_sos] = spotless_add_sprocedure(prog, ab_sos, 2*a-b,x_mss,2);
+  [prog, ab_sos] = spotless_add_sprocedure(prog, ab_sos, -a+b-d,x_mss,2);
+  prog = prog.withSOS(ab_sos);
+  
+%   rad_sos = (b^2-4*a*d)*(1+x_mss'*x_mss) -  subs(rho-V,t,T)*rad_mult;
+%   [prog, rad_sos] = spotless_add_sprocedure(prog, rad_sos, b,x_mss,2);
+%   prog = prog.withSOS(rad_sos);  
+%   
+%   ab_sos = (2*a-b)*(1+x_mss'*x_mss) - subs(rho-V,t,T)*ab_mult;
+%   [prog, ab_sos] = spotless_add_sprocedure(prog, ab_sos, b,x_mss,2);
+%   prog = prog.withSOS(ab_sos);  
   
   spot_options = spotprog.defaultOptions;
   spot_options.verbose = true;
@@ -238,13 +258,22 @@ for i=1:1,
     end
   end
   
-  rad_sos = (b^2-4*a*d)*(1+x_mss'*x_mss) -  subs(rho-V,t,T)*rad_mult;
-  [prog, rad_sos] = spotless_add_sprocedure(prog, rad_sos, b,x_mss,2);
-  prog = prog.withSOS(rad_sos);  
+  rad_sos = subs(V-rho,t,T)*(1+x_mss'*x_mss);
+  [prog, rad_sos] = spotless_add_sprocedure(prog, rad_sos, 4*a*d-b^2,x_mss,2);
+  prog = prog.withSOS(rad_sos);
   
-  ab_sos = (2*a-b)*(1+x_mss'*x_mss) - subs(rho-V,t,T)*ab_mult;
-  [prog, ab_sos] = spotless_add_sprocedure(prog, ab_sos, b,x_mss,2);
-  prog = prog.withSOS(ab_sos);  
+  ab_sos = subs(V-rho,t,T)*(1+x_mss'*x_mss);
+  [prog, ab_sos] = spotless_add_sprocedure(prog, ab_sos, 2*a-b,x_mss,2);
+  [prog, ab_sos] = spotless_add_sprocedure(prog, ab_sos, -a+b-d,x_mss,2);
+  prog = prog.withSOS(ab_sos);
+  
+%   rad_sos = (b^2-4*a*d)*(1+x_mss'*x_mss) -  subs(rho-V,t,T)*rad_mult;
+%   [prog, rad_sos] = spotless_add_sprocedure(prog, rad_sos, b,x_mss,2);
+%   prog = prog.withSOS(rad_sos);  
+%   
+%   ab_sos = (2*a-b)*(1+x_mss'*x_mss) - subs(rho-V,t,T)*ab_mult;
+%   [prog, ab_sos] = spotless_add_sprocedure(prog, ab_sos, b,x_mss,2);
+%   prog = prog.withSOS(ab_sos);  
   
   spot_options = spotprog.defaultOptions;
   spot_options.verbose = true;
@@ -255,7 +284,7 @@ for i=1:1,
 %   cost = 0.01*trace(S0)+5*S0(2,2);
 
   scale_mat = eye(length(x_mss));
-  scale_mat(1) = 2;
+%   scale_mat(1) = 2;
   
   det_init = det(scale_mat*Q_init*scale_mat');
   det_init_T = det(scale_mat*Q_init_T*scale_mat');
@@ -267,9 +296,11 @@ for i=1:1,
   cost_rho = -length(x_mss)/rho_T_nom*det_init_T*subs(rho,t,T); 
    
   cost = 1*sum(sum(scale_mat*(S0-Q_init)*scale_mat'.*cost_coeffs));
-  cost = cost + .0*(sum(sum(scale_mat*(ST-Q_init_T)*scale_mat'.*cost_coeffs_T)) + cost_rho);
+  cost = cost + 10*rho_T_nom^(-length(x_mss))*(sum(sum(scale_mat*(ST-Q_init_T)*scale_mat'.*cost_coeffs_T)) + cost_rho);
   
   cost = cost/norm(cost_coeffs(:),inf);
+  
+%   cost = cost + 5*S0(1,1);
   
   sol = prog.minimize(cost,solver,spot_options);
   
