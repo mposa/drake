@@ -74,13 +74,13 @@ for i=1:1,
   
   rad_sos = subs(V-rho,t,T)*(1+x_mss'*x_mss);
   [prog, rad_sos] = spotless_add_sprocedure(prog, rad_sos, 4*a*d-b^2,x_mss,2);
-  [prog, rad_sos] = spotless_add_sprocedure(prog, rad_sos, b,x_mss,2);
+%   [prog, rad_sos] = spotless_add_sprocedure(prog, rad_sos, b,x_mss,2);
   prog = prog.withSOS(rad_sos);
   
   ab_sos = subs(V-rho,t,T)*(1+x_mss'*x_mss);
-  [prog, ab_sos] = spotless_add_sprocedure(prog, ab_sos, 2*a-b,x_mss,2);
-  [prog, ab_sos] = spotless_add_sprocedure(prog, ab_sos, -a+b-d,x_mss,2);
-  [prog, ab_sos] = spotless_add_sprocedure(prog, ab_sos, -b,x_mss,2);
+  [prog, ab_sos] = spotless_add_sprocedure(prog, ab_sos, -2*a+b,x_mss,2);
+  [prog, ab_sos] = spotless_add_sprocedure(prog, ab_sos, a-b+d,x_mss,2);
+%   [prog, ab_sos] = spotless_add_sprocedure(prog, ab_sos, -b,x_mss,2);
   prog = prog.withSOS(ab_sos);  
 
 %   [prog, rad_sos,rad_mult] = spotless_add_sprocedure(prog, (b^2-4*a*d)*(1+x_mss'*x_mss), subs(rho-V,t,T),x_mss,2);
@@ -163,8 +163,8 @@ for i=1:1,
   prog = prog.withSOS(rad_sos);
   
   ab_sos = subs(V-rho,t,T)*(1+x_mss'*x_mss);
-  [prog, ab_sos] = spotless_add_sprocedure(prog, ab_sos, 2*a-b,x_mss,2);
-  [prog, ab_sos] = spotless_add_sprocedure(prog, ab_sos, -a+b-d,x_mss,2);
+  [prog, ab_sos] = spotless_add_sprocedure(prog, ab_sos, -2*a+b,x_mss,2);
+  [prog, ab_sos] = spotless_add_sprocedure(prog, ab_sos, a-b+d,x_mss,2);
   prog = prog.withSOS(ab_sos);
   
 %   rad_sos = (b^2-4*a*d)*(1+x_mss'*x_mss) -  subs(rho-V,t,T)*rad_mult;
@@ -263,8 +263,8 @@ for i=1:1,
   prog = prog.withSOS(rad_sos);
   
   ab_sos = subs(V-rho,t,T)*(1+x_mss'*x_mss);
-  [prog, ab_sos] = spotless_add_sprocedure(prog, ab_sos, 2*a-b,x_mss,2);
-  [prog, ab_sos] = spotless_add_sprocedure(prog, ab_sos, -a+b-d,x_mss,2);
+  [prog, ab_sos] = spotless_add_sprocedure(prog, ab_sos, -2*a+b,x_mss,2);
+  [prog, ab_sos] = spotless_add_sprocedure(prog, ab_sos, a-b+d,x_mss,2);
   prog = prog.withSOS(ab_sos);
   
 %   rad_sos = (b^2-4*a*d)*(1+x_mss'*x_mss) -  subs(rho-V,t,T)*rad_mult;
@@ -284,7 +284,7 @@ for i=1:1,
 %   cost = 0.01*trace(S0)+5*S0(2,2);
 
   scale_mat = eye(length(x_mss));
-%   scale_mat(1) = 2;
+  scale_mat(1) = 2;
   
   det_init = det(scale_mat*Q_init*scale_mat');
   det_init_T = det(scale_mat*Q_init_T*scale_mat');
@@ -300,7 +300,10 @@ for i=1:1,
   
   cost = cost/norm(cost_coeffs(:),inf);
   
-%   cost = cost + 5*S0(1,1);
+  xstar = [sqrt(10);0;0;-1;zeros(2,1)];
+  cost = cost + .1*xstar'*S0*xstar;
+  
+%   cost = cost + S0(1,1);
   
   sol = prog.minimize(cost,solver,spot_options);
   

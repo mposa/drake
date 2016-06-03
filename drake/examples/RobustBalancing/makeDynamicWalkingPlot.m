@@ -1,8 +1,9 @@
 clear all
-load lipmVariationWorkspace_7
+% load lipmVariationWorkspace_7
+load lipmVariation_switching_3
 data_outer = load('V0_LIPMVariation2D');
 data_outer_1 = load('V1_LIPMVariation2D');
-data_samples = load('lipmVariation_samples')
+data_samples = load('lipmVariation_switching_samples');
 
 
 % zero step region
@@ -27,14 +28,14 @@ set(h,'LineWidth',2)
 hold on
 % caxis([-1 1])
 offset = 0;
-scale = -1;
+scale = 1;
 h=contourSpotless(V*scale,x(1),x(4),[-1 1],[-3 3],[t;x([2;3;5;6])],zeros(model.num_states-1,1),1*scale,{'k'},500,500,0,false);
 set(h,'LineWidth',2)
 
 h=contourSpotless(data_outer.Vsol,x(1),x(4),[-1 1],[-3 3],[t;x([2;3;5;6])],zeros(model.num_states-1,1),0,{'k'},500,500,0,false);
 set(h,'LineWidth',2)
 
-h=contour(reshape(data_samples.X,30,30),reshape(data_samples.XD,30,30),reshape(dmsubs(V,x,data_samples.xf),30,30),[1 1])
+% h=contour(data_samples.X,data_samples.XD,reshape(data_samples.V0,size(data_samples.X)),[1 1])
 
 % h=contourSpotless([subs(V,x(1:2),[sqrt(model.g/model.z_nom)*x(1) - x(2);sqrt(model.g/model.z_nom)*x(1) + x(2)])],x(1),x(2),[-.2 .2],[-.5 .5],[t;x(3:end)],zeros(model.num_states-1,1),1+offset,{'k'},500,500,offset,true);
 % set(h,'Fill','On')
@@ -62,10 +63,14 @@ set(h,'LineWidth',2)
 h=contourSpotless(data_outer_1.Vsol,x(1),x(4),[-1 1],[-3 3],[t;x([2;3;5;6])],zeros(model.num_states-1,1),0,{'k'},500,500,0,false);
 set(h,'LineWidth',2)
 
+h=contourSpotless(V*scale,x(1),x(4),[-1 1],[-3 3],[t;x([2;3;5;6])],zeros(model.num_states-1,1),1*scale,{'k'},500,500,0,false);
+set(h,'LineWidth',2)
+
 
 xlabel('x_c_m','FontSize',24)
 ylabel('xdot_c_m','FontSize',24)
 title('1-Step Regions','FontSize',24)
+% axis([-.5 .5 -1.5 1.5])
 hold off
 
  %% simulate
@@ -73,11 +78,13 @@ hold off
 % [X,XD] = meshgrid(linspace(-.5,.5,NS),linspace(-1.5,1.5,NS));
 % xf = zeros(6,length(X));
 % for i=1:numel(X),
-%   xfi = simLIPMVariationAlt(model,u2,false,[X(i);0;0;XD(i);0;0]);
+%   xfi = simLIPMVariationSwitching(model,Bu,false,[X(i);0;0;XD(i);0;0]);
 %   xf(:,i) = xfi;
 %   i
 % end
 % 
+% s = msspoly('s',model.num_reset_inputs);
+% r = model.reset(t,x,s);
 % for i=1:numel(X)
 %   Vfi = subs(V,x,xf(:,i) + x - r);
 %   V0(i) = double(min(dmsubs(Vfi,s,linspace(-1,1,100))));
