@@ -1,7 +1,7 @@
 g = 10;
 z_nom = 1;
-uz_bnd = .5;
-foot_radius = .1;
+uz_bnd = .3;
+foot_radius = .05;
 step_max = .7;
 step_time = .3;
 z_inv_degree = 1;
@@ -13,6 +13,7 @@ x = msspoly('x',model.num_states);
 t = msspoly('t',1);
 u = msspoly('u',model.num_inputs);
 f = model.dynamics(t,x,u);
+[ff,gg] = model.controlAffineDynamics(t,x);
 
 A = double(subs(diff(f,x),[t;x;u],zeros(1+model.num_states+model.num_inputs,1)));
 B = double(subs(diff(f,u),[t;x;u],zeros(1+model.num_states+model.num_inputs,1)));
@@ -26,13 +27,16 @@ A_state = {};
 % A_state = diag([0;0;.5;pi/2;0;0]);
 % A_state{1} = diag([0;1/.5^2;0;0]);
 V0 = x'*Q*x;
-[V,u_fn] = quadraticControlLyapunovAlternations(x,u,f,V0*100,A_state);
+B0 = -diff(V0,x)*B;
+% [V,u_fn] = quadraticControlLyapunovAlternations(x,u,f,V0*100,A_state);
+[V,Bu] = switchingControlLyapunovAlternations(x,ff,gg,10*V0,B0,A_state);
 figure(1)
 hold off
 contourSpotless(V,x(1),x(3),[-1 1],[-2 2],[t;x([2;4])],zeros(model.num_states-1,1),1,{'r'});
 %%
 for i=1:10,
-  [V,u_fn] = quadraticControlLyapunovAlternations(x,u,f,V,A_state);
+%   [V,u_fn] = quadraticControlLyapunovAlternations(x,u,f,V,A_state);
+  [V,Bu] = switchingControlLyapunovAlternations(x,ff,gg,V,Bu,A_state)
 %   figure(1)
   hold on
   if mod(i,2) == 0,
@@ -40,6 +44,7 @@ for i=1:10,
   else
     contourSpotless(V,x(1),x(3),[-.5 .5],[-1 1],[t;x([2;4])],zeros(model.num_states-1,1),1,{'b'});
   end
+  sqrt(1./diag(double(diff(diff(subs(V,t,0),x)',x)/2)))
 end;
 % keyboard
 

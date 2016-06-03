@@ -1,4 +1,4 @@
-function [xf,v,traj]=simLIPMVariationAlt(model,B,doPlot,x0)
+function [xf,v,traj]=simLIPMVariationSwitching(model,B,doPlot,x0)
 
 if nargin < 3
   doPlot = true;
@@ -41,7 +41,7 @@ p = p.setSimulinkParam('FixedStep', '0.01');
 % x0 = [1;0;0];
 % x0 = [1;-.2;0;.75;0];
 % x0(2) = -x0(4)/sqrt(model.g);
-T = 5;
+T = .3;
 % T = 2;
 
 traj = p.simulate([0 T],[x0;0;.7;0]);

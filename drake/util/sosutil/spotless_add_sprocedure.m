@@ -1,4 +1,4 @@
-function [prog, eqn, mult, coefmult] = spotless_add_sprocedure(prog, eqn, h, vars, degree,min_degree,sos_option)
+function [prog, eqn, mult, coefmult] = spotless_add_sprocedure(prog, eqn, h, vars, degree,min_degree,sos_option, man_degree)
 %SPOTLESS_ADD_SPROCEDURE Summary of this function goes here
 
 % eqn_deg = full(deg(eqn,vars));
@@ -17,10 +17,16 @@ if nargin < 7
   sos_option = 1;
 end
 
+if nargin < 8
+  man_degree = false;
+end
+
 original_deg = even_degree(eqn,vars);
 
 % override degree choice
-degree = [];
+if ~man_degree
+  degree = [];
+end
 
 if isempty(degree)
   degree = zeros(length(h),1);
