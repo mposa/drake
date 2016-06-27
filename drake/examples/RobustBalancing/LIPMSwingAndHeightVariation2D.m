@@ -62,8 +62,6 @@ classdef LIPMSwingAndHeightVariation2D < NStepCapturabilitySOSSystem
     end
     
     function [xp,constraint] = reset(obj, t, xm, s)
-      % control input changes q(1) only
-      % qp = qm - u
       qm = xm(1 : 2);
       vm = xm(3 : 4);
       x_swing = xm(5);
@@ -73,6 +71,20 @@ classdef LIPMSwingAndHeightVariation2D < NStepCapturabilitySOSSystem
       x_swingp = -x_swing;
       xp = [qp;vp;x_swingp];
       constraint = J*vp;
+    end
+    
+    function [xm,constraint] = inverse_reset(obj, t, xp, s)
+      qp = xp(1 : 2);
+      vp = xp(3 : 4);
+      x_swingp = xp(5);
+      
+      qm = [qp(1)+x_swingp;qp(2)];
+      J = (qp + [0;obj.z_nom])';
+      vm = vp - J'*s;
+      x_swingm = -x_swingp;
+      xm = [qm;vm;x_swingm];
+      
+      constraint = J*vp;        
     end
     
     function ret = inputLimits(obj, u, x)

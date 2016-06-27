@@ -21,7 +21,7 @@ hold off
 
 offset = .0;
 scale = 1;
-h=contourSpotless(scale*r_ic'*r_ic,x(1),x(2),[-1 1],[-3 3],[t;x(3:end)],zeros(model.num_states-1,1),[scale*dN^2]+offset,{'k'},500,500,offset,true);
+h=contourSpotless(scale*r_ic'*r_ic,x(1),x(2),[-1 1],[-3 3],[t; x(3:end)],zeros(model.num_states-1,1),[scale*dN^2]+offset,{'k'},500,500,offset,true);
 % set(h,'Fill','On')
 % set(h','Alpha',.5)
 set(h,'LineWidth',2)
@@ -115,8 +115,10 @@ for i=1:numel(X)
   V0(i) = double(min(dmsubs(Vfi,s,linspace(-1,1,100))));
 %   i
 end
+%%
 figure
-V0 = double(V0)
-[cl,h]=contour(X,XD,reshape(V0,NS,NS),[1 1]*1)
+% V0 = double(V0)N
+NS = sqrt(length(data_samples.V0));
+[cl,h]=contour(data_samples.X,data_samples.XD,reshape(data_samples.V0,NS,NS),[1 1]*1)
 set(h,'LineWidth',2)
 set(h','LineColor','k')

@@ -40,6 +40,7 @@ for i=1:1,
   spot_options = spotprog.defaultOptions;
   spot_options.verbose = true;
 %   spot_options.do_fr = true;
+  spot_options.clean_primal = true;
   solver = @spot_mosek;
   sol = prog.minimize(-gamma,solver,spot_options);
   
@@ -77,20 +78,17 @@ for i=1:1,
     for k=1:nU,
       Vdot_sos = Vdot_sos - bmult{j}{k}*umat(j,k)*B(k);
     end
-    prog = prog.withSOS(Vdot_sos + 1e-6*(x_mss'*x_mss));
+    prog = prog.withSOS(Vdot_sos + 1e-8*(x_mss'*x_mss));
   end    
-  
-  spot_options = spotprog.defaultOptions;
-  spot_options.verbose = true;
-%   spot_options.do_fr = true;
   solver = @spot_mosek;
   
   scale_mat = eye(length(x_mss));
+  scale_mat(1,1) = 1.5;
   cost_coeffs = det(scale_mat*Q_init*scale_mat')*inv(scale_mat*Q_init*scale_mat');
   cost_coeffs = cost_coeffs/norm(cost_coeffs(:),inf);
   cost = sum(sum(scale_mat*(Q-Q_init)*scale_mat'.*cost_coeffs));
   
-  cost = cost + 0.01*Q(1,1);
+  cost = cost + 0.00*Q(1,1);
   
   sol = prog.minimize(cost,solver,spot_options);
   

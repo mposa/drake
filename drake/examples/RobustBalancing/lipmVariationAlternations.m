@@ -41,7 +41,7 @@ figure(1)
 hold off
 contourSpotless(V,x(1),x(4),[-1 1],[-2 2],[t;x([2;3;5;6])],zeros(model.num_states-1,1),1,{'r'});
 %%
-for i=91:100,
+for i=1:30,
   V_i{i} = V;
   Bu_i{i} = Bu;
 %   [V,u_fn] = quadraticControlLyapunovAlternations(x,u,f,V,A_state);

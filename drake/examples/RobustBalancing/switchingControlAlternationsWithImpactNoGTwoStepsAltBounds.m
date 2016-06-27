@@ -105,6 +105,7 @@ for i=1:1,
   spot_options = spotprog.defaultOptions;
   spot_options.verbose = true;
   spot_options.do_fr = false;
+  spot_options.clean_primal = true;
   solver = @spot_mosek;
   sol = prog.minimize(-gamma,solver,spot_options);
   
@@ -161,16 +162,16 @@ for i=1:1,
   [prog, reset_sos] = spotless_add_eq_sprocedure(prog, reset_sos,reset_constraint,[s_mss;x_mss],3);
   prog = prog.withSOS(reset_sos);
   
-  spot_options = spotprog.defaultOptions;
-  spot_options.verbose = true;
-  spot_options.do_fr = false;
+%   spot_options = spotprog.defaultOptions;
+%   spot_options.verbose = true;
+%   spot_options.do_fr = false;
   spot_options.sos_slack = 0e-6;
   solver = @spot_mosek;
   
 %   cost = 0.01*trace(S0)+5*S0(2,2);
 
   scale_mat = eye(length(x_mss));
-  scale_mat(1) = 2;
+  scale_mat(1) = 1;
 %   scale_mat(5) = 0;
   
   det_init = det(scale_mat*Q_init*scale_mat');
