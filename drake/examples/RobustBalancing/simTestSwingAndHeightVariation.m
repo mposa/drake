@@ -15,6 +15,7 @@ for i=1:numel(X),
   s_i = -b./a;
   Vp_i = dmsubs(V,x,msubs(r,[x;s],[xs(1:5,:);s_i']));
   Vp{i} = Vp_i;
+  traj_list{i} = traj;
   i
 end
 
@@ -46,3 +47,13 @@ xlabel('x_c_m','FontSize',24)
 ylabel('xdot_c_m','FontSize',24)
 title('Stepping Times (Sampled)','FontSize',24)
 hold off
+
+%%
+figure(3)
+  xf_plot = .23333;
+  t_plot = step_time;
+  hold off
+  contourSpotless(V,x(1),x(3),[-1 1],[-3 3],[t;x([2;4;5])],zeros(model_swing.num_states-1,1),1,{'g'});
+  hold on
+  contourSpotless(V2,x(1),x(3),[-1 1],[-3 3],[t;x([2;4;5])],[zeros(model_swing.num_states-2,1);xf_plot],dmsubs(rho2,t,0),{'k'});
+  contourSpotless(V2,x(1),x(3),[-1 1],[-3 3],[t;x([2;4;5])],[step_time;zeros(model_swing.num_states-3,1);xf_plot],dmsubs(rho2,t,step_time),{'r'});

@@ -60,7 +60,7 @@ for i = 1 : length(h)
   else
     deg_h = deg(h(i));
   end
-  display(sprintf('S-proc ineq. SOS deg: %d, h deg: %d, mult deg: %d',original_deg, deg_h, degree(i)))
+%   display(sprintf('S-proc ineq. SOS deg: %d, h deg: %d, mult deg: %d',original_deg, deg_h, degree(i)))
   if original_deg ~= even_degree(h(i),vars) + degree(i);
     warning('S-procedure degree mismatch')
   end

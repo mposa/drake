@@ -35,6 +35,7 @@ A_state{1} = diag([0;1/.5^2;0;0;0;0]);
 A_state{2} = diag([0;0;1/(pi/2)^2;0;0;0]);
 V0 = 10*x'*Q*x;
 B0 = -diff(V0,x)*B;
+% [ V,Bu ] = strictlyFeasibleSwitchingControlLyapunovAlternations(x,ff,gg,V0,B0,A_state);
 [V,Bu] = switchingControlLyapunovAlternations(x,ff,gg,V0,B0,A_state);
 % [V,u_fn] = quadraticControlLyapunovAlternations(x,u,f,V0*100,A_state)
 figure(1)
@@ -46,6 +47,7 @@ for i=1:30,
   Bu_i{i} = Bu;
 %   [V,u_fn] = quadraticControlLyapunovAlternations(x,u,f,V,A_state);
   [V,Bu] = switchingControlLyapunovAlternations(x,ff,gg,V,Bu,A_state)
+% [ V,Bu ] = strictlyFeasibleSwitchingControlLyapunovAlternations(x,ff,gg,V,Bu,A_state);
 %   figure(1)
   hold on
   if mod(i,2) == 0,

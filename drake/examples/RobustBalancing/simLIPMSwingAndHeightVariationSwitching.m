@@ -41,7 +41,7 @@ p = p.setSimulinkParam('FixedStep', '0.01');
 % x0 = [1;0;0];
 % x0 = [1;-.2;0;.75;0];
 % x0(2) = -x0(4)/sqrt(model.g);
-T = 1;
+T = .3;
 % T = 2;
 
 traj = p.simulate([0 T],[x0;0;0;0]);

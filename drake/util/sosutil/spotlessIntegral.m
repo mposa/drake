@@ -1,7 +1,7 @@
 function cost = spotlessIntegral(prog,poly,sphere_vars,A_diag,box_vars,box_lims)
 % l = spotlessIntegral(poly,sphere_vars,A,box_vars,box_lims)
 
-[vars,alphas,coeff] = decomp(poly, prog.freeVar);
+[vars,alphas,coeff] = decomp(poly, [prog.freeVar;prog.coneVar]);
 
 % find sphere_vars
 n_sphere = length(sphere_vars);

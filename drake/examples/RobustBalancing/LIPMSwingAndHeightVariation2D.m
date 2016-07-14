@@ -78,7 +78,7 @@ classdef LIPMSwingAndHeightVariation2D < NStepCapturabilitySOSSystem
       vp = xp(3 : 4);
       x_swingp = xp(5);
       
-      qm = [qp(1)+x_swingp;qp(2)];
+      qm = [qp(1)-x_swingp;qp(2)];
       J = (qp + [0;obj.z_nom])';
       vm = vp - J'*s;
       x_swingm = -x_swingp;

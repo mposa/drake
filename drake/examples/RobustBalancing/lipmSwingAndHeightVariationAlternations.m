@@ -1,11 +1,10 @@
-% if 0
 g = 10;
 z_nom = 1;
 uz_bnd = .5;
 foot_radius = .05;
 step_max = .7;
 step_time = .3;
-z_inv_degree = 2;
+z_inv_degree = 1;
 
 model = LIPMHeightVariation2D(g, z_nom, step_max, step_time, uz_bnd, foot_radius, z_inv_degree);
 
@@ -26,18 +25,22 @@ R = eye(model.num_inputs);
 %
 A_state = {};
 % A_state = diag([0;0;.5;pi/2;0;0]);
-% A_state{1} = diag([0;1/.5^2;0;0]);
+A_state{1} = diag([0;1/.5^2;0;0]);
 V0 = x'*Q*x;
 B0 = -diff(V0,x)*B;
 % [V,u_fn] = quadraticControlLyapunovAlternations(x,u,f,V0*100,A_state);
-[V,Bu] = switchingControlLyapunovAlternations(x,ff,gg,10*V0,B0,A_state);
+% [V,Bu] = switchingControlLyapunovAlternations(x,ff,gg,10*V0,B0,A_state);
+[ V,Bu ] = strictlyFeasibleSwitchingControlLyapunovAlternations(x,ff,gg,100*V0,B0,A_state);
+
 figure(1)
 hold off
 contourSpotless(V,x(1),x(3),[-1 1],[-2 2],[t;x([2;4])],zeros(model.num_states-1,1),1,{'r'});
 %%
-for i=1:20,
+for i=1:40,
 %   [V,u_fn] = quadraticControlLyapunovAlternations(x,u,f,V,A_state);
-  [V,Bu] = switchingControlLyapunovAlternations(x,ff,gg,V,Bu,A_state)
+%   [V,Bu] = switchingControlLyapunovAlternations(x,ff,gg,V,Bu,A_state);
+  [ V,Bu ] = strictlyFeasibleSwitchingControlLyapunovAlternations(x,ff,gg,V,Bu,A_state);
+
 %   figure(1)
   hold on
   if mod(i,2) == 0,
@@ -78,9 +81,12 @@ B2 = -diff(V2,x)*B;
 % [V2,u2,rho2] =  quadraticControlAlternationsWithResetNoGThreeSteps(x,u,f,V2,step_time,rho2,a,b,d);
 
 %%
-for i=1:20,
-%   [ V2,B2,rho2] = switchingControlAlternationsWithImpactNoGTwoStepsAltBounds(x,s,ff,gg,V2,rho2,B2,.5,r,reset_constraint,V);
-  [ V2,B2,rho2] = switchingControlAlternationsWithImpactNoGTwoStepsInverseReset(x,s,ff,gg,V2,rho2,B2,.5,r_inv,reset_constraint_inv,V);
+for i=1:50,
+%   [ V2,B2,rho2] = switchingControlAlternationsWithImpactNoGTwoStepsAltBounds(x,s,ff,gg,V2,rho2,B2,step_time,r,reset_constraint,V);
+  [ V2,B2,rho2] = strictlyFeasbileImpactAlternations(x,s,ff,gg,V2,rho2,B2,step_time,r,reset_constraint,V);
+%   [ V2,B2,rho2] = switchingControlAlternationsWithImpactNoGTwoStepsInverseReset(x,s,ff,gg,V2,rho2,B2,step_time,r_inv,reset_constraint_inv,V);
+  
+  
 %   [V2,u2,rho2] =  quadraticControlAlternationsWithResetNoGThreeSteps(x,u,f,V2,step_time,rho2,a,b,d);
 % [V2,u2,rho2] =  quadraticControlAlternationsWithResetNoGThreeSteps(x,u_alt,f_alt,V2,step_time,rho2,a,b,d,constraint_alt);
 %   figure(2)
@@ -97,17 +103,19 @@ figure(2)
 
   hold off
   
+  xf_plot = .7;
   figure(3)
   hold off
   contourSpotless(V,x(1),x(3),[-1 1],[-3 3],[t;x([2;4;5])],zeros(model_swing.num_states-1,1),1,{'g'});
   hold on
-  contourSpotless(V2,x(1),x(3),[-1 1],[-3 3],[t;x([2;4;5])],[zeros(model_swing.num_states-2,1);.0],dmsubs(rho2,t,0),{'k'});
-  contourSpotless(V2,x(1),x(3),[-1 1],[-3 3],[t;x([2;4;5])],[step_time;zeros(model_swing.num_states-3,1);.0],dmsubs(rho2,t,step_time),{'r'});
+  contourSpotless(V2,x(1),x(3),[-1 1],[-3 3],[t;x([2;4;5])],[zeros(model_swing.num_states-2,1);xf_plot],dmsubs(rho2,t,0),{'k'});
+  contourSpotless(V2,x(1),x(3),[-1 1],[-3 3],[t;x([2;4;5])],[step_time;zeros(model_swing.num_states-3,1);xf_plot],dmsubs(rho2,t,step_time),{'r'});
 %   contourSpotless(b^2-4*a*d,x(1),x(3),[-1 1],[-3 3],[t;x([2;4;5])],[step_time;zeros(model_swing.num_states-2,1)],0,{'y'});
 % %   contourSpotless(b,x(1),x(3),[-1 1],[-3 3],[t;x([2;4;5])],[step_time;zeros(model_swing.num_states-2,1)],0,{'b'});
 %   contourSpotless(2*a-b,x(1),x(3),[-1 1],[-3 3],[t;x([2;4;5])],[step_time;zeros(model_swing.num_states-2,1)],0,{'b'});
 
   hold off
+  i
 end
 
 save lipmSwingAndHeightVariation_switching_2

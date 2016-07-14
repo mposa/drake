@@ -68,8 +68,8 @@ classdef LIPMHeightVariation2D < NStepCapturabilitySOSSystem
     end
     
     function[umin,umax,A] = simpleInputLimits(obj,x)
-      umin = -ones(3,1);
-      umax = ones(3,1);
+      umin = -ones(2,1);
+      umax = ones(2,1);
       A = [];
     end
     
