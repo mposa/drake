@@ -17,3 +17,9 @@ figure(1)
 plot(z(traj_opt.ljl_inds)')
 xlabel('time')
 ylabel('Joint limit forces')
+
+%%
+figure(2)
+plot(z(traj_opt.x_inds(2,:))')
+xlabel('time')
+ylabel('elbow position (rad)')
