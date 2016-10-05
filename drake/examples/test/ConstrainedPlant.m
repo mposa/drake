@@ -4,7 +4,6 @@ classdef ConstrainedPlant < Manipulator
     function obj = ConstrainedPlant()
       obj = obj@Manipulator(2,1,2);
       
-      fun_handle = drakeFunction.DrakeFunctionHandle(2,1,@obj.constraintFun);
       con = DrakeFunctionConstraint(0,0,TestConstraint());
       con.grad_level = 2;
       obj = obj.addPositionEqualityConstraint(con);      

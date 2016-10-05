@@ -16,7 +16,7 @@ classdef HybridTrajectoryOptimization < NonlinearProgram
   %  called ONCE!!
   %
   % Basic outline:
-  %  traj_opt = HybridTrajectoryOptimizatino(...);
+  %  traj_opt = HybridTrajectoryOptimization(...);
   %  traj_opt = traj_opt.addConstraint(...)
   %  traj_opt = traj_opt.addModeConstraint(...)
   %  ...
