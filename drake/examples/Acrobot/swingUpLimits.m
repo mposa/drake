@@ -1,9 +1,9 @@
 function [p,xtraj,utraj,ljltraj,info,z,traj_opt] = swingUpLimits(slack_mult,xtraj,utraj,ljltraj)
-p = PlanarRigidBodyManipulator('Acrobot.urdf');
+p = PlanarRigidBodyManipulator('AcrobotLimits.urdf');
 p = p.setJointLimits([-inf;-deg2rad(240)],[inf;deg2rad(30)]);
 p = p.compile();
 
-N = 30;
+N = 50;
 T = 15;
 T0 = 5;
 

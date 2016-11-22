@@ -116,8 +116,12 @@ classdef PlanarRigidBodyVisualizer < RigidBodyVisualizer
         axis(obj.axis);
       end
       
-      xlabel(obj.x_axis_label);
-      ylabel(obj.y_axis_label);
+      if obj.draw_axes
+        xlabel(obj.x_axis_label);
+        ylabel(obj.y_axis_label);
+      else
+        set(gca,'visible','off');
+      end             
       
       if isa(obj.model.terrain,'RigidBodyFlatTerrain')
         v=axis;
