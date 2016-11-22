@@ -374,7 +374,7 @@ endif()
 if (WITH_SNOPT_PRECOMPILED)
   message(STATUS "Preparing to install precompiled snopt")
   ExternalProject_Add(download-snopt-precompiled
-		URL "http://drake002.csail.mit.edu/drake/drakeSnopt.zip"
+		URL "https://s3.amazonaws.com/drake-provisioning/drakeSnopt.zip"
 		SOURCE_DIR "${CMAKE_BINARY_DIR}/snopt-precompiled"
 		CONFIGURE_COMMAND ""
 		BUILD_COMMAND cmake -E copy_directory ${CMAKE_BINARY_DIR}/snopt-precompiled/ ${PROJECT_SOURCE_DIR}/drake/solvers/
