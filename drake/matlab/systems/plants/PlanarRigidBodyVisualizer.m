@@ -116,15 +116,21 @@ classdef PlanarRigidBodyVisualizer < RigidBodyVisualizer
         axis(obj.axis);
       end
       
-      xlabel(obj.x_axis_label);
-      ylabel(obj.y_axis_label);
+      if obj.draw_axes
+        xlabel(obj.x_axis_label);
+        ylabel(obj.y_axis_label);
+      else
+        set(gca,'visible','off');
+      end             
       
       if isa(obj.model.terrain,'RigidBodyFlatTerrain')
         v=axis;
         line([v(1)-.1*(v(2)-v(1)),v(2)+.1*(v(2)-v(1))],[0 0],'Color','k');
       end
       
-      title(['t = ', num2str(t,'%.2f') ' sec']);
+      if obj.display_time
+        title(['t = ', num2str(t,'%.2f') ' sec']);
+      end
     end
   end
 

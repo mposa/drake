@@ -95,7 +95,7 @@ classdef AcrobotPlant < Manipulator
         c = tilqr(obj,obj.xG,obj.uG,Q,R);
       else
         if any(~isinf([obj.umin;obj.umax]))
-          error('currently, you must disable input limits to estimate the ROA');
+%           error('currently, you must disable input limits to estimate the ROA');
         end
         [c,V] = tilqr(obj,obj.xG,obj.uG,Q,R);
         pp = feedback(obj.taylorApprox(0,obj.xG,obj.uG,3),c);
