@@ -26,14 +26,22 @@ classdef LIPM2D < NStepCapturabilitySOSSystem
     end
     
     function xdot = dynamics(obj, t, x, u)
+      [f,g] = controlAffineDynamics(obj, t, x);
+      xdot = f + g*u;
+
+      
+    end
+    
+    function [f,g] = controlAffineDynamics(obj,t,x)      
       q = x(1);
       v = x(2);
+      f = [v;q*obj.g/obj.z_nom];
       if obj.num_inputs > 0
-        xdot = [v; (q - u*obj.cop_max) * obj.g/ obj.z_nom];
+        g = [0;-obj.cop_max*obj.g/obj.z_nom];
+        
       else
-        xdot = [v; q * obj.g/ obj.z_nom];
-      end
-      
+        g = zeros(2,0);
+      end      
     end
     
     function xp = reset(obj, t, xm, s)

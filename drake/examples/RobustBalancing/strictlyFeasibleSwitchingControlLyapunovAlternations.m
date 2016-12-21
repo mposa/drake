@@ -3,7 +3,7 @@ if nargin < 6
   R = [];
 end
 
-degree = 4;
+degree = 2;
 
 N = 1;
 nX = length(x);
@@ -71,17 +71,17 @@ for i=1:max_iter
   
   for j=1:2^nU
     Vdot = diff(V,x)*(f + g*umat(j,:)');
-    [prog, Vdot_sos,mult{j},coeff] = spotless_add_sprocedure(prog, -Vdot, rho-V,x,4);
+    [prog, Vdot_sos,mult{j},coeff] = spotless_add_eq_sprocedure(prog, -Vdot, rho-V,x,4);
     for k=1:nU,
       [prog, Vdot_sos,bmult{j}{k},coeff] = spotless_add_sprocedure(prog, Vdot_sos, umat(j,k)*B(k),x,4);
     end
-    [prog, Vdot_sos] = spotless_add_sprocedure(prog, Vdot_sos, outer_radius-x'*x,x,4);
-    [prog, Vdot_sos] = spotless_add_sprocedure(prog, Vdot_sos, -inner_radius+x'*x,x,4);
+%     [prog, Vdot_sos] = spotless_add_sprocedure(prog, Vdot_sos, outer_radius-x'*x,x,4);
+%     [prog, Vdot_sos] = spotless_add_sprocedure(prog, Vdot_sos, -inner_radius+x'*x,x,4);
     prog = prog.withSOS(Vdot_sos+gamma);
   end
   
   spot_options = spotprog.defaultOptions;
-  spot_options.verbose = false;
+  spot_options.verbose = true;
   spot_options.sos_slack = -1e-6;
   spot_options.clean_primal = false;
   solver = @spot_mosek;

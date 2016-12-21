@@ -1,7 +1,8 @@
 clear all
 load lipmSwingAndHeightVariation_switching_1
+% B2 = [Bu;Bu(1)];
 %%
-N = 30;
+N = 20;
 [X,XD] = meshgrid(linspace(-.5,.5,N),linspace(-1.5,1.5,N)); 
 
 for i=1:numel(X),
@@ -17,6 +18,17 @@ for i=1:numel(X),
   Vp{i} = Vp_i;
   traj_list{i} = traj;
   i
+end
+%%
+for i=1:numel(X),
+  traj = traj_list{i};
+  ts = traj.pp.breaks;
+  xs = traj.eval(ts);
+  V2_i = dmsubs(V2,[t;x],[ts;xs(1:5,:)]);
+  V2_list(:,i) = V2_i;
+  V2_end(i) = V2_i(end);
+  V2_0(i) = V2_i(1);
+  xs_end(:,i) = xs(1:5,end);
 end
 
 %%
@@ -36,7 +48,7 @@ for i=1:numel(X),
 end
 
 %%
-figure(1)
+figure(4)
 colormap default
 [cl,h] = contour(X,XD,reshape(ts_opt,N,N));
 set(h,'Fill','On');

@@ -21,6 +21,12 @@ Q_init_T = double(diff(diff(subs(V,t,T),x)',x))/2;
 % x = T^-1 y
 y = msspoly('y',nX);
 scale_transform = Q_init^(.5);
+Q_init_y = eye(nX);
+
+scale_transform = eye(nX);
+Q_init_y = Q_init;
+
+
 x_y = inv(scale_transform)*y;
 f_y = scale_transform*subs(f,x,x_y);
 g_y = scale_transform*subs(g,x,x_y);
@@ -28,13 +34,13 @@ r_y = scale_transform*subs(r,x,x_y);
 reset_constraint_y = subs(reset_constraint,x,x_y);
 V0_y = subs(V0,x,x_y);
 B0_y = subs(B0,x,x_y);
-Q_init_y = eye(nX);
+
 Q_init_T_y = inv(scale_transform)'*Q_init_T*inv(scale_transform);
 Vprev_y = subs(Vprev,x,x_y);
 
 
 [mult,bmult,rho_y] = binarySearchRho(t,y,f_y,g_y,T,umat,V0_y,B0_y,rho0);
-[V0_y,B0_y,rho] = binarySearchVandB(t,y,s,f_y,g_y,T,r_y,reset_constraint_y,Vprev_y,umat,Q_init_y,Q_init_T_y,scale_transform,mult,bmult,rho_y);
+[V0_y,B0_y,rho] = binarySearchVandB(t,y,s,f_y,g_y,T,r_y,reset_constraint_y,Vprev_y,umat,V0_y,Q_init_y,Q_init_T_y,scale_transform,mult,bmult,rho_y);
 V = subs(V0_y,y,scale_transform*x);
 B = subs(B0_y,y,scale_transform*x);
 
@@ -46,7 +52,13 @@ end
 
 
 function [mult_opt,bmult_opt,rho_opt] = binarySearchRho(t,x,f,g,T,umat,V,B,rho)
-max_iter = 2;
+% maxing rho_mult, a scalar multiplier on rho(t)
+% s.t. V=rho ==> Vdot < rhodot 
+%
+% what about jump equation? I feel like I need that in here too
+outer_radius = 2;
+
+max_iter = 1;
 rho_mult = 1;
 rho_mult_min = rho_mult;
 rho_mult_max = inf;
@@ -60,6 +72,7 @@ for i=1:max_iter
   prog = prog.withIndeterminate(x);
   prog = prog.withIndeterminate(t);
   [prog,gamma] = prog.newFree(1);
+  prog = prog.withPos(gamma+10);
   sproc_vars = [t;x];
   
   rhodot = diff(rho,t);
@@ -67,10 +80,11 @@ for i=1:max_iter
   for j=1:2^nU
     Vdot = diff(V,x)*(f + g*umat(j,:)') + diff(V,t);
     
-    [prog, Vdot_sos,mult{j},coeff] = spotless_add_eq_sprocedure(prog, rho_mult*rhodot-Vdot, rho_mult*rho-V,x,2);
+    [prog, Vdot_sos,mult{j},coeff] = spotless_add_eq_sprocedure(prog, rho_mult*rhodot-Vdot, rho_mult*rho-V,sproc_vars,2);
     [prog, Vdot_sos] = spotless_add_sprocedure(prog, Vdot_sos, t*(T-t),sproc_vars,4);
+    [prog, Vdot_sos] = spotless_add_sprocedure(prog, Vdot_sos, outer_radius-x'*x,x,4);
     for k=1:nU,
-      [prog, Vdot_sos,bmult{j}{k},coeff] = spotless_add_sprocedure(prog, Vdot_sos, umat(j,k)*B(k),x,4);
+      [prog, Vdot_sos,bmult{j}{k},coeff] = spotless_add_sprocedure(prog, Vdot_sos, umat(j,k)*B(k),sproc_vars,2);
     end
     prog = prog.withSOS(Vdot_sos + gamma);
   end
@@ -78,11 +92,11 @@ for i=1:max_iter
   spot_options = spotprog.defaultOptions;
   spot_options.verbose = true;
   spot_options.do_fr = false;
-  spot_options.sos_slack = -1e-6;
+  spot_options.sos_slack = -1e-8;
   solver = @spot_mosek;
   sol = prog.minimize(gamma,solver,spot_options);
   
-  if sol.eval(gamma) < -1e-6
+  if sol.eval(gamma) < -1e-6 || sol.status == spotsolstatus.STATUS_NUMERICAL_PROBLEMS
     rho_mult_min = rho_mult;
     for j=1:2^nU
       mult_opt{j} = sol.eval(mult{j});
@@ -106,8 +120,13 @@ for i=1:max_iter
 end
 end
 
-function [V_opt,B_opt,rho_opt] = binarySearchVandB(t,x,s,f,g,T,r,reset_constraint,Vprev,umat,Q_init,Q_init_T,scale_transform,mult,bmult,rho_init)
+function [V_opt,B_opt,rho_opt] = binarySearchVandB(t,x,s,f,g,T,r,reset_constraint,Vprev,umat,V_init,Q_init,Q_init_T,scale_transform,mult,bmult,rho_init)
+% cost_option
+% 1 - determinant
+% 2 - integral
+cost_option = 2; 
 max_iter = 5;
+outer_radius = 2;
 
 nX = length(x);
 nU = size(g,2);
@@ -118,7 +137,9 @@ for i=1:max_iter,
   prog = spotsosprog;
   prog = prog.withIndeterminate(x);
   prog = prog.withIndeterminate(t);
-  prog = prog.withIndeterminate(s);
+  if ~isempty(s)
+    prog = prog.withIndeterminate(s);
+  end
   sproc_vars = [t;x];
   
   %   [prog,gamma] = prog.newPos(1);
@@ -129,25 +150,39 @@ for i=1:max_iter,
   rho = rho  + 1; % set rho(0) = 1
   
   [prog,V] = prog.newFreePoly(reshape(monomials(x,2:2)*monomials(t,(0:2))',[],1));
-  [prog,B] = prog.newFreePoly(monomials(x,1:2),nU);
-  S0 = diff(diff(subs(V,t,0),x)',x)/2;
-  ST = diff(diff(subs(V,t,T),x)',x)/2;
+  [prog,B] = prog.newFreePoly(reshape(monomials(x,1:2)*monomials(t,(0:2))',[],1),nU);
+%   [prog,B] = prog.newFreePoly(reshape(monomials(x,1)*monomials(t,(0:1))',[],1),nU);
+%   [prog,B] = prog.newFreePoly(monomials(x,1:2),nU);
+  S0 = subs(diff(diff(subs(V,t,0),x)',x)/2,x,zeros(nX,1));
+  ST = subs(diff(diff(subs(V,t,T),x)',x)/2,x,zeros(nX,1));
   
   [prog,gamma] = prog.newFree(1);
+  prog = prog.withPos(gamma+10);
   
-  if i == 1,
-    % initialize cost    
-    [~,cost_const] = calc_cost(nX,t,T,S0,ST,rho,Q_init,Q_init_T,rho_init,scale_mat);
+  if i==1,
+    % initialize cost
+    if cost_option == 1
+      [~,cost_const] = calc_cost(nX,t,T,S0,ST,rho,Q_init,Q_init_T,rho_init,scale_mat);
+      
+      % based on the fact that cost(V0) = 0
+      % gets around the fact that subs(Q) doesn't work with Q PSD
+      cost_init = -cost_const;
+    else
+      [~,cost_const] = calc_integral_cost(prog,x,t,V_init,outer_radius,T,scale_mat);
+      cost_init = cost_const;
+    end
     
-    if cost_const > 0
-      keyboard % assuming it's negative for some of the stuff below
+    if sign(cost_init) > 0
+      cost_mult = 1/1.1;
+    else
+      cost_mult = 1.1;
     end
     
     cost_min = -inf;
-    cost_max = -cost_const;
-    cost_val = -cost_const;
+    cost_max = cost_init;
+    cost_val = cost_init;
   end
-  
+ 
   
   prog = prog.withSOS(subs(V,t,0));
   prog = prog.withSOS(subs(V,t,T));
@@ -161,6 +196,7 @@ for i=1:max_iter,
       Vdot_sos = Vdot_sos - bmult{j}{k}*umat(j,k)*B(k);
     end
     [prog, Vdot_sos] = spotless_add_sprocedure(prog, Vdot_sos, t*(T-t),sproc_vars,4);
+    [prog, Vdot_sos] = spotless_add_sprocedure(prog, Vdot_sos, outer_radius-x'*x,x,4);
     prog = prog.withSOS(Vdot_sos + gamma);
   end
   
@@ -168,14 +204,23 @@ for i=1:max_iter,
   Vprev_reset = subs(Vprev,x,r);
   %   [prog, reset_sos] = spotless_add_sprocedure(prog, reset_sos,Vprev - 1,[s;x],4);
   [prog, reset_sos] = spotless_add_sprocedure(prog, reset_sos,Vprev_reset - 1,[s;x],4);
-  [prog, reset_sos] = spotless_add_eq_sprocedure(prog, reset_sos,reset_constraint,[s;x],3);
+  [prog, reset_sos] = spotless_add_sprocedure(prog, reset_sos,2 - Vprev_reset,[s;x],4);
+  if ~isempty(reset_constraint)
+    [prog, reset_sos] = spotless_add_eq_sprocedure(prog, reset_sos,reset_constraint,[s;x],3);
+  end
   prog = prog.withSOS(reset_sos);
   
-  cost = calc_cost(nX,t,T,S0,ST,rho,Q_init,Q_init_T,rho_init,scale_mat);
+  if cost_option == 1
+    cost = calc_cost(nX,t,T,S0,ST,rho,Q_init,Q_init_T,rho_init,scale_mat);
+  else
+    cost = calc_integral_cost(prog,x,t,V,outer_radius,T,scale_mat);
+  end
+  
+  
   prog = prog.withPos(cost_val - cost);  
   
   spot_options = spotprog.defaultOptions;
-  spot_options.verbose = false;
+  spot_options.verbose = true;
   spot_options.do_fr = false;
   spot_options.sos_slack = -1e-6;
   solver = @spot_mosek;
@@ -197,8 +242,8 @@ for i=1:max_iter,
   if ~isinf(cost_min)
     cost_val = (cost_max + cost_min)/2;
   else
-    cost_val = cost_val/1.1;
-  end  
+    cost_val = cost_val*cost_mult;
+  end
 end
 
 S0_trans = sol.eval(scale_mat*S0*scale_mat');
@@ -215,7 +260,7 @@ display(sprintf('Determinant from %f to %f, percent change %f',det_init,det_new,
 display(sprintf('T-determinant from %f to %f, percent change %f',det_init_T,det_new_T,100-100*det_new_T/det_init_T));
 
 if (det_new > det_init) && (det_new_T > det_init_T)
-  keyboard
+%   keyboard
 end
 end
 
@@ -247,5 +292,38 @@ assert(pows(1) == 0)
 
 cost_const = coeffs(1);
 cost = cost - cost_const;
+end
+
+
+
+% DO THIS TOMORROW, TRY IT AS A COST FUNCTION. THE OLD ONE OBVI ISN'T
+% WORKING
+function [cost,cost_const] = calc_integral_cost(prog,x,t,V,radius,T,scale_mat)
+nX = length(x);
+A_diag = ones(1,nX)*radius;
+cost = spotlessIntegral(prog,V,x,A_diag,t,[0 T]);
+
+% add cost in x-direction
+% the "1" isn't quite right, 
+cost_line = spotlessIntegral(prog,subs(V,[t;x],[0;x(1)*scale_mat(:,1)]),x(1),radius/norm(scale_mat(:,1)),[],[]); 
+
+cost = cost + 100*cost_line;
+
+% 
+if isnumeric(cost)
+  cost_const = cost;
+  cost = 0;
+else
+  coeffs = cost.coeff;
+  pows = cost.pow;
+  
+  if any(pows == 0)
+    assert(pows(1) == 0)
+    cost_const = coeffs(1);
+    cost = cost - cost_const;
+  else
+    cost_const = 0;
+  end
+end
 end
 

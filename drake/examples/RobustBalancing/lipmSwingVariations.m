@@ -6,7 +6,7 @@ step_max = .7;
 step_time = .3;
 z_inv_degree = 1;
 
-model = LIPMHeightVariation2D(g, z_nom, step_max, step_time, uz_bnd, foot_radius, z_inv_degree);
+model = LIPM2D(g, z_nom, step_max, step_time, foot_radius);
 
 % Get an initial quadratic Lyapunov candidate
 x = msspoly('x',model.num_states);
@@ -18,23 +18,23 @@ f = model.dynamics(t,x,u);
 A = double(subs(diff(f,x),[t;x;u],zeros(1+model.num_states+model.num_inputs,1)));
 B = double(subs(diff(f,u),[t;x;u],zeros(1+model.num_states+model.num_inputs,1)));
 
-Q = diag([100;100;100;100]);
+Q = diag([100;1]);
 R = eye(model.num_inputs);
 [K,Q] = lqr(A,B,Q,R);
 
 %
 A_state = {};
 % A_state = diag([0;0;.5;pi/2;0;0]);
-A_state{1} = diag([0;1/.5^2;0;0]);
+% A_state{1} = diag([0;0]);
 V0 = x'*Q*x;
 B0 = -diff(V0,x)*B;
 % [V,u_fn] = quadraticControlLyapunovAlternations(x,u,f,V0*100,A_state);
 % [V,Bu] = switchingControlLyapunovAlternations(x,ff,gg,10*V0,B0,A_state);
-[ V,Bu ] = strictlyFeasibleSwitchingControlLyapunovAlternations(x,ff,gg,100*V0,B0,A_state);
+[ V,Bu ] = strictlyFeasibleSwitchingControlLyapunovAlternations(x,ff,gg,200*V0,B0,A_state);
 
 figure(1)
 hold off
-contourSpotless(V,x(1),x(3),[-1 1],[-2 2],[t;x([2;4])],zeros(model.num_states-1,1),1,{'r'});
+contourSpotless(V,x(1),x(2),[-1 1],[-2 2],[t],zeros(model.num_states-1,1),1,{'r'});
 %%
 for i=1:40,
 %   [V,u_fn] = quadraticControlLyapunovAlternations(x,u,f,V,A_state);
@@ -44,9 +44,9 @@ for i=1:40,
 %   figure(1)
   hold on
   if mod(i,2) == 0,
-    contourSpotless(V,x(1),x(3),[-.5 .5],[-1 1],[t;x([2;4])],zeros(model.num_states-1,1),1,{'r'});
+    contourSpotless(V,x(1),x(2),[-.5 .5],[-1 1],[],[],1,{'r'});
   else
-    contourSpotless(V,x(1),x(3),[-.5 .5],[-1 1],[t;x([2;4])],zeros(model.num_states-1,1),1,{'b'});
+    contourSpotless(V,x(1),x(2),[-.5 .5],[-1 1],[],[],1,{'b'});
   end
   sqrt(1./diag(double(diff(diff(subs(V,t,0),x)',x)/2)))
 end;
@@ -54,7 +54,7 @@ end;
 % end
 %%
 swing_speed = step_max/step_time;
-model_swing = LIPMSwingAndHeightVariation2D(g, z_nom, step_max, step_time, uz_bnd, foot_radius, z_inv_degree,swing_speed);
+model_swing = LIPMSwing2D(g, z_nom, step_max, step_time, foot_radius, swing_speed);
 
 % Get an initial quadratic Lyapunov candidate
 x = msspoly('x',model_swing.num_states);
@@ -69,11 +69,11 @@ f = model_swing.dynamics(t,x,u);
 A = double(subs(diff(f,x),[t;x;u],zeros(1+model_swing.num_states+model_swing.num_inputs,1)));
 B = double(subs(diff(f,u),[t;x;u],zeros(1+model_swing.num_states+model_swing.num_inputs,1)));
 
-Q = diag([100;100;100;100;100]);
+Q = diag([100;100;100]);
 R = eye(model_swing.num_inputs);
 [K,Q] = lqr(A,B,Q,R);
 
-rho2 = msspoly(1) + 10*t;
+rho2 = msspoly(1) + 50*t;
 V2 = x'*Q*x*100;
 B2 = -diff(V2,x)*B;
 % B2 = [B0 -B0(1)];
@@ -91,25 +91,26 @@ for i=1:50,
 % [V2,u2,rho2] =  quadraticControlAlternationsWithResetNoGThreeSteps(x,u_alt,f_alt,V2,step_time,rho2,a,b,d,constraint_alt);
 %   figure(2)
 
+%%
 figure(2)
   hold off
-  contourSpotless(V,x(1),x(3),[-1 1],[-3 3],[t;x([2;4;5])],zeros(model_swing.num_states-1,1),1,{'g'});
+  contourSpotless(V,x(1),x(2),[-1 1],[-3 3],[t;x([3])],zeros(model_swing.num_states-1,1),1,{'g'});
   hold on
-  contourSpotless(V2,x(1),x(3),[-1 1],[-3 3],[t;x([2;4;5])],[zeros(model_swing.num_states-2,1);0],dmsubs(rho2,t,0),{'k'});
-  contourSpotless(V2,x(1),x(3),[-1 1],[-3 3],[t;x([2;4;5])],[step_time;zeros(model_swing.num_states-3,1);0],dmsubs(rho2,t,step_time),{'r'});
+  contourSpotless(V2,x(1),x(2),[-1 1],[-3 3],[t;x([3])],[zeros(model_swing.num_states-2,1);0],dmsubs(rho2,t,0),{'k'});
+  contourSpotless(V2,x(1),x(2),[-1 1],[-3 3],[t;x([3])],[step_time;zeros(model_swing.num_states-3,1);0],dmsubs(rho2,t,step_time),{'r'});
 %   contourSpotless(b^2-4*a*d,x(1),x(3),[-1 1],[-3 3],[t;x([2;4;5])],[step_time;zeros(model_swing.num_states-2,1)],0,{'y'});
 % %   contourSpotless(b,x(1),x(3),[-1 1],[-3 3],[t;x([2;4;5])],[step_time;zeros(model_swing.num_states-2,1)],0,{'b'});
 %   contourSpotless(2*a-b,x(1),x(3),[-1 1],[-3 3],[t;x([2;4;5])],[step_time;zeros(model_swing.num_states-2,1)],0,{'b'});
 
   hold off
   
-  xf_plot = .7;
+  xf_plot = .3;
   figure(3)
   hold off
-  contourSpotless(V,x(1),x(3),[-1 1],[-3 3],[t;x([2;4;5])],zeros(model_swing.num_states-1,1),1,{'g'});
+  contourSpotless(V,x(1),x(2),[-1 1],[-3 3],[t;x([3])],zeros(model_swing.num_states-1,1),1,{'g'});
   hold on
-  contourSpotless(V2,x(1),x(3),[-1 1],[-3 3],[t;x([2;4;5])],[zeros(model_swing.num_states-2,1);xf_plot],dmsubs(rho2,t,0),{'k'});
-  contourSpotless(V2,x(1),x(3),[-1 1],[-3 3],[t;x([2;4;5])],[step_time;zeros(model_swing.num_states-3,1);xf_plot],dmsubs(rho2,t,step_time),{'r'});
+  contourSpotless(V2,x(1),x(2),[-1 1],[-3 3],[t;x([3])],[zeros(model_swing.num_states-2,1);xf_plot],dmsubs(rho2,t,0),{'k'});
+  contourSpotless(V2,x(1),x(2),[-1 1],[-3 3],[t;x([3])],[step_time;zeros(model_swing.num_states-3,1);xf_plot],dmsubs(rho2,t,step_time),{'r'});
 %   contourSpotless(b^2-4*a*d,x(1),x(3),[-1 1],[-3 3],[t;x([2;4;5])],[step_time;zeros(model_swing.num_states-2,1)],0,{'y'});
 % %   contourSpotless(b,x(1),x(3),[-1 1],[-3 3],[t;x([2;4;5])],[step_time;zeros(model_swing.num_states-2,1)],0,{'b'});
 %   contourSpotless(2*a-b,x(1),x(3),[-1 1],[-3 3],[t;x([2;4;5])],[step_time;zeros(model_swing.num_states-2,1)],0,{'b'});
