@@ -115,13 +115,13 @@ classdef LIPMHeightVariation2D < NStepCapturabilitySOSSystem
       ylabel('v_1')
       title('V(0,x)')
       
-      % 3d plot for t = 0, zdot = 0
-      contour_inds = [1 3 2];
-      sub_inds = setdiff(1:6,contour_inds);
-      hFig = figure(n * 10 + 3);
-      clf;
-      contourSpotless3D(subs(Vsol,  [t;x(sub_inds)], [0;0;0]), x(contour_inds), 0, R_diag(contour_inds));
-      xlabel('x_c_m'); ylabel('xdot_c_m'); zlabel('z_c_m');
+%       % 3d plot for t = 0, zdot = 0
+%       contour_inds = [1 3 2];
+%       sub_inds = setdiff(1:6,contour_inds);
+%       hFig = figure(n * 10 + 3);
+%       clf;
+%       contourSpotless3D(subs(Vsol,  [t;x(sub_inds)], [0;0;0]), x(contour_inds), 0, R_diag(contour_inds));
+%       xlabel('x_c_m'); ylabel('xdot_c_m'); zlabel('z_c_m');
 
       % video of rotating ROA
       create_video = false;

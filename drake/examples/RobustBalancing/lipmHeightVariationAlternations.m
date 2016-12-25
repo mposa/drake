@@ -1,3 +1,5 @@
+checkDependency('spotless');
+checkDependency('mosek');
 g = 10;
 z_nom = 1;
 uz_bnd = .5;
@@ -36,7 +38,7 @@ figure(1)
 hold off
 contourSpotless(V,x(1),x(3),[-1 1],[-2 2],[t;x([2;4])],zeros(model.num_states-1,1),1,{'r'});
 %%
-for i=1:30,
+for i=1:60,
 %   [V,u_fn] = quadraticControlLyapunovAlternations(x,u,f,V,A_state);
 %   [V,Bu] = switchingControlLyapunovAlternations(x,ff,gg,V,Bu,A_state);
   [ V,Bu ] = strictlyFeasibleSwitchingControlLyapunovAlternations(x,ff,gg,V,Bu,A_state);

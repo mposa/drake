@@ -96,7 +96,7 @@ for i=1:max_iter
   solver = @spot_mosek;
   sol = prog.minimize(gamma,solver,spot_options);
   
-  if sol.eval(gamma) < -1e-6 || sol.status == spotsolstatus.STATUS_NUMERICAL_PROBLEMS
+  if sol.eval(gamma) < -1e-6 && sol.status == spotsolstatus.STATUS_NUMERICAL_PROBLEMS
     rho_mult_min = rho_mult;
     for j=1:2^nU
       mult_opt{j} = sol.eval(mult{j});
@@ -227,7 +227,7 @@ for i=1:max_iter,
   
   sol = prog.minimize(gamma,solver,spot_options);
   
-  if sol.eval(gamma) < -1e-6
+  if sol.eval(gamma) < -1e-6  && sol.status == spotsolstatus.STATUS_NUMERICAL_PROBLEMS
     cost_max = cost_val;
     V_opt = sol.eval(V);
     B_opt = sol.eval(B);

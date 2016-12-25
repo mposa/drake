@@ -46,22 +46,28 @@ outer_radius = 2;
 inner_radius = .1;
 rho0 = 1;
 % [rho,mult,bmult] = binarySearchRho(x,f,g,umat,V,B,outer_radius,inner_radius,rho0);
-[rho_y,mult_y,bmult_y] = binarySearchRho(y,f_y,g_y,umat,V_y,B_y,outer_radius,inner_radius,rho0,T);
+[rho_y,mult_y,bmult_y,B_scale] = binarySearchRho(y,f_y,g_y,umat,V_y,B_y,outer_radius,inner_radius,rho0,T);
 V_y = V_y/rho_y;
 
 %% iter 2
 % [V,B] = binarySearchVandB(x,f,g,umat,mult,bmult,outer_radius,inner_radius,Q_init,R,eye(nX));
-[V_y,B_y] = binarySearchVandB(y,f_y,g_y,umat,mult_y,bmult_y,outer_radius,inner_radius,V_y,Q_init_y,R_y,T,degree);
+[V_y,B_y] = binarySearchVandB(y,f_y,g_y,umat,mult_y,bmult_y,outer_radius,inner_radius,V_y,Q_init_y,R_y,T,degree,B_scale);
 V = subs(V_y,y,T*x);
 B = subs(B_y,y,T*x);
 end
 
-function [rho_opt,mult_opt,bmult_opt] = binarySearchRho(x,f,g,umat,V,B,outer_radius,inner_radius,rho0,T)
-max_iter = 4;
+function [rho_opt,mult_opt,bmult_opt,B] = binarySearchRho(x,f,g,umat,V,B,outer_radius,inner_radius,rho0,T)
+max_iter = 1;
 rho = rho0;
 rho_min = -inf;
 rho_max = inf;
 nU = size(g,2);
+
+for i=1:length(B),
+  [~,~,coeff]=decomp(B(i));
+  mult_scale = min(1,norm(coeff,inf));
+  B(i) = B(i)/mult_scale;
+end
 
 for i=1:max_iter
   %%
@@ -75,8 +81,8 @@ for i=1:max_iter
     for k=1:nU,
       [prog, Vdot_sos,bmult{j}{k},coeff] = spotless_add_sprocedure(prog, Vdot_sos, umat(j,k)*B(k),x,4);
     end
-%     [prog, Vdot_sos] = spotless_add_sprocedure(prog, Vdot_sos, outer_radius-x'*x,x,4);
-%     [prog, Vdot_sos] = spotless_add_sprocedure(prog, Vdot_sos, -inner_radius+x'*x,x,4);
+    [prog, Vdot_sos] = spotless_add_sprocedure(prog, Vdot_sos, outer_radius-x'*x,x,4);
+    %     [prog, Vdot_sos] = spotless_add_sprocedure(prog, Vdot_sos, -inner_radius+x'*x,x,4);
     prog = prog.withSOS(Vdot_sos+gamma);
   end
   
@@ -86,8 +92,12 @@ for i=1:max_iter
   spot_options.clean_primal = false;
   solver = @spot_mosek;
   sol = prog.minimize(gamma,solver,spot_options);
+  %%
+  if sol.status ~= spotsolstatus.STATUS_PRIMAL_AND_DUAL_FEASIBLE
+    %       keyboard
+  end
   
-  if sol.eval(gamma) < -1e-6
+  if sol.eval(gamma) < -1e-6 && sol.status == spotsolstatus.STATUS_PRIMAL_AND_DUAL_FEASIBLE
     rho_min = rho;
     for j=1:2^nU
       mult_opt{j} = sol.eval(mult{j});
@@ -102,7 +112,7 @@ for i=1:max_iter
   if isinf(rho_max)
     rho = 1.01*rho;
   elseif isinf(rho_min)
-    rho = .98*rho;
+    rho = .95*rho;
   else
     rho = (rho_max + rho_min)/2;
   end
@@ -112,17 +122,26 @@ if isinf(rho_min)
 else
   rho_opt = rho_min;
 end
+rho_opt = min(rho_opt,1); % reset rho, but use best multipliers
 end
 
 
-function [V,B] = binarySearchVandB(x,f,g,umat,mult,bmult,outer_radius,inner_radius,V_init,Q_init,R,T,degree)
+function [V,B] = binarySearchVandB(x,f,g,umat,mult,bmult,outer_radius,inner_radius,V_init,Q_init,R,T,degree,B_init)
 %%
 % cost_option
 % 1 - determinant
 % 2 - integral
-cost_option = 2; 
+cost_option = 2;
 max_iter = 4;
+is_fail = true;
 
+for i=1:length(bmult),
+  for j=1:length(bmult{i}),
+    [~,~,coeff]=decomp(bmult{i}{j});
+    mult_scale = min(1,norm(coeff,inf));
+    bmult{i}{j} = bmult{i}{j}/mult_scale;
+  end
+end
 nX = length(x);
 nU = size(g,2);
 
@@ -134,7 +153,7 @@ scale_mat = T';
 % c(Q) < 0 <==> c'(Q) < -g
 
 for i=1:max_iter
-  
+  %%
   prog = spotsosprog;
   prog = prog.withIndeterminate(x);
   rho = 1;
@@ -144,16 +163,16 @@ for i=1:max_iter
     [prog,Q] = prog.newPSD(nX);
     V = x'*Q*x;
   else
-    [prog,V] = prog.newFreePoly(monomials(x,2:degree));    
+    [prog,V] = prog.newFreePoly(monomials(x,2:2));
     % could add s-procedure here, if needed
     prog = prog.withSOS(V);
     
     Q = subs(diff(diff(V,x)',x)/2,x,zeros(nX,1));
   end
   
-  [prog,B] = prog.newFreePoly(monomials(x,1:2),nU);
-  %   B = B0; 
-  R = [];
+  [prog,B] = prog.newFreePoly(monomials(x,1:degree),nU);
+  %   B = B0;
+%   R = [];
   if ~isempty(R)
     if iscell(R)
       for j=1:length(R),
@@ -166,7 +185,7 @@ for i=1:max_iter
   
   for j=1:2^nU
     Vdot = diff(V,x)*(f + g*umat(j,:)');
-    Vdot_sos = -Vdot - mult{j}*(rho-V);
+    Vdot_sos = -Vdot*(1+x'*x)^(degree/2-1) - mult{j}*(rho-V);
     for k=1:nU,
       Vdot_sos = Vdot_sos - bmult{j}{k}*umat(j,k)*B(k);
     end
@@ -182,23 +201,23 @@ for i=1:max_iter
       
       % based on the fact that cost(V0) = 0
       % gets around the fact that subs(Q) doesn't work with Q PSD
-      cost_init = -cost_const;      
+      cost_init = -cost_const;
     else
-      [~,cost_const] = calc_integral_cost(prog,x,V_init,outer_radius,scale_mat);      
+      [~,cost_const] = calc_integral_cost(prog,x,V_init,outer_radius,scale_mat);
       cost_init = cost_const;
     end
     
     if sign(cost_init) > 0
-      cost_mult = 1/1.1;
+      cost_mult = 1/1.05;
     else
-      cost_mult = 1.1;
+      cost_mult = 1.05;
     end
-
+    
     cost_min = -inf;
     cost_max = cost_init;
     cost_val = cost_init;
-  end  
-
+  end
+  
   if cost_option == 1
     cost = calc_cost(Q,Q_init,scale_mat);
   else
@@ -208,29 +227,41 @@ for i=1:max_iter
   prog = prog.withPos(cost_val - cost);
   
   spot_options = spotprog.defaultOptions;
-  spot_options.verbose = false;
+  spot_options.verbose = true;
   spot_options.sos_slack = -1e-6;
   spot_options.clean_primal = false;
   solver = @spot_mosek;
   sol = prog.minimize(gamma,solver,spot_options);
+  %%
+  if sol.status ~= spotsolstatus.STATUS_PRIMAL_AND_DUAL_FEASIBLE
+    %       keyboard
+  end
   
-  if sol.eval(gamma) < -1e-6
+  if sol.eval(gamma) < -1e-6 && sol.status == spotsolstatus.STATUS_PRIMAL_AND_DUAL_FEASIBLE
     cost_max = cost_val;
     V_opt = sol.eval(V);
     B_opt = sol.eval(B);
     Q_opt = sol.eval(Q);
+    is_fail = false;
   else
     cost_min = cost_val;
-    if i ==1,
-      keyboard % uh oh
+    if is_fail,
+      keyboard
+      cost_val = cost_val*1.05;
     end
   end
   
-  if ~isinf(cost_min)
-    cost_val = (cost_max + cost_min)/2;
-  else
-    cost_val = cost_val*cost_mult;
+  if ~is_fail
+    if ~isinf(cost_min)
+      cost_val = (cost_max + cost_min)/2;
+    else
+      cost_val = cost_val*cost_mult;
+    end
   end
+end
+
+if is_fail
+  keyboard %uh oh
 end
 
 Q_init_det = det(scale_mat*Q_init*scale_mat');
@@ -267,12 +298,12 @@ A_diag = ones(1,nX)*radius;
 cost = spotlessIntegral(prog,V,x,A_diag,[],[]);
 
 % add cost in x-direction
-% the "1" isn't quite right, 
-cost_line = spotlessIntegral(prog,subs(V,x,x(1)*scale_mat(:,1)),x(1),radius/norm(scale_mat(:,1)),[],[]); 
+% the "1" isn't quite right,
+cost_line = spotlessIntegral(prog,subs(V,x,x(1)*scale_mat(:,1)),x(1),radius/norm(scale_mat(:,1)),[],[]);
 
-cost = cost + 1000*cost_line;
+cost = cost + 10000*cost_line;
 
-% 
+%
 if isnumeric(cost)
   cost_const = cost;
   cost = 0;
