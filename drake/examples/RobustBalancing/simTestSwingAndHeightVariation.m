@@ -1,8 +1,8 @@
 clear all
-load lipmSwingAndHeightVariation_switching_1
+load lipmSwingAndHeightVariation_switching_new
 % B2 = [Bu;Bu(1)];
 %%
-N = 20;
+N = 30;
 [X,XD] = meshgrid(linspace(-.5,.5,N),linspace(-1.5,1.5,N)); 
 
 for i=1:numel(X),
@@ -48,7 +48,7 @@ for i=1:numel(X),
 end
 
 %%
-figure(4)
+figure
 colormap default
 [cl,h] = contour(X,XD,reshape(ts_opt,N,N));
 set(h,'Fill','On');

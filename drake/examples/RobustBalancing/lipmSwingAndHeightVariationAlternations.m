@@ -81,7 +81,7 @@ B2 = -diff(V2,x)*B;
 % [V2,u2,rho2] =  quadraticControlAlternationsWithResetNoGThreeSteps(x,u,f,V2,step_time,rho2,a,b,d);
 
 %%
-for i=1:50,
+for i=1:500,
 %   [ V2,B2,rho2] = switchingControlAlternationsWithImpactNoGTwoStepsAltBounds(x,s,ff,gg,V2,rho2,B2,step_time,r,reset_constraint,V);
   [ V2,B2,rho2] = strictlyFeasbileImpactAlternations(x,s,ff,gg,V2,rho2,B2,step_time,r,reset_constraint,V);
 %   [ V2,B2,rho2] = switchingControlAlternationsWithImpactNoGTwoStepsInverseReset(x,s,ff,gg,V2,rho2,B2,step_time,r_inv,reset_constraint_inv,V);
@@ -91,28 +91,29 @@ for i=1:50,
 % [V2,u2,rho2] =  quadraticControlAlternationsWithResetNoGThreeSteps(x,u_alt,f_alt,V2,step_time,rho2,a,b,d,constraint_alt);
 %   figure(2)
 
+%%
 figure(2)
   hold off
-  contourSpotless(V,x(1),x(3),[-1 1],[-3 3],[t;x([2;4;5])],zeros(model_swing.num_states-1,1),1,{'g'});
+  contourSpotless(V,x(1),x(3),[-.5 .5],[-1 1],[t;x([2;4;5])],zeros(model_swing.num_states-1,1),1,{'g'});
   hold on
-  contourSpotless(V2,x(1),x(3),[-1 1],[-3 3],[t;x([2;4;5])],[zeros(model_swing.num_states-2,1);0],dmsubs(rho2,t,0),{'k'});
-  contourSpotless(V2,x(1),x(3),[-1 1],[-3 3],[t;x([2;4;5])],[step_time;zeros(model_swing.num_states-3,1);0],dmsubs(rho2,t,step_time),{'r'});
-%   contourSpotless(b^2-4*a*d,x(1),x(3),[-1 1],[-3 3],[t;x([2;4;5])],[step_time;zeros(model_swing.num_states-2,1)],0,{'y'});
-% %   contourSpotless(b,x(1),x(3),[-1 1],[-3 3],[t;x([2;4;5])],[step_time;zeros(model_swing.num_states-2,1)],0,{'b'});
-%   contourSpotless(2*a-b,x(1),x(3),[-1 1],[-3 3],[t;x([2;4;5])],[step_time;zeros(model_swing.num_states-2,1)],0,{'b'});
+  contourSpotless(V2,x(1),x(3),[-.5 .5],[-1 1],[t;x([2;4;5])],[zeros(model_swing.num_states-2,1);0],dmsubs(rho2,t,0),{'k'});
+  contourSpotless(V2,x(1),x(3),[-.5 .5],[-1 1],[t;x([2;4;5])],[step_time;zeros(model_swing.num_states-3,1);0],dmsubs(rho2,t,step_time),{'r'});
+%   contourSpotless(b^2-4*a*d,x(1),x(3),[-.5 .5],[-1 1],[t;x([2;4;5])],[step_time;zeros(model_swing.num_states-2,1)],0,{'y'});
+% %   contourSpotless(b,x(1),x(3),[-.5 .5],[-1 1],[t;x([2;4;5])],[step_time;zeros(model_swing.num_states-2,1)],0,{'b'});
+%   contourSpotless(2*a-b,x(1),x(3),[-.5 .5],[-1 1],[t;x([2;4;5])],[step_time;zeros(model_swing.num_states-2,1)],0,{'b'});
 
   hold off
   
-  xf_plot = .7;
+  xf_plot = .2;
   figure(3)
   hold off
-  contourSpotless(V,x(1),x(3),[-1 1],[-3 3],[t;x([2;4;5])],zeros(model_swing.num_states-1,1),1,{'g'});
+  contourSpotless(V,x(1),x(3),[-.5 .5],[-1 1],[t;x([2;4;5])],zeros(model_swing.num_states-1,1),1,{'g'});
   hold on
-  contourSpotless(V2,x(1),x(3),[-1 1],[-3 3],[t;x([2;4;5])],[zeros(model_swing.num_states-2,1);xf_plot],dmsubs(rho2,t,0),{'k'});
-  contourSpotless(V2,x(1),x(3),[-1 1],[-3 3],[t;x([2;4;5])],[step_time;zeros(model_swing.num_states-3,1);xf_plot],dmsubs(rho2,t,step_time),{'r'});
-%   contourSpotless(b^2-4*a*d,x(1),x(3),[-1 1],[-3 3],[t;x([2;4;5])],[step_time;zeros(model_swing.num_states-2,1)],0,{'y'});
-% %   contourSpotless(b,x(1),x(3),[-1 1],[-3 3],[t;x([2;4;5])],[step_time;zeros(model_swing.num_states-2,1)],0,{'b'});
-%   contourSpotless(2*a-b,x(1),x(3),[-1 1],[-3 3],[t;x([2;4;5])],[step_time;zeros(model_swing.num_states-2,1)],0,{'b'});
+  contourSpotless(V2,x(1),x(3),[-.5 .5],[-1 1],[t;x([2;4;5])],[zeros(model_swing.num_states-2,1);xf_plot],dmsubs(rho2,t,0),{'k'});
+  contourSpotless(V2,x(1),x(3),[-.5 .5],[-1 1],[t;x([2;4;5])],[step_time;zeros(model_swing.num_states-3,1);xf_plot],dmsubs(rho2,t,step_time),{'r'});
+%   contourSpotless(b^2-4*a*d,x(1),x(3),[-.5 .5],[-1 1],[t;x([2;4;5])],[step_time;zeros(model_swing.num_states-2,1)],0,{'y'});
+% %   contourSpotless(b,x(1),x(3),[-.5 .5],[-1 1],[t;x([2;4;5])],[step_time;zeros(model_swing.num_states-2,1)],0,{'b'});
+%   contourSpotless(2*a-b,x(1),x(3),[-.5 .5],[-1 1],[t;x([2;4;5])],[step_time;zeros(model_swing.num_states-2,1)],0,{'b'});
 
   hold off
   i

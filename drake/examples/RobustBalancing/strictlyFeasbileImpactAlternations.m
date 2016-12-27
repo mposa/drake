@@ -23,8 +23,8 @@ y = msspoly('y',nX);
 scale_transform = Q_init^(.5);
 Q_init_y = eye(nX);
 
-scale_transform = eye(nX);
-Q_init_y = Q_init;
+% scale_transform = eye(nX);
+% Q_init_y = Q_init;
 
 
 x_y = inv(scale_transform)*y;
@@ -58,7 +58,7 @@ function [mult_opt,bmult_opt,rho_opt] = binarySearchRho(t,x,f,g,T,umat,V,B,rho)
 % what about jump equation? I feel like I need that in here too
 outer_radius = 2;
 
-max_iter = 1;
+max_iter = 2;
 rho_mult = 1;
 rho_mult_min = rho_mult;
 rho_mult_max = inf;
@@ -82,7 +82,7 @@ for i=1:max_iter
     
     [prog, Vdot_sos,mult{j},coeff] = spotless_add_eq_sprocedure(prog, rho_mult*rhodot-Vdot, rho_mult*rho-V,sproc_vars,2);
     [prog, Vdot_sos] = spotless_add_sprocedure(prog, Vdot_sos, t*(T-t),sproc_vars,4);
-    [prog, Vdot_sos] = spotless_add_sprocedure(prog, Vdot_sos, outer_radius-x'*x,x,4);
+%     [prog, Vdot_sos] = spotless_add_sprocedure(prog, Vdot_sos, outer_radius-x'*x,x,4);
     for k=1:nU,
       [prog, Vdot_sos,bmult{j}{k},coeff] = spotless_add_sprocedure(prog, Vdot_sos, umat(j,k)*B(k),sproc_vars,2);
     end
@@ -96,7 +96,11 @@ for i=1:max_iter
   solver = @spot_mosek;
   sol = prog.minimize(gamma,solver,spot_options);
   
-  if sol.eval(gamma) < -1e-6 || sol.status == spotsolstatus.STATUS_NUMERICAL_PROBLEMS
+  if sol.status ~= spotsolstatus.STATUS_PRIMAL_AND_DUAL_FEASIBLE
+    keyboard
+  end
+  
+  if sol.eval(gamma) < -1e-6 || sol.status ~= spotsolstatus.STATUS_PRIMAL_AND_DUAL_FEASIBLE
     rho_mult_min = rho_mult;
     for j=1:2^nU
       mult_opt{j} = sol.eval(mult{j});
@@ -118,6 +122,8 @@ for i=1:max_iter
     rho_mult = 1.1*rho_mult;
   end
 end
+
+rho_opt = 1; %overwriting rho_opt, just using this search to get better multipliers
 end
 
 function [V_opt,B_opt,rho_opt] = binarySearchVandB(t,x,s,f,g,T,r,reset_constraint,Vprev,umat,V_init,Q_init,Q_init_T,scale_transform,mult,bmult,rho_init)
@@ -134,6 +140,7 @@ nU = size(g,2);
 scale_mat = scale_transform';
 
 for i=1:max_iter,
+  %%
   prog = spotsosprog;
   prog = prog.withIndeterminate(x);
   prog = prog.withIndeterminate(t);
@@ -196,7 +203,8 @@ for i=1:max_iter,
       Vdot_sos = Vdot_sos - bmult{j}{k}*umat(j,k)*B(k);
     end
     [prog, Vdot_sos] = spotless_add_sprocedure(prog, Vdot_sos, t*(T-t),sproc_vars,4);
-    [prog, Vdot_sos] = spotless_add_sprocedure(prog, Vdot_sos, outer_radius-x'*x,x,4);
+%     [prog, Vdot_sos] = spotless_add_sprocedure(prog, Vdot_sos, 1000-x'*x,x,4);
+    [prog, Vdot_sos] = spotless_add_sprocedure(prog, Vdot_sos, 5*rho_init - V_init,x,2);
     prog = prog.withSOS(Vdot_sos + gamma);
   end
   
@@ -226,8 +234,12 @@ for i=1:max_iter,
   solver = @spot_mosek;
   
   sol = prog.minimize(gamma,solver,spot_options);
+  %%
+  if sol.status ~= spotsolstatus.STATUS_PRIMAL_AND_DUAL_FEASIBLE
+    keyboard
+  end
   
-  if sol.eval(gamma) < -1e-6
+  if sol.eval(gamma) < -1e-6 || sol.status ~= spotsolstatus.STATUS_PRIMAL_AND_DUAL_FEASIBLE
     cost_max = cost_val;
     V_opt = sol.eval(V);
     B_opt = sol.eval(B);
@@ -296,8 +308,6 @@ end
 
 
 
-% DO THIS TOMORROW, TRY IT AS A COST FUNCTION. THE OLD ONE OBVI ISN'T
-% WORKING
 function [cost,cost_const] = calc_integral_cost(prog,x,t,V,radius,T,scale_mat)
 nX = length(x);
 A_diag = ones(1,nX)*radius;
@@ -307,7 +317,7 @@ cost = spotlessIntegral(prog,V,x,A_diag,t,[0 T]);
 % the "1" isn't quite right, 
 cost_line = spotlessIntegral(prog,subs(V,[t;x],[0;x(1)*scale_mat(:,1)]),x(1),radius/norm(scale_mat(:,1)),[],[]); 
 
-cost = cost + 100*cost_line;
+cost = cost + 1000*cost_line;
 
 % 
 if isnumeric(cost)
