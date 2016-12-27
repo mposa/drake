@@ -40,7 +40,7 @@ Vprev_y = subs(Vprev,x,x_y);
 
 
 [mult,bmult,rho_y] = binarySearchRho(t,y,f_y,g_y,T,umat,V0_y,B0_y,rho0);
-[V0_y,B0_y,rho] = binarySearchVandB(t,y,s,f_y,g_y,T,r_y,reset_constraint_y,Vprev_y,umat,V0_y,Q_init_y,Q_init_T_y,scale_transform,mult,bmult,rho_y);
+ [V0_y,B0_y,rho] = binarySearchVandB(t,y,s,f_y,g_y,T,r_y,reset_constraint_y,Vprev_y,umat,V0_y,Q_init_y,Q_init_T_y,scale_transform,mult,bmult,rho_y);
 V = subs(V0_y,y,scale_transform*x);
 B = subs(B0_y,y,scale_transform*x);
 
@@ -96,7 +96,7 @@ for i=1:max_iter
   solver = @spot_mosek;
   sol = prog.minimize(gamma,solver,spot_options);
   
-  if sol.eval(gamma) < -1e-6 && sol.status == spotsolstatus.STATUS_NUMERICAL_PROBLEMS
+  if sol.eval(gamma) < -1e-6  && sol.status == spotsolstatus.STATUS_PRIMAL_AND_DUAL_FEASIBLE
     rho_mult_min = rho_mult;
     for j=1:2^nU
       mult_opt{j} = sol.eval(mult{j});
@@ -134,6 +134,7 @@ nU = size(g,2);
 scale_mat = scale_transform';
 
 for i=1:max_iter,
+  %%
   prog = spotsosprog;
   prog = prog.withIndeterminate(x);
   prog = prog.withIndeterminate(t);
@@ -226,8 +227,8 @@ for i=1:max_iter,
   solver = @spot_mosek;
   
   sol = prog.minimize(gamma,solver,spot_options);
-  
-  if sol.eval(gamma) < -1e-6  && sol.status == spotsolstatus.STATUS_NUMERICAL_PROBLEMS
+  %%
+  if sol.eval(gamma) < -1e-6  && sol.status == spotsolstatus.STATUS_PRIMAL_AND_DUAL_FEASIBLE
     cost_max = cost_val;
     V_opt = sol.eval(V);
     B_opt = sol.eval(B);

@@ -8,14 +8,14 @@ uz_bnd = .5;
 foot_radius = .05;
 step_max = .7;
 step_time = .3;
-z_inv_degree = 1;
+z_inv_degree = 3;
 
 model = LIPMHeightVariation2D(g, z_nom, step_max, step_time, uz_bnd, foot_radius, z_inv_degree);
 
 
 R_diag = [.5, .5, 1, 2];
 
-options.degree = 8  ;
+options.degree = 6 ;
 options.do_backoff = false;
 options.backoff_ratio = 1.02;
 options.free_final_time = false;

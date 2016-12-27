@@ -65,7 +65,7 @@ nU = size(g,2);
 
 for i=1:length(B),
   [~,~,coeff]=decomp(B(i));
-  mult_scale = min(1,norm(coeff,inf));
+  mult_scale = norm(coeff,inf);
   B(i) = B(i)/mult_scale;
 end
 
@@ -82,7 +82,7 @@ for i=1:max_iter
       [prog, Vdot_sos,bmult{j}{k},coeff] = spotless_add_sprocedure(prog, Vdot_sos, umat(j,k)*B(k),x,4);
     end
     [prog, Vdot_sos] = spotless_add_sprocedure(prog, Vdot_sos, outer_radius-x'*x,x,4);
-    %     [prog, Vdot_sos] = spotless_add_sprocedure(prog, Vdot_sos, -inner_radius+x'*x,x,4);
+%     [prog, Vdot_sos] = spotless_add_sprocedure(prog, Vdot_sos, -inner_radius+x'*x,x,4);
     prog = prog.withSOS(Vdot_sos+gamma);
   end
   
@@ -132,16 +132,16 @@ function [V,B] = binarySearchVandB(x,f,g,umat,mult,bmult,outer_radius,inner_radi
 % 1 - determinant
 % 2 - integral
 cost_option = 2;
-max_iter = 4;
+max_iter = 6;
 is_fail = true;
 
-for i=1:length(bmult),
-  for j=1:length(bmult{i}),
-    [~,~,coeff]=decomp(bmult{i}{j});
-    mult_scale = min(1,norm(coeff,inf));
-    bmult{i}{j} = bmult{i}{j}/mult_scale;
-  end
-end
+% for i=1:length(bmult),
+%   for j=1:length(bmult{i}),
+%     [~,~,coeff]=decomp(bmult{i}{j});
+%     mult_scale = max(1,norm(coeff,inf));
+%     bmult{i}{j} = bmult{i}{j}/mult_scale;
+%   end
+% end
 nX = length(x);
 nU = size(g,2);
 
@@ -158,7 +158,6 @@ for i=1:max_iter
   prog = prog.withIndeterminate(x);
   rho = 1;
   [prog,gamma] = prog.newFree(1);
-  
   if degree == 2
     [prog,Q] = prog.newPSD(nX);
     V = x'*Q*x;
@@ -168,24 +167,31 @@ for i=1:max_iter
     prog = prog.withSOS(V);
     
     Q = subs(diff(diff(V,x)',x)/2,x,zeros(nX,1));
-  end
+  end  
   
   [prog,B] = prog.newFreePoly(monomials(x,1:degree),nU);
   %   B = B0;
-%   R = [];
+  %   R = [];
   if ~isempty(R)
-    if iscell(R)
-      for j=1:length(R),
+    if ~iscell(R)
+      R = {R};
+    end
+    for j=1:length(R),
+      if degree == 2
         prog = prog.withPSD(Q-R{j});
+      else
+        [prog, R_sos] = spotless_add_sprocedure(prog, V - 1, x'*R{j}*x-1,x,degree-2);
+        prog = prog.withSOS(R_sos);
       end
-    else
-      prog = prog.withPSD(Q-R);
     end
   end
   
+%     V = V_init;
+%   B = B_init;
+  
   for j=1:2^nU
     Vdot = diff(V,x)*(f + g*umat(j,:)');
-    Vdot_sos = -Vdot*(1+x'*x)^(degree/2-1) - mult{j}*(rho-V);
+    Vdot_sos = -Vdot - mult{j}*(rho-V);
     for k=1:nU,
       Vdot_sos = Vdot_sos - bmult{j}{k}*umat(j,k)*B(k);
     end
@@ -208,9 +214,9 @@ for i=1:max_iter
     end
     
     if sign(cost_init) > 0
-      cost_mult = 1/1.05;
+      cost_mult = 1/1.03;
     else
-      cost_mult = 1.05;
+      cost_mult = 1.03;
     end
     
     cost_min = -inf;
@@ -300,8 +306,10 @@ cost = spotlessIntegral(prog,V,x,A_diag,[],[]);
 % add cost in x-direction
 % the "1" isn't quite right,
 cost_line = spotlessIntegral(prog,subs(V,x,x(1)*scale_mat(:,1)),x(1),radius/norm(scale_mat(:,1)),[],[]);
+cost = cost + 5000*cost_line;
 
-cost = cost + 10000*cost_line;
+cost_line = spotlessIntegral(prog,subs(V,x,x(1)*scale_mat(:,3)),x(1),radius/norm(scale_mat(:,3)),[],[]);
+cost = cost + 1000*cost_line;
 
 %
 if isnumeric(cost)
