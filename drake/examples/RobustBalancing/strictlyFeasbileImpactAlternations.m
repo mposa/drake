@@ -40,7 +40,7 @@ Vprev_y = subs(Vprev,x,x_y);
 
 
 [mult,bmult,rho_y] = binarySearchRho(t,y,f_y,g_y,T,umat,V0_y,B0_y,rho0);
-[V0_y,B0_y,rho] = binarySearchVandB(t,y,s,f_y,g_y,T,r_y,reset_constraint_y,Vprev_y,umat,V0_y,Q_init_y,Q_init_T_y,scale_transform,mult,bmult,rho_y);
+ [V0_y,B0_y,rho] = binarySearchVandB(t,y,s,f_y,g_y,T,r_y,reset_constraint_y,Vprev_y,umat,V0_y,Q_init_y,Q_init_T_y,scale_transform,mult,bmult,rho_y);
 V = subs(V0_y,y,scale_transform*x);
 B = subs(B0_y,y,scale_transform*x);
 
@@ -58,7 +58,7 @@ function [mult_opt,bmult_opt,rho_opt] = binarySearchRho(t,x,f,g,T,umat,V,B,rho)
 % what about jump equation? I feel like I need that in here too
 outer_radius = 2;
 
-max_iter = 2;
+max_iter = 1;
 rho_mult = 1;
 rho_mult_min = rho_mult;
 rho_mult_max = inf;
@@ -96,11 +96,7 @@ for i=1:max_iter
   solver = @spot_mosek;
   sol = prog.minimize(gamma,solver,spot_options);
   
-  if sol.status ~= spotsolstatus.STATUS_PRIMAL_AND_DUAL_FEASIBLE
-    keyboard
-  end
-  
-  if sol.eval(gamma) < -1e-6 || sol.status ~= spotsolstatus.STATUS_PRIMAL_AND_DUAL_FEASIBLE
+  if sol.eval(gamma) < -1e-6  && sol.status == spotsolstatus.STATUS_PRIMAL_AND_DUAL_FEASIBLE
     rho_mult_min = rho_mult;
     for j=1:2^nU
       mult_opt{j} = sol.eval(mult{j});
@@ -122,8 +118,6 @@ for i=1:max_iter
     rho_mult = 1.1*rho_mult;
   end
 end
-
-rho_opt = 1; %overwriting rho_opt, just using this search to get better multipliers
 end
 
 function [V_opt,B_opt,rho_opt] = binarySearchVandB(t,x,s,f,g,T,r,reset_constraint,Vprev,umat,V_init,Q_init,Q_init_T,scale_transform,mult,bmult,rho_init)
@@ -203,8 +197,7 @@ for i=1:max_iter,
       Vdot_sos = Vdot_sos - bmult{j}{k}*umat(j,k)*B(k);
     end
     [prog, Vdot_sos] = spotless_add_sprocedure(prog, Vdot_sos, t*(T-t),sproc_vars,4);
-%     [prog, Vdot_sos] = spotless_add_sprocedure(prog, Vdot_sos, 1000-x'*x,x,4);
-    [prog, Vdot_sos] = spotless_add_sprocedure(prog, Vdot_sos, 5*rho_init - V_init,x,2);
+    [prog, Vdot_sos] = spotless_add_sprocedure(prog, Vdot_sos, outer_radius-x'*x,x,4);
     prog = prog.withSOS(Vdot_sos + gamma);
   end
   
@@ -235,11 +228,7 @@ for i=1:max_iter,
   
   sol = prog.minimize(gamma,solver,spot_options);
   %%
-  if sol.status ~= spotsolstatus.STATUS_PRIMAL_AND_DUAL_FEASIBLE
-    keyboard
-  end
-  
-  if sol.eval(gamma) < -1e-6 || sol.status ~= spotsolstatus.STATUS_PRIMAL_AND_DUAL_FEASIBLE
+  if sol.eval(gamma) < -1e-6  && sol.status == spotsolstatus.STATUS_PRIMAL_AND_DUAL_FEASIBLE
     cost_max = cost_val;
     V_opt = sol.eval(V);
     B_opt = sol.eval(B);

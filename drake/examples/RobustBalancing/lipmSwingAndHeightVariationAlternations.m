@@ -4,7 +4,7 @@ uz_bnd = .5;
 foot_radius = .05;
 step_max = .7;
 step_time = .3;
-z_inv_degree = 1;
+z_inv_degree = 3;
 
 model = LIPMHeightVariation2D(g, z_nom, step_max, step_time, uz_bnd, foot_radius, z_inv_degree);
 
@@ -35,8 +35,8 @@ B0 = -diff(V0,x)*B;
 figure(1)
 hold off
 contourSpotless(V,x(1),x(3),[-1 1],[-2 2],[t;x([2;4])],zeros(model.num_states-1,1),1,{'r'});
-%%
-for i=1:40,
+%
+for i=1:60,
 %   [V,u_fn] = quadraticControlLyapunovAlternations(x,u,f,V,A_state);
 %   [V,Bu] = switchingControlLyapunovAlternations(x,ff,gg,V,Bu,A_state);
   [ V,Bu ] = strictlyFeasibleSwitchingControlLyapunovAlternations(x,ff,gg,V,Bu,A_state);
@@ -48,7 +48,7 @@ for i=1:40,
   else
     contourSpotless(V,x(1),x(3),[-.5 .5],[-1 1],[t;x([2;4])],zeros(model.num_states-1,1),1,{'b'});
   end
-  sqrt(1./diag(double(diff(diff(subs(V,t,0),x)',x)/2)))
+  sqrt(1./diag(double(subs(diff(diff(subs(V,t,0),x)',x)/2,x,zeros(4,1)))))
 end;
 % keyboard
 % end
