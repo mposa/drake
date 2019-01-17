@@ -25,8 +25,11 @@ using drake::geometry::SceneGraph;
 namespace drake {
 namespace examples {
 namespace acrobot {
-
 namespace {
+
+typedef std::chrono::steady_clock my_clock;
+//typedef std::chrono::high_resolution_clock my_clock;
+
 int do_main() {
   int nq = 2;
   
@@ -39,14 +42,14 @@ int do_main() {
 
   auto acrobot_context = acrobot_plant.CreateDefaultContext();
 
-  auto start = std::chrono::steady_clock::now();
+  auto start = my_clock::now();
   Eigen::VectorXd x = Eigen::VectorXd::Zero(2*nq);
   for (int i = 0; i < num_reps; i++) {
     x(0) = i;
     acrobot_context->get_mutable_continuous_state_vector().SetFromVector(x);
     acrobot_plant.MassMatrix(*acrobot_context);
   }
-  auto stop = std::chrono::steady_clock::now();
+  auto stop =  my_clock::now();
   auto duration =
       std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
   std::cout << "(acrobot_plant) " << std::to_string(num_reps) << "x inertia calculations took " <<
@@ -54,14 +57,14 @@ int do_main() {
 
   auto acrobot_context_autodiff = acrobot_plant_autodiff.CreateDefaultContext();
 
-  start = std::chrono::steady_clock::now();
+  start =  my_clock::now();
   for (int i = 0; i < num_autodiff_reps * 10; i++) {
     x(0) = i;
     acrobot_context_autodiff->get_mutable_continuous_state_vector().
         SetFromVector(math::initializeAutoDiff(x));
     acrobot_plant_autodiff.MassMatrix(*acrobot_context_autodiff);
   }
-  stop = std::chrono::steady_clock::now();
+  stop =  my_clock::now();
   duration =
       std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
   std::cout << "(acrobot_plant) " << std::to_string(num_autodiff_reps * 10) <<
@@ -76,27 +79,27 @@ int do_main() {
     multibody::joints::kFixed, tree.get());
   systems::RigidBodyPlant<double> rigid_body_plant(std::move(tree));
 
-  start = std::chrono::steady_clock::now();
+  start =  my_clock::now();
   for (int i = 0; i < num_reps; i++) {
     x(0) = i;
     auto cache = rigid_body_plant.get_rigid_body_tree().doKinematics(x.head(nq));
     rigid_body_plant.get_rigid_body_tree().massMatrix(cache);
   }
-  stop = std::chrono::steady_clock::now();
+  stop =  my_clock::now();
   duration =
       std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
   std::cout << "(rigid_body_plant) " << std::to_string(num_reps) << "x inertia calculations took " <<
       duration.count() << " milliseconds." << std::endl;
 
 
-  start = std::chrono::steady_clock::now();
+  start =  my_clock::now();
   for (int i = 0; i < num_autodiff_reps; i++) {
     x(0) = i;
     auto cache = rigid_body_plant.get_rigid_body_tree().
         doKinematics(math::initializeAutoDiff(x.head(nq)));
     rigid_body_plant.get_rigid_body_tree().massMatrix(cache);
   }
-  stop = std::chrono::steady_clock::now();
+  stop =  my_clock::now();
   duration =
       std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
   std::cout << "(rigid_body_plant) " << std::to_string(num_autodiff_reps) << "x inertia "
@@ -127,14 +130,14 @@ int do_main() {
   auto multibody_context = multibody_plant.CreateDefaultContext();
   multibody_context->EnableCaching();
 
-  start = std::chrono::steady_clock::now();
+  start =  my_clock::now();
   Eigen::MatrixXd M(nq, nq);
   for (int i = 0; i < num_reps; i++) {
     x(0) = i;
     multibody_context->get_mutable_continuous_state_vector().SetFromVector(x);
     multibody_plant.CalcMassMatrixViaInverseDynamics(*multibody_context, &M);
   }
-  stop = std::chrono::steady_clock::now();
+  stop =  my_clock::now();
   duration =
       std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
   std::cout << "(multibody_plant) " << std::to_string(num_reps) << "x inertia calculations took " <<
@@ -153,7 +156,7 @@ int do_main() {
     multibody_plant_autodiff->CreateDefaultContext();
   multibody_context_autodiff->EnableCaching();
 
-  start = std::chrono::steady_clock::now();
+  start =  my_clock::now();
   MatrixX<AutoDiffXd> M_autodiff(nq, nq);
   for (int i = 0; i < num_autodiff_reps; i++) {
     x(0) = i;
@@ -162,7 +165,7 @@ int do_main() {
     multibody_plant_autodiff->CalcMassMatrixViaInverseDynamics(
         *multibody_context_autodiff, &M_autodiff);
   }
-  stop = std::chrono::steady_clock::now();
+  stop =  my_clock::now();
   duration =
       std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
   std::cout << "(multibody_plant) " << std::to_string(num_autodiff_reps) << "x inertia autodiff calculations took " <<
@@ -170,7 +173,7 @@ int do_main() {
 
   // rigid body inverse dynamics
   Eigen::VectorXd desired_vdot(nq);
-  start = std::chrono::steady_clock::now();
+  start =  my_clock::now();
     RigidBodyTree<double>::BodyToWrenchMap external_wrenches;
 
   for (int i = 0; i < num_reps; i++) {
@@ -181,14 +184,14 @@ int do_main() {
     rigid_body_plant.get_rigid_body_tree().inverseDynamics(cache,
         external_wrenches, desired_vdot);
   }
-  stop = std::chrono::steady_clock::now();
+  stop =  my_clock::now();
   duration =
       std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
   std::cout << "(rigid_body_plant) " << std::to_string(num_reps) << "x inverse dynamics calculations took "<<
       duration.count() << " milliseconds." << std::endl;
 
 
-  start = std::chrono::steady_clock::now();
+  start =  my_clock::now();
     RigidBodyTree<AutoDiffXd>::BodyToWrenchMap external_wrenches_autodiff;
 
   for (int i = 0; i < num_autodiff_reps; i++) {
@@ -200,7 +203,7 @@ int do_main() {
     rigid_body_plant.get_rigid_body_tree().inverseDynamics(cache,
         external_wrenches_autodiff, math::initializeAutoDiff(desired_vdot));
   }
-  stop = std::chrono::steady_clock::now();
+  stop =  my_clock::now();
   duration =
       std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
   std::cout <<
@@ -209,7 +212,7 @@ int do_main() {
     duration.count() << " milliseconds." << std::endl;
 
   // multibody inverse dynamics
-  start = std::chrono::steady_clock::now();
+  start =  my_clock::now();
   multibody::MultibodyForces<double> external_forces(multibody_plant);
 
   for (int i = 0; i < num_reps; i++) {
@@ -219,14 +222,14 @@ int do_main() {
     multibody_plant.CalcInverseDynamics(*multibody_context, desired_vdot,
                                         external_forces);
   }
-  stop = std::chrono::steady_clock::now();
+  stop =  my_clock::now();
   duration =
       std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
   std::cout << "(multibody_plant) " << std::to_string(num_reps) << "x inverse dynamics calculations took " <<
       duration.count() << " milliseconds." << std::endl;
 
 
-  start = std::chrono::steady_clock::now();
+  start =  my_clock::now();
   multibody::MultibodyForces<AutoDiffXd> external_forces_autodiff(
       *multibody_plant_autodiff);
 
@@ -238,7 +241,7 @@ int do_main() {
     multibody_plant_autodiff->CalcInverseDynamics(*multibody_context_autodiff,
         math::initializeAutoDiff(desired_vdot), external_forces_autodiff);
   }
-  stop = std::chrono::steady_clock::now();
+  stop =  my_clock::now();
   duration =
       std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
   std::cout <<
