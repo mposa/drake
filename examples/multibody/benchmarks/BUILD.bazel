@@ -1,0 +1,46 @@
+# -*- python -*-
+
+load(
+    "@drake//tools/skylark:drake_cc.bzl",
+    "drake_cc_binary",
+    "drake_cc_googletest",
+    "drake_cc_library",
+)
+load("//tools/install:install_data.bzl", "install_data")
+load(
+    "@drake//tools/vector_gen:vector_gen.bzl",
+    "drake_cc_vector_gen_library",
+)
+load("//tools/lint:lint.bzl", "add_lint_tests")
+
+package(default_visibility = ["//visibility:private"])
+
+drake_cc_binary(
+    name = "benchmark_acrobot_plants",
+    srcs = ["benchmark_acrobot_plants.cc"],
+    add_test_rule = 1,
+    data = ["//examples/acrobot:models"],
+    #test_rule_args = [
+    #    "-simulation_sec=1.0",
+    #    "-realtime_factor=0.0",
+    #],
+    deps = [
+        "//attic/multibody:rigid_body_tree",
+        "//attic/multibody/joints",
+        "//attic/multibody/parsers",
+        "//attic/multibody/rigid_body_plant",
+        "//attic/multibody/rigid_body_plant:drake_visualizer",
+        "//common:find_resource",
+        "//examples/acrobot:acrobot_plant",
+        "//lcm",
+        "//multibody/parsing:parser",
+        "//multibody/plant",
+        "//systems/analysis:simulator",
+        "//systems/framework:diagram",
+        "@gflags",
+    ],
+)
+
+install_data()
+
+add_lint_tests()
