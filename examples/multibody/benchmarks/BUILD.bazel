@@ -41,6 +41,32 @@ drake_cc_binary(
     ],
 )
 
+drake_cc_binary(
+    name = "benchmark_kuka_plants",
+    srcs = ["benchmark_kuka_plants.cc"],
+    add_test_rule = 1,
+    data = ["//manipulation/models/iiwa_description:models"],
+    #test_rule_args = [
+    #    "-simulation_sec=1.0",
+    #    "-realtime_factor=0.0",
+    #],
+    deps = [
+        "//attic/multibody:rigid_body_tree",
+        "//attic/multibody/joints",
+        "//attic/multibody/parsers",
+        "//attic/multibody/rigid_body_plant",
+        "//attic/multibody/rigid_body_plant:drake_visualizer",
+        "//common:find_resource",
+        "//examples/acrobot:acrobot_plant",
+        "//lcm",
+        "//multibody/parsing:parser",
+        "//multibody/plant",
+        "//systems/analysis:simulator",
+        "//systems/framework:diagram",
+        "@gflags",
+    ],
+)
+
 install_data()
 
 add_lint_tests()

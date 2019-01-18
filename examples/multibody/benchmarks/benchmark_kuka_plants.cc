@@ -8,6 +8,7 @@
 #include "drake/multibody/joints/floating_base_types.h"
 #include "drake/multibody/parsers/urdf_parser.h"
 #include "drake/multibody/rigid_body_plant/drake_visualizer.h"
+#include "drake/multibody/rigid_body_tree.h"
 #include "drake/systems/framework/diagram.h"
 #include "drake/systems/framework/diagram_builder.h"
 #include "drake/multibody/rigid_body_plant/rigid_body_plant.h"
@@ -15,14 +16,17 @@
 #include "drake/multibody/parsing/parser.h"
 #include "drake/geometry/scene_graph.h"
 
-using drake::solvers::SolutionResult;
+//using drake::solvers::SolutionResult;
 using drake::multibody::MultibodyPlant;
 using drake::geometry::SceneGraph;
 
 namespace drake {
 namespace examples {
-
 namespace {
+
+typedef std::chrono::steady_clock my_clock;
+//typedef std::chrono::high_resolution_clock my_clock;
+
 int do_main() {
   int nq = 7;
   // Build and test RigidBodyPlant
@@ -165,7 +169,7 @@ int do_main() {
 
   // multibody inverse dynamics
   start = std::chrono::high_resolution_clock::now();
-  multibody::MultibodyForces<double> external_forces(multibody_plant.tree());
+  multibody::MultibodyForces<double> external_forces(multibody_plant);
 
   for (int i = 0; i < 10000; i++) {
     x = Eigen::VectorXd::Constant(2*nq, i);
@@ -182,7 +186,8 @@ int do_main() {
 
 
   start = std::chrono::high_resolution_clock::now();
-  multibody::MultibodyForces<AutoDiffXd> external_forces_autodiff(multibody_plant_autodiff->tree());
+  multibody::MultibodyForces<AutoDiffXd> external_forces_autodiff(
+      *multibody_plant_autodiff);
 
   for (int i = 0; i < 10000; i++) {
     x = Eigen::VectorXd::Constant(2*nq, i);
