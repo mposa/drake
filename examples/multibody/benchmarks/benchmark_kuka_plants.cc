@@ -51,8 +51,8 @@ int do_main() {
   auto stop =  my_clock::now();
   auto duration =
       std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
-  std::cout << "(acrobot_plant) " << std::to_string(num_reps) << "x inertia calculations took " << duration.count() << " milliseconds." << 
-  std::endl;
+  std::cout << "(rigid_body_plant) " << std::to_string(num_reps) << "x inertia calculations took " << duration.count() << " miliseconds. " << 
+  1000*duration.count()/num_reps << " microseconds per." << std::endl;
 
   start =  my_clock::now();
   for (int i = 0; i < num_autodiff_reps; i++) {
@@ -64,8 +64,8 @@ int do_main() {
   stop =  my_clock::now();
   duration =
       std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
-  std::cout << "(rigid_body_plant)" << std::to_string(num_autodiff_reps) << "xinertia autodiff calculations took "
-      << duration.count() << " milliseconds." << std::endl;
+  std::cout << "(rigid_body_plant) " << std::to_string(num_autodiff_reps) << "x inertia autodiff calculations took "
+      << duration.count() << " miliseconds. " << 1000*duration.count()/num_autodiff_reps << " microseconds per." << std::endl;
 
 
   // Build and test multibody plant
@@ -102,8 +102,8 @@ int do_main() {
   stop =  my_clock::now();
   duration =
       std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
-  std::cout << "(multibody_plant)" << std::to_string(num_reps) << "xinertia calculations took " <<
-      duration.count() << " milliseconds." << std::endl;
+  std::cout << "(multibody_plant) " << std::to_string(num_reps) << "x inertia calculations took " <<
+      duration.count() << " miliseconds. " << 1000*duration.count()/num_reps << " microseconds per." << std::endl;
 
 
   // Build and test multibody plant w/autodiff
@@ -130,8 +130,8 @@ int do_main() {
   stop =  my_clock::now();
   duration =
       std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
-  std::cout << "(multibody_plant)" << std::to_string(num_autodiff_reps) << "xinertia autodiff calculations took " <<
-      duration.count() << " milliseconds." << std::endl;
+  std::cout << "(multibody_plant) " << std::to_string(num_autodiff_reps) << "x inertia autodiff calculations took " <<
+      duration.count() << " miliseconds. " << 1000*duration.count()/num_autodiff_reps << " microseconds per." << std::endl;
 
   // rigid body inverse dynamics
   Eigen::VectorXd desired_vdot(nq);
@@ -149,8 +149,8 @@ int do_main() {
   stop =  my_clock::now();
   duration =
       std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
-  std::cout << "(rigid_body_plant)" << std::to_string(num_reps) << "xinverse dynamics calculations took "<<
-      duration.count() << " milliseconds." << std::endl;
+  std::cout << "(rigid_body_plant) " << std::to_string(num_reps) << "x inverse dynamics calculations took "<<
+      duration.count() << " miliseconds. " << 1000*duration.count()/num_reps << " microseconds per." << std::endl;
 
 
   start =  my_clock::now();
@@ -168,8 +168,8 @@ int do_main() {
   stop =  my_clock::now();
   duration =
       std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
-  std::cout << "(rigid_body_plant)" << std::to_string(num_autodiff_reps) << "xautodiff inverse dynamics calculations took "<<
-      duration.count() << " milliseconds." << std::endl;
+  std::cout << "(rigid_body_plant) " << std::to_string(num_autodiff_reps) << "xautodiff inverse dynamics calculations took "<<
+      duration.count() << " miliseconds. " << 1000*duration.count()/num_autodiff_reps << " microseconds per." << std::endl;
 
   // multibody inverse dynamics
   start =  my_clock::now();
@@ -185,8 +185,8 @@ int do_main() {
   stop =  my_clock::now();
   duration =
       std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
-  std::cout << "(multibody_plant)" << std::to_string(num_reps) << "xinverse dynamics calculations took " <<
-      duration.count() << " milliseconds." << std::endl;
+  std::cout << "(multibody_plant) " << std::to_string(num_reps) << "x inverse dynamics calculations took " <<
+      duration.count() << " miliseconds. " << 1000*duration.count()/num_reps << " microseconds per." << std::endl;
 
 
   start =  my_clock::now();
@@ -203,8 +203,8 @@ int do_main() {
   stop =  my_clock::now();
   duration =
       std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
-  std::cout << "(multibody_plant)" << std::to_string(num_autodiff_reps) << "xautodiff inverse dynamics calculations took " <<
-      duration.count() << " milliseconds." << std::endl;
+  std::cout << "(multibody_plant) " << std::to_string(num_autodiff_reps) << "xautodiff inverse dynamics calculations took " <<
+      duration.count() << " miliseconds. " << 1000*duration.count()/num_autodiff_reps << " microseconds per." << std::endl;
 
 
   return 0;
