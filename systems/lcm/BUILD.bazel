@@ -149,6 +149,26 @@ drake_cc_googletest(
     ],
 )
 
+drake_cc_googletest(
+    name = "lcm_driven_loop_ping",
+    # TODO(jamiesnape, siyuanfeng-tri): Remove flaky flag, see #5936.
+    flaky = 1,
+    tags = [
+        "no_asan",
+        "no_memcheck",
+        "no_tsan",
+        "requires-network",
+    ],
+    deps = [
+        "//common/test_utilities:eigen_matrix_compare",
+        "//lcm",
+        "//lcmtypes:drake_signal",
+        "//systems/framework",
+        "//systems/lcm:lcm_driven_loop",
+        "//systems/primitives:signal_logger",
+    ],
+)
+
 drake_cc_library(
     name = "custom_drake_signal_translator",
     testonly = 1,
