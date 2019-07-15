@@ -81,12 +81,11 @@ int do_main() {
       "drake/manipulation/models/iiwa_description/urdf/"
       "iiwa14_primitive_collision.urdf"));
 
-  multibody_plant.AddForceElement<drake::multibody::UniformGravityFieldElement>(
+  multibody_plant.mutable_gravity_field().set_gravity_vector(
       -9.81 * Eigen::Vector3d::UnitZ());
 
   multibody_plant.WeldFrames(
-    multibody_plant.world_frame(), multibody_plant.GetFrameByName("base"),
-    math::RigidTransform<double>(Eigen::Vector3d::Zero()).GetAsIsometry3());
+    multibody_plant.world_frame(), multibody_plant.GetFrameByName("base"));
   multibody_plant.Finalize();
 
   auto multibody_context = multibody_plant.CreateDefaultContext();
