@@ -55,19 +55,23 @@ GTEST_TEST(BeamModelTest, TestProbabilityDensity) {
   builder.Connect(constant_depth->get_output_port(),
                   beam_model->get_depth_input_port());
 
-  auto w_event = builder.AddSystem<UniformRandomSource>(1, 0.0025);
+  auto w_event = builder.AddSystem<RandomSource>(
+      RandomDistribution::kUniform, 1, 0.0025);
   builder.Connect(w_event->get_output_port(0),
                   beam_model->get_event_random_input_port());
 
-  auto w_hit = builder.AddSystem<GaussianRandomSource>(1, 0.0025);
+  auto w_hit = builder.AddSystem<RandomSource>(
+      RandomDistribution::kGaussian, 1, 0.0025);
   builder.Connect(w_hit->get_output_port(0),
                   beam_model->get_hit_random_input_port());
 
-  auto w_short = builder.AddSystem<ExponentialRandomSource>(1, 0.0025);
+  auto w_short = builder.AddSystem<RandomSource>(
+      RandomDistribution::kExponential, 1, 0.0025);
   builder.Connect(w_short->get_output_port(0),
                   beam_model->get_short_random_input_port());
 
-  auto w_uniform = builder.AddSystem<UniformRandomSource>(1, 0.0025);
+  auto w_uniform = builder.AddSystem<RandomSource>(
+      RandomDistribution::kUniform, 1, 0.0025);
   builder.Connect(w_uniform->get_output_port(0),
                   beam_model->get_uniform_random_input_port());
 
@@ -78,7 +82,7 @@ GTEST_TEST(BeamModelTest, TestProbabilityDensity) {
   systems::Simulator<double> simulator(*diagram);
 
   // Zero all initial state.
-  for (int i = 0; i < simulator.get_context().get_num_discrete_state_groups();
+  for (int i = 0; i < simulator.get_context().num_discrete_state_groups();
        i++) {
     BasicVector<double>& state =
         simulator.get_mutable_context().get_mutable_discrete_state(0);
@@ -122,7 +126,7 @@ GTEST_TEST(BeamModelTest, TestProbabilityDensity) {
   };
 
   simulator.Initialize();
-  simulator.StepTo(50);
+  simulator.AdvanceTo(50);
 
   const auto& x = logger->data();
 

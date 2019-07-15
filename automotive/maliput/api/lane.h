@@ -3,6 +3,7 @@
 #include <memory>
 #include <string>
 
+#include "drake/automotive/deprecated.h"
 #include "drake/automotive/maliput/api/lane_data.h"
 #include "drake/automotive/maliput/api/type_specific_identifier.h"
 #include "drake/common/autodiff.h"
@@ -32,14 +33,15 @@ using LaneId = TypeSpecificIdentifier<class Lane>;
 /// Lanes are grouped by Segment.  All Lanes belonging to a Segment
 /// represent the same road surface, but with different coordinate
 /// parameterizations (e.g., each Lane has its own reference curve).
-class Lane {
+class DRAKE_DEPRECATED_AUTOMOTIVE
+    Lane {
  public:
   DRAKE_NO_COPY_NO_MOVE_NO_ASSIGN(Lane)
 
   virtual ~Lane() = default;
 
   /// Returns the persistent identifier.
-  const LaneId id() const { return do_id(); }
+  LaneId id() const { return do_id(); }
 
   /// Returns the Segment to which this Lane belongs.
   const Segment* segment() const { return do_segment(); }
@@ -244,7 +246,7 @@ class Lane {
   /// These must satisfy the constraints/invariants of the
   /// corresponding public methods.
   ///@{
-  virtual const LaneId do_id() const = 0;
+  virtual LaneId do_id() const = 0;
 
   virtual const Segment* do_segment() const = 0;
 

@@ -3,6 +3,8 @@
 #include "pybind11/pybind11.h"
 #include "pybind11/stl.h"
 
+#include "drake/bindings/pydrake/common/deprecation_pybind.h"
+#include "drake/bindings/pydrake/common/drake_variant_pybind.h"
 #include "drake/bindings/pydrake/documentation_pybind.h"
 #include "drake/bindings/pydrake/pydrake_pybind.h"
 #include "drake/bindings/pydrake/symbolic_types_pybind.h"
@@ -101,39 +103,55 @@ PYBIND11_MODULE(trajectory_optimization, m) {
       .def("SetInitialTrajectory", &MultipleShooting::SetInitialTrajectory,
           doc.MultipleShooting.SetInitialTrajectory.doc)
       .def("GetSampleTimes",
-          overload_cast_explicit<Eigen::VectorXd>(
+          overload_cast_explicit<Eigen::VectorXd,
+              const solvers::MathematicalProgramResult&>(
               &MultipleShooting::GetSampleTimes),
-          doc.MultipleShooting.GetSampleTimes.doc_0args)
-      .def("GetInputSamples", &MultipleShooting::GetInputSamples,
+          doc.MultipleShooting.GetSampleTimes.doc_1args_h_var_values)
+      .def("GetInputSamples",
+          overload_cast_explicit<Eigen::MatrixXd,
+              const solvers::MathematicalProgramResult&>(
+              &MultipleShooting::GetInputSamples),
           doc.MultipleShooting.GetInputSamples.doc)
-      .def("GetStateSamples", &MultipleShooting::GetStateSamples,
+      .def("GetStateSamples",
+          overload_cast_explicit<Eigen::MatrixXd,
+              const solvers::MathematicalProgramResult&>(
+              &MultipleShooting::GetStateSamples),
           doc.MultipleShooting.GetStateSamples.doc)
       .def("ReconstructInputTrajectory",
-          &MultipleShooting::ReconstructInputTrajectory,
+          overload_cast_explicit<trajectories::PiecewisePolynomial<double>,
+              const solvers::MathematicalProgramResult&>(
+              &MultipleShooting::ReconstructInputTrajectory),
           doc.MultipleShooting.ReconstructInputTrajectory.doc)
       .def("ReconstructStateTrajectory",
-          &MultipleShooting::ReconstructStateTrajectory,
+          overload_cast_explicit<trajectories::PiecewisePolynomial<double>,
+              const solvers::MathematicalProgramResult&>(
+              &MultipleShooting::ReconstructStateTrajectory),
           doc.MultipleShooting.ReconstructStateTrajectory.doc);
 
   py::class_<DirectCollocation, MultipleShooting>(
       m, "DirectCollocation", doc.DirectCollocation.doc)
       .def(py::init<const systems::System<double>*,
-               const systems::Context<double>&, int, double, double>(),
+               const systems::Context<double>&, int, double, double,
+               variant<systems::InputPortSelection, systems::InputPortIndex>,
+               bool>(),
           py::arg("system"), py::arg("context"), py::arg("num_time_samples"),
           py::arg("minimum_timestep"), py::arg("maximum_timestep"),
-          doc.DirectCollocation.ctor.doc)
-      .def("ReconstructInputTrajectory",
-          &DirectCollocation::ReconstructInputTrajectory,
-          doc.DirectCollocation.ReconstructInputTrajectory.doc)
-      .def("ReconstructStateTrajectory",
-          &DirectCollocation::ReconstructStateTrajectory,
-          doc.DirectCollocation.ReconstructStateTrajectory.doc);
+          py::arg("input_port_index") =
+              systems::InputPortSelection::kUseFirstInputIfItExists,
+          py::arg("assume_non_continuous_states_are_fixed") = false,
+          doc.DirectCollocation.ctor.doc);
 
   py::class_<DirectCollocationConstraint, solvers::Constraint,
       std::shared_ptr<DirectCollocationConstraint>>(
       m, "DirectCollocationConstraint", doc.DirectCollocationConstraint.doc)
       .def(py::init<const systems::System<double>&,
-               const systems::Context<double>&>(),
+               const systems::Context<double>&,
+               variant<systems::InputPortSelection, systems::InputPortIndex>,
+               bool>(),
+          py::arg("system"), py::arg("context"),
+          py::arg("input_port_index") =
+              systems::InputPortSelection::kUseFirstInputIfItExists,
+          py::arg("assume_non_continuous_states_are_fixed") = false,
           doc.DirectCollocationConstraint.ctor.doc);
 
   m.def("AddDirectCollocationConstraint", &AddDirectCollocationConstraint,
@@ -141,28 +159,28 @@ PYBIND11_MODULE(trajectory_optimization, m) {
       py::arg("next_state"), py::arg("input"), py::arg("next_input"),
       py::arg("prog"), doc.AddDirectCollocationConstraint.doc);
 
+  // TimeStep
+  py::class_<TimeStep>(m, "TimeStep")
+      .def(py::init<double>())
+      .def_readwrite("value", &TimeStep::value);
+
   py::class_<DirectTranscription, MultipleShooting>(
       m, "DirectTranscription", doc.DirectTranscription.doc)
       .def(py::init<const systems::System<double>*,
-               const systems::Context<double>&, int>(),
+               const systems::Context<double>&, int,
+               variant<systems::InputPortSelection, systems::InputPortIndex>>(),
           py::arg("system"), py::arg("context"), py::arg("num_time_samples"),
-          doc.DirectTranscription.ctor
-              .doc_3args_system_context_num_time_samples)
-      .def(py::init<const systems::LinearSystem<double>*,
-               const systems::Context<double>&, int>(),
-          py::arg("linear_system"), py::arg("context"),
-          py::arg("num_time_samples"),
-          doc.DirectTranscription.ctor
-              .doc_3args_linear_system_context_num_time_samples)
-      // TODO(russt): Add this once TimeVaryingLinearSystem is bound.
-      //      .def(py::init<const TimeVaryingLinearSystem<double>*,
-      //                    const Context<double>&, int>())
-      .def("ReconstructInputTrajectory",
-          &DirectTranscription::ReconstructInputTrajectory,
-          doc.DirectTranscription.ReconstructInputTrajectory.doc)
-      .def("ReconstructStateTrajectory",
-          &DirectTranscription::ReconstructStateTrajectory,
-          doc.DirectTranscription.ReconstructStateTrajectory.doc);
+          py::arg("input_port_index") =
+              systems::InputPortSelection::kUseFirstInputIfItExists,
+          doc.DirectTranscription.ctor.doc_4args)
+      .def(py::init<const systems::System<double>*,
+               const systems::Context<double>&, int, TimeStep,
+               variant<systems::InputPortSelection, systems::InputPortIndex>>(),
+          py::arg("system"), py::arg("context"), py::arg("num_time_samples"),
+          py::arg("fixed_timestep"),
+          py::arg("input_port_index") =
+              systems::InputPortSelection::kUseFirstInputIfItExists,
+          doc.DirectTranscription.ctor.doc_5args);
 }
 
 }  // namespace pydrake

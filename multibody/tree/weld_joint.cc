@@ -2,7 +2,6 @@
 
 #include <memory>
 
-#include "drake/common/default_scalars.h"
 #include "drake/multibody/tree/multibody_tree.h"
 
 namespace drake {
@@ -35,6 +34,12 @@ std::unique_ptr<Joint<double>> WeldJoint<T>::DoCloneToScalar(
 template <typename T>
 std::unique_ptr<Joint<AutoDiffXd>> WeldJoint<T>::DoCloneToScalar(
     const internal::MultibodyTree<AutoDiffXd>& tree_clone) const {
+  return TemplatedDoCloneToScalar(tree_clone);
+}
+
+template <typename T>
+std::unique_ptr<Joint<symbolic::Expression>> WeldJoint<T>::DoCloneToScalar(
+    const internal::MultibodyTree<symbolic::Expression>& tree_clone) const {
   return TemplatedDoCloneToScalar(tree_clone);
 }
 

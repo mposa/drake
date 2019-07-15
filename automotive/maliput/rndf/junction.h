@@ -3,6 +3,7 @@
 #include <memory>
 #include <vector>
 
+#include "drake/automotive/deprecated.h"
 #include "drake/automotive/maliput/api/junction.h"
 #include "drake/automotive/maliput/api/road_geometry.h"
 #include "drake/automotive/maliput/api/segment.h"
@@ -15,7 +16,8 @@ namespace maliput {
 namespace rndf {
 
 /// An api::Junction implementation for RNDF.
-class Junction : public api::Junction {
+class DRAKE_DEPRECATED_AUTOMOTIVE
+    Junction : public api::Junction {
  public:
   DRAKE_NO_COPY_NO_MOVE_NO_ASSIGN(Junction)
 
@@ -36,7 +38,7 @@ class Junction : public api::Junction {
   ~Junction() override = default;
 
  private:
-  const api::JunctionId do_id() const override { return id_; }
+  api::JunctionId do_id() const override { return id_; }
 
   const api::RoadGeometry* do_road_geometry() const override {
     return road_geometry_;

@@ -7,6 +7,8 @@ default-jdk
 diffstat
 doxygen
 file
+fonts-dejavu-core
+fonts-dejavu-extra
 gdb
 gfortran
 git
@@ -24,7 +26,6 @@ libjpeg8-dev
 libjsoncpp-dev
 liblapack-dev
 liblz4-dev
-libnetcdf-cxx-legacy-dev
 libnetcdf-dev
 libnlopt-dev
 libogg-dev
@@ -40,6 +41,8 @@ libxt-dev
 libyaml-cpp-dev
 lldb-6.0
 locales
+openssh-client
+patch
 patchelf
 patchutils
 pkg-config
@@ -53,5 +56,6 @@ python-sphinx-rtd-theme
 ruby
 unzip
 valgrind
+valgrind-dbg
 zip
 zlib1g-dev

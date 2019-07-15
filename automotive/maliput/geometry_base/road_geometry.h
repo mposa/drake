@@ -5,6 +5,7 @@
 #include <utility>
 #include <vector>
 
+#include "drake/automotive/deprecated.h"
 #include "drake/automotive/maliput/api/basic_id_index.h"
 #include "drake/automotive/maliput/api/branch_point.h"
 #include "drake/automotive/maliput/api/junction.h"
@@ -38,7 +39,8 @@ namespace geometry_base {
 //                         Lane::ToLanePosition().
 
 /// geometry_base's implementation of api::RoadGeometry.
-class RoadGeometry : public api::RoadGeometry {
+class DRAKE_DEPRECATED_AUTOMOTIVE
+    RoadGeometry : public api::RoadGeometry {
  public:
   DRAKE_NO_COPY_NO_MOVE_NO_ASSIGN(RoadGeometry);
 
@@ -109,7 +111,7 @@ class RoadGeometry : public api::RoadGeometry {
   // The non-template implementation of AddBranchPoint<T>()
   void AddBranchPointPrivate(std::unique_ptr<BranchPoint> branch_point);
 
-  const api::RoadGeometryId do_id() const override { return id_; }
+  api::RoadGeometryId do_id() const override { return id_; }
 
   int do_num_junctions() const override { return junctions_.size(); }
 

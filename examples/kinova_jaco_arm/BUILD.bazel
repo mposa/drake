@@ -39,15 +39,19 @@ drake_cc_library(
 drake_cc_binary(
     name = "jaco_controller",
     srcs = ["jaco_controller.cc"],
+    copts = [
+        # TODO(sammy-tri) Remove this once ported away from lcm_driven_loop.
+        "-Wno-deprecated-declarations",
+    ],
     data = [
         "//manipulation/models/jaco_description:models",
     ],
     deps = [
         ":jaco_lcm",
-        "//attic/manipulation/planner:robot_plan_interpolator",
         "//common:find_resource",
         "//common:text_logging_gflags",
         "//lcm",
+        "//manipulation/planner:robot_plan_interpolator",
         "//systems/controllers:pid_controller",
         "//systems/lcm:lcm_driven_loop",
         "//systems/lcm:lcm_pubsub_system",

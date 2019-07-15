@@ -1,11 +1,14 @@
 #pragma once
 
+#include <set>
 #include <string>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 #include "drake/geometry/geometry_roles.h"
 #include "drake/geometry/geometry_state.h"
+#include "drake/geometry/shape_specification.h"
 
 namespace drake {
 namespace geometry {
@@ -128,6 +131,19 @@ class SceneGraphInspector {
     return state_->GetNumAnchoredGeometries();
   }
 
+  /** Returns all pairs of geometries that are candidates for collision (in no
+   particular order). See SceneGraph::ExcludeCollisionsBetween() or
+   SceneGraph::ExcludeCollisionsWithin() for information on why a particular
+   pair may _not_ be a candidate. For candidate pair (A, B), the candidate is
+   always guaranteed to be reported in a fixed order (i.e., always (A, B) and
+   _never_ (B, A)). This is the same ordering as would be returned by, e.g.,
+   QueryObject::ComputePointPairPenetration().  */
+  std::set<std::pair<GeometryId, GeometryId>> GetCollisionCandidates()
+      const {
+    DRAKE_DEMAND(state_ != nullptr);
+    return state_->GetCollisionCandidates();
+  }
+
   //@}
 
   /** @name                Sources and source-related data  */
@@ -177,6 +193,14 @@ class SceneGraphInspector {
   bool BelongsToSource(FrameId frame_id, SourceId source_id) const {
     DRAKE_DEMAND(state_ != nullptr);
     return state_->BelongsToSource(frame_id, source_id);
+  }
+
+  /** Reports the _name_ of the geometry source that registered the frame with
+   the given `id`.
+   @throws std::logic_error  If `id` does not map to a registered frame.  */
+  const std::string& GetOwningSourceName(FrameId id) const {
+    DRAKE_DEMAND(state_ != nullptr);
+    return state_->GetOwningSourceName(id);
   }
 
   /** Reports the name of the frame with the given `id`.
@@ -248,6 +272,14 @@ class SceneGraphInspector {
     return state_->BelongsToSource(geometry_id, source_id);
   }
 
+  /** Reports the _name_ of the geometry source that registered the geometry
+   with the given `id`.
+   @throws std::logic_error  If `id` does not map to a registered geometry.  */
+  const std::string& GetOwningSourceName(GeometryId id) const {
+    DRAKE_DEMAND(state_ != nullptr);
+    return state_->GetOwningSourceName(id);
+  }
+
   /** Reports the id of the frame to which the given geometry with the given
    `id` is registered.
    @throws std::logic_error if `id` does not map to a registered geometry.  */
@@ -261,7 +293,15 @@ class SceneGraphInspector {
    @throws std::logic_error if `id` does not map to a registered geometry.  */
   const std::string& GetName(GeometryId id) const {
     DRAKE_DEMAND(state_ != nullptr);
-    return state_->get_name(id);
+    return state_->GetName(id);
+  }
+
+  /** Returns the shape specified for the geometry with the given `id`. In order
+   to extract the details of the shape, it should be passed through an
+   implementation of a ShapeReifier.  */
+  const Shape& GetShape(GeometryId id) const {
+    DRAKE_DEMAND(state_ != nullptr);
+    return state_->GetShape(id);
   }
 
   /** Reports the pose of the geometry G with the given `id` in its registered
@@ -292,7 +332,7 @@ class SceneGraphInspector {
   const ProximityProperties* GetProximityProperties(
       GeometryId id) const {
     DRAKE_DEMAND(state_ != nullptr);
-    return state_->get_proximity_properties(id);
+    return state_->GetProximityProperties(id);
   }
 
   /** Returns a pointer to the const illustration properties of the geometry
@@ -304,7 +344,19 @@ class SceneGraphInspector {
   const IllustrationProperties* GetIllustrationProperties(
       GeometryId id) const {
     DRAKE_DEMAND(state_ != nullptr);
-    return state_->get_illustration_properties(id);
+    return state_->GetIllustrationProperties(id);
+  }
+
+  /** Returns a pointer to the const perception properties of the geometry
+   with the given `id`.
+   @param id   The identifier for the queried geometry.
+   @return A pointer to the properties (or nullptr if there are no such
+           properties).
+   @throws std::logic_error if `id` does not map to a registered geometry.  */
+  const PerceptionProperties* GetPerceptionProperties(
+      GeometryId id) const {
+    DRAKE_DEMAND(state_ != nullptr);
+    return state_->GetPerceptionProperties(id);
   }
 
   /** Reports true if the two geometries with given ids `id1` and `id2`, define
@@ -315,6 +367,16 @@ class SceneGraphInspector {
   bool CollisionFiltered(GeometryId id1, GeometryId id2) const {
     DRAKE_DEMAND(state_ != nullptr);
     return state_->CollisionFiltered(id1, id2);
+  }
+
+  /** Introspects the geometry indicated by the given `id`. The geometry will
+   be passed into the provided `reifier`. This is the mechanism by which
+   external code can discover and respond to the different types of geometries
+   stored in SceneGraph. See ShapeToString as an example.
+   @throws std::logic_error if the `id` does not refer to a valid geometry.  */
+  void Reify(GeometryId id, ShapeReifier* reifier) const {
+    DRAKE_DEMAND(state_ != nullptr);
+    state_->GetShape(id).Reify(reifier);
   }
 
   //@}

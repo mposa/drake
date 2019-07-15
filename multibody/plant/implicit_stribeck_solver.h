@@ -3,6 +3,7 @@
 #include <memory>
 #include <vector>
 
+#include "drake/common/default_scalars.h"
 #include "drake/common/drake_assert.h"
 #include "drake/common/drake_copyable.h"
 #include "drake/common/drake_throw.h"
@@ -492,13 +493,12 @@ expansion of `fₙ` with an order of approximation consistent with the
 first order scheme as needed. Therefore, it propagates into a `O(δt²)`
 term exactly as needed in Eq. (16).
 
-@tparam T The type of mathematical object being added.
-Instantiated templates for the following kinds of T's are provided:
-- double
-- AutoDiffXd
+@tparam T Must be one of drake's default scalar types.
 
-They are already available to link against in the containing library.
-No other values for T are currently supported. */
+@authors Alejandro Castro (2018) Original author.
+@authors Michael Sherman, Evan Drumwright (2018) Original PR #8925 reviewers.
+@authors Drake team (see https://drake.mit.edu/credits).
+*/
 template <typename T>
 class ImplicitStribeckSolver {
  public:
@@ -988,7 +988,7 @@ class ImplicitStribeckSolver {
 
     // Returns a constant reference to the vector containing the tangential
     // friction forces fₜ for all contact points. fₜ has size 2nc since it
-    // stores the two tangential compoents of the friction force for each
+    // stores the two tangential components of the friction force for each
     // contact point. Refer to ImplicitStribeckSolver for details.
     Eigen::VectorBlock<const VectorX<T>> ft() const {
       return ft_.segment(0, 2 * nc_);
@@ -1155,3 +1155,9 @@ class ImplicitStribeckSolver {
 
 }  // namespace multibody
 }  // namespace drake
+
+DRAKE_DECLARE_CLASS_TEMPLATE_INSTANTIATIONS_ON_DEFAULT_SCALARS(
+    struct ::drake::multibody::internal::DirectionChangeLimiter)
+
+DRAKE_DECLARE_CLASS_TEMPLATE_INSTANTIATIONS_ON_DEFAULT_SCALARS(
+    class ::drake::multibody::ImplicitStribeckSolver)

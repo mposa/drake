@@ -20,27 +20,29 @@ bool AreAutoDiffVecXdEqual(const Eigen::Ref<const VectorX<AutoDiffXd>>& a,
   return a_gradient == b_gradient;
 }
 
-void UpdateContextConfiguration(const Eigen::Ref<const VectorX<AutoDiffXd>>& q,
-                                MultibodyTreeContext<AutoDiffXd>* mbt_context) {
-  if (!AreAutoDiffVecXdEqual(q, mbt_context->get_positions())) {
-    mbt_context->get_mutable_positions() = q;
-  }
-}
-
-void UpdateContextConfiguration(
-    drake::systems::Context<double>* context,
-    const MultibodyPlant<double>& plant,
-    const Eigen::Ref<const VectorX<double>>& q) {
+void UpdateContextConfiguration(drake::systems::Context<double>* context,
+                                const MultibodyPlant<double>& plant,
+                                const Eigen::Ref<const VectorX<double>>& q) {
   DRAKE_ASSERT(context);
   if (q != plant.GetPositions(*context)) {
     plant.SetPositions(context, q);
   }
 }
 
-const MultibodyPlant<double>& RefFromPtrOrThrow(
-    const MultibodyPlant<double>* const plant) {
-  if (plant == nullptr) throw std::invalid_argument("plant is nullptr.");
-  return *plant;
+void UpdateContextConfiguration(drake::systems::Context<double>* context,
+                                const MultibodyPlant<double>& plant,
+                                const Eigen::Ref<const AutoDiffVecXd>& q) {
+  return UpdateContextConfiguration(context, plant,
+                                    math::autoDiffToValueMatrix(q));
+}
+
+void UpdateContextConfiguration(systems::Context<AutoDiffXd>* context,
+                                const MultibodyPlant<AutoDiffXd>& plant,
+                                const Eigen::Ref<const AutoDiffVecXd>& q) {
+  DRAKE_ASSERT(context);
+  if (!AreAutoDiffVecXdEqual(q, plant.GetPositions(*context))) {
+    plant.SetPositions(context, q);
+  }
 }
 
 }  // namespace internal

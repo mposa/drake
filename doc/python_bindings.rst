@@ -11,7 +11,19 @@ class which is exposed to C++ has been explicitly enumerated in one of the
 source files inside the ``bindings/pydrake`` folder. These bindings are
 installed as a single package called ``pydrake``.
 
+.. warning::
+   Drake is incompatible with the Python environment supplied by Anaconda.
+   Please uninstall Anaconda or remove the Anaconda ``bin`` directory from the
+   ``PATH`` before building or using the Drake Python bindings.
+
 .. _python-bindings-binary:
+
+Installation
+============
+
+Before attempting installation, please review the
+:ref:`supported configurations <supported-configurations>` to know what
+versions of Python are supported for your platform.
 
 Binary Installation for Python
 ------------------------------
@@ -34,17 +46,52 @@ Ensure that you have the system dependencies:
 
     /opt/drake/share/drake/setup/install_prereqs
 
-Next, ensure that your ``PYTHONPATH`` is properly configured:
+Next, ensure that your ``PYTHONPATH`` is properly configured. For example, for
+the Python 3 bindings on Bionic:
 
 .. code-block:: shell
 
-    export PYTHONPATH=/opt/drake/lib/python2.7/site-packages:${PYTHONPATH}
+    export PYTHONPATH=/opt/drake/lib/python3.6/site-packages:${PYTHONPATH}
 
 See :ref:`below <using-python-bindings>` for usage instructions. If using
 macOS, pay special attention to :ref:`this note <using-python-mac-os-path>`.
 
-Python 2.7 is currently the only supported version for the bindings supplied
-by the binary packages. To use Python 3.x, see below for building from source.
+Inside ``virtualenv``
+^^^^^^^^^^^^^^^^^^^^^
+
+At present, Drake is not installable via ``pip``. However, you can still
+incorporate its install tree into a ``virtualenv``
+`FHS <https://en.wikipedia.org/wiki/Filesystem_Hierarchy_Standard>`_-like
+environment.
+
+An example for ``python3``, where you should replace ``<venv_path>`` and
+``<platform>``:
+
+.. code-block:: shell
+
+    # Setup drake, and run prerequisites.
+    curl -o drake.tar.gz https://drake-packages.csail.mit.edu/drake/nightly/drake-latest-<platform>.tar.gz
+    mkdir -p <venv_path>
+    tar -xvzf drake.tar.gz -C <venv_path> --strip-components=1
+    # - You may need `sudo` here.
+    <venv_path>/share/drake/setup/install_prereqs
+
+    # Setup a virtualenv over the drake install.
+    python3 -m virtualenv -p python3 <venv_path> --system-site-packages
+
+.. note::
+
+    You can extract Drake into an existing ``virtualenv`` tree if you have
+    already run ``install_prereqs``; however, you should ensure that you have
+    run ``install_prereqs``. Before you do this, you should capture / freeze
+    your current requirements to reproduce your environment if there are
+    conflicts.
+
+To check if this worked, follow the instructions as
+:ref:`shown below <using-python-bindings>`, but either:
+
+*   Use ``<venv_path>/bin/python`` instead of ``python3``, or
+*   Source ``<venv_path>/bin/activate`` in your current shell session.
 
 Building the Python Bindings
 ----------------------------
@@ -77,43 +124,35 @@ MOSEK, without building tests:
 
 You will also need to have your ``PYTHONPATH`` configured correctly.
 
-As an example, continuing from the code snippets from above:
+As an example, continuing from the code snippets from above for Bionic:
 
 .. code-block:: shell
 
     cd drake-build
-    export PYTHONPATH=${PWD}/install/lib/python2.7/site-packages:${PYTHONPATH}
+    export PYTHONPATH=${PWD}/install/lib/python3.6/site-packages:${PYTHONPATH}
 
 .. _using-python-bindings:
 
 Using the Python Bindings
--------------------------
+=========================
 
-To use the Drake Python bindings, follow the steps above to install or build
-Drake. To check this:
+Check Installation
+------------------
+
+After following the above install steps, check to ensure you can import
+``pydrake``. As an example for Python 3:
 
 .. code-block:: shell
 
-    python -c 'import pydrake; print(pydrake.__file__)'
+    python3 -c 'import pydrake; print(pydrake.__file__)'
 
 .. _using-python-mac-os-path:
 
 .. note::
 
-    If you are using macOS, you must ensure that you are using the ``python2``
-    executable to run these scripts. As an example for Homebrew:
-
-    .. code-block:: shell
-
-        export PATH=/usr/local/opt/python/libexec/bin:${PATH}
-
-    If you would like to use ``jupyter``, then be sure to install it via
-    ``pip2 install jupyter`` (*not* ``brew install jupyter``) to ensure that it
-    uses the correct ``PYTHONPATH``.
-
-    ..
-        Developers: Ensure this is synchronized with the steps in
-        ``install_prereqs_user_environment.sh``.
+    If you are using macOS and the Python 2 bindings, you must ensure that you
+    are using the ``python2`` executable (typically located at
+    ``/usr/local/bin/python2``) to run these scripts.
 
 .. note::
 
@@ -138,13 +177,18 @@ Here's an example snippet of code from ``pydrake``:
 .. code-block:: python
 
     from pydrake.common import FindResourceOrThrow
-    from pydrake.multibody.rigid_body_plant import RigidBodyPlant
-    from pydrake.multibody.rigid_body_tree import RigidBodyTree
+    from pydrake.multibody.parsing import Parser
+    from pydrake.multibody.plant import AddMultibodyPlantSceneGraph
     from pydrake.systems.analysis import Simulator
+    from pydrake.systems.framework import DiagramBuilder
 
-    tree = RigidBodyTree(
+    builder = DiagramBuilder()
+    plant, _ = AddMultibodyPlantSceneGraph(builder)
+    Parser(plant).AddModelFromFile(
         FindResourceOrThrow("drake/examples/pendulum/Pendulum.urdf"))
-    simulator = Simulator(RigidBodyPlant(tree))
+    plant.Finalize()
+    diagram = builder.Build()
+    simulator = Simulator(diagram)
 
 If you are prototyping code in a REPL environment (such as IPython / Jupyter)
 and to reduce the number of import statements, consider using ``pydrake.all`` to
@@ -155,16 +199,21 @@ automatically. If you are writing non-prototype code, avoid using
 In all cases, try to avoid using ``from pydrake.all import *``, as it may
 introduce symbol collisions that are difficiult to debug.
 
-An example of importing symbols directly from ``pydrake.all``:
+The above example, but using ``pydrake.all``:
 
 .. code-block:: python
 
     from pydrake.all import (
-        FindResourceOrThrow, RigidBodyPlant, RigidBodyTree, Simulator)
+        AddMultibodyPlantSceneGraph, DiagramBuilder, FindResourceOrThrow,
+        Parser, Simulator)
 
-    tree = RigidBodyTree(
+    builder = DiagramBuilder()
+    plant, _ = AddMultibodyPlantSceneGraph(builder)
+    Parser(plant).AddModelFromFile(
         FindResourceOrThrow("drake/examples/pendulum/Pendulum.urdf"))
-    simulator = Simulator(RigidBodyPlant(tree))
+    plant.Finalize()
+    diagram = builder.Build()
+    simulator = Simulator(diagram)
 
 An alternative is to use ``pydrake.all`` to import all modules, but then
 explicitly refer to each symbol:
@@ -173,14 +222,17 @@ explicitly refer to each symbol:
 
     import pydrake.all
 
-    tree = pydrake.multibody.rigid_body_tree.RigidBodyTree(
+    builder = pydrake.systems.framework.DiagramBuilder()
+    plant, _ = pydrake.multibody.plant.AddMultibodyPlantSceneGraph(builder)
+    pydrake.multibody.parsing.Parser(plant).AddModelFromFile(
         pydrake.common.FindResourceOrThrow(
             "drake/examples/pendulum/Pendulum.urdf"))
-    simulator = pydrake.systems.analysis.Simulator(
-        pydrake.multibody.rigid_body_plant.RigidBodyPlant(tree))
+    plant.Finalize()
+    diagram = builder.Build()
+    simulator = pydrake.systems.analysis.Simulator(diagram)
 
 Differences with C++ API
-========================
+------------------------
 
 In general, the `Python API <pydrake/index.html#://>`_ should be close to the
 `C++ API <doxygen_cxx/index.html#://>`_. There are some exceptions:
@@ -282,19 +334,16 @@ trace. As an example:
         insert_awesome_code_here()
 
     if __name__ == "__main__":
-        # main()  # This is what you would have, but the following is useful:
+        # main()  # Normal invocation; commented out, because we will trace it.
 
-        # These are temporary, for debugging, so meh for programming style.
+        # The following (a) imports minimum dependencies, (b) ensures that
+        # output is immediately flushed (e.g. for segfaults), and (c) traces
+        # execution of your function, but filtering out any Python code outside
+        # of the system prefix.
         import sys, trace
-
-        # If there are segfaults, it's a good idea to always use stderr as it
-        # always prints to the screen, so you should get as much output as
-        # possible.
         sys.stdout = sys.stderr
-
-        # Now trace execution:
         tracer = trace.Trace(trace=1, count=0, ignoredirs=["/usr", sys.prefix])
-        tracer.run('main()')
+        tracer.runfunc(main)
 
 .. note::
 

@@ -3,6 +3,7 @@
 #include <memory>
 #include <vector>
 
+#include "drake/automotive/deprecated.h"
 #include "drake/automotive/maliput/api/branch_point.h"
 #include "drake/automotive/maliput/api/junction.h"
 #include "drake/automotive/maliput/api/road_geometry.h"
@@ -21,7 +22,8 @@ namespace rndf {
 ///
 /// api::RoadGeometry::ToRoadPosition should not be called as DoToRoadPosition
 /// is not implemented.
-class RoadGeometry : public api::RoadGeometry {
+class DRAKE_DEPRECATED_AUTOMOTIVE
+    RoadGeometry : public api::RoadGeometry {
  public:
   DRAKE_NO_COPY_NO_MOVE_NO_ASSIGN(RoadGeometry)
 
@@ -51,7 +53,7 @@ class RoadGeometry : public api::RoadGeometry {
   ~RoadGeometry() override = default;
 
  private:
-  const api::RoadGeometryId do_id() const override { return id_; }
+  api::RoadGeometryId do_id() const override { return id_; }
 
   int do_num_junctions() const override { return junctions_.size(); }
 
@@ -66,7 +68,9 @@ class RoadGeometry : public api::RoadGeometry {
   const api::BranchPoint* do_branch_point(int index) const override;
 
   // TODO(maddog@tri.global) Implement when someone needs it.
-  const IdIndex& DoById() const override { DRAKE_ABORT(); }
+  const IdIndex& DoById() const override {
+    throw std::runtime_error("RoadGeometry::DoById is not implemented");
+  }
 
   // This function will abort as it's not implemented and should not be called.
   api::RoadPosition DoToRoadPosition(const api::GeoPosition& geo_pos,

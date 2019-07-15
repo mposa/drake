@@ -15,6 +15,7 @@ CXX_FLAGS = [
     "-Werror=old-style-cast",
     "-Werror=overloaded-virtual",
     "-Werror=shadow",
+    "-Werror=unused-result",
 ]
 
 # The CLANG_FLAGS will be enabled for all C++ rules in the project when
@@ -227,7 +228,7 @@ def _gather_transitive_hdrs_impl(ctx):
     # Filter in/out items matching a prefix.
     result = depset([
         x
-        for x in all_hdrs
+        for x in all_hdrs.to_list()
         if _path_startswith_match(
             x.short_path,
             ctx.attr.only_startswith,
@@ -547,6 +548,7 @@ def drake_cc_test(
         gcc_copts = [],
         clang_copts = [],
         disable_in_compilation_mode_dbg = False,
+        tags = [],
         **kwargs):
     """Creates a rule to declare a C++ unit test.  Note that for almost all
     cases, drake_cc_googletest should be used, instead of this rule.
@@ -572,6 +574,7 @@ def drake_cc_test(
         copts = new_copts,
         **kwargs
     )
+    new_tags = tags
     if disable_in_compilation_mode_dbg:
         # Remove the test declarations from the test in debug mode.
         # TODO(david-german-tri): Actually suppress the test rule.
@@ -579,12 +582,24 @@ def drake_cc_test(
             "//tools/cc_toolchain:debug": [],
             "//conditions:default": new_srcs,
         })
+
+        # Disable when run under various dynamic tools that use debug-like
+        # compiler flags.
+        new_tags = new_tags + [
+            "no_asan",
+            "no_kcov",
+            "no_lsan",
+            "no_memcheck",
+            "no_tsan",
+            "no_ubsan",
+        ]
     native.cc_test(
         name = name,
         size = size,
         srcs = new_srcs,
         deps = new_deps,
         copts = new_copts,
+        tags = new_tags,
         **kwargs
     )
 

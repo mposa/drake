@@ -24,8 +24,13 @@ drake_cc_library(
     testonly = 1,
     srcs = ["check_id_indexing.cc"],
     hdrs = ["check_id_indexing.h"],
+    copts = [
+        "-Wno-cpp",
+        "-Wno-deprecated-declarations",
+    ],
     deps = [
         ":rules_test_utilities",
+        "//automotive:deprecated",
         "//automotive/maliput/api",
         "//common:essential",
         "@gtest//:without_main",
@@ -37,7 +42,12 @@ drake_cc_library(
     testonly = 1,
     srcs = ["maliput_types_compare.cc"],
     hdrs = ["maliput_types_compare.h"],
+    copts = [
+        "-Wno-cpp",
+        "-Wno-deprecated-declarations",
+    ],
     deps = [
+        "//automotive:deprecated",
         "//automotive/maliput/api",
         "//common:essential",
         "//math:geometric_transform",
@@ -49,15 +59,22 @@ drake_cc_library(
     name = "rules_test_utilities",
     testonly = 1,
     srcs = [
+        "rules_direction_usage_compare.cc",
         "rules_right_of_way_compare.cc",
         "rules_speed_limit_compare.cc",
     ],
     hdrs = [
+        "rules_direction_usage_compare.h",
         "rules_right_of_way_compare.h",
         "rules_speed_limit_compare.h",
         "rules_test_utilities.h",
     ],
+    copts = [
+        "-Wno-cpp",
+        "-Wno-deprecated-declarations",
+    ],
     deps = [
+        "//automotive:deprecated",
         "//automotive/maliput/api",
         "//common:essential",
         "//common:unused",

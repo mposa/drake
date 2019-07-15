@@ -66,9 +66,9 @@ int DoMain() {
 
   const int num_joints = FLAGS_num_joints;
   const int num_fingers = FLAGS_num_fingers;
-  DRAKE_DEMAND(plan_source->tree().get_num_positions() ==
+  DRAKE_DEMAND(plan_source->plant().num_positions() ==
                num_joints + num_fingers);
-  DRAKE_DEMAND(plan_source->tree().get_num_velocities() ==
+  DRAKE_DEMAND(plan_source->plant().num_velocities() ==
                num_joints + num_fingers);
 
   auto status_sub = builder.AddSystem(
@@ -79,8 +79,6 @@ int DoMain() {
 
   builder.Connect(status_sub->get_output_port(),
                   status_receiver->get_input_port(0));
-  builder.Connect(status_receiver->get_output_port(0),
-                  plan_source->get_state_input_port());
 
   // The driver is operating in joint velocity mode, so that's the
   // meaningful part of the command message we'll eventually
@@ -153,10 +151,10 @@ int DoMain() {
           systems::lcm::UtimeMessageToSeconds<lcmt_jaco_status>>());
 
   // Waits for the first message.
-  const systems::AbstractValue& first_msg = loop.WaitForMessage();
+  const AbstractValue& first_msg = loop.WaitForMessage();
   double msg_time =
       loop.get_message_to_time_converter().GetTimeInSeconds(first_msg);
-  const lcmt_jaco_status& first_status = first_msg.GetValue<lcmt_jaco_status>();
+  const auto& first_status = first_msg.get_value<lcmt_jaco_status>();
   DRAKE_DEMAND(first_status.num_joints == 0 ||
                first_status.num_joints == num_joints);
   DRAKE_DEMAND(first_status.num_fingers == 0 ||
@@ -177,7 +175,7 @@ int DoMain() {
   status_sub->SetDefaultContext(&status_sub_context);
 
   // Explicit initialization.
-  diagram_context.set_time(msg_time);
+  diagram_context.SetTime(msg_time);
   auto& plan_source_context =
       diagram->GetMutableSubsystemContext(*plan_source, &diagram_context);
   plan_source->Initialize(msg_time, q0,

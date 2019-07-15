@@ -14,8 +14,27 @@ drake_cc_package_library(
     name = "test_utilities",
     testonly = 1,
     deps = [
+        ":fixtures",
         ":multilane_brute_force_integral",
         ":multilane_types_compare",
+    ],
+)
+
+drake_cc_library(
+    name = "fixtures",
+    testonly = 1,
+    srcs = ["fixtures.cc"],
+    hdrs = ["fixtures.h"],
+    copts = [
+        "-Wno-cpp",
+        "-Wno-deprecated-declarations",
+    ],
+    data = ["//automotive/maliput/multilane:yamls"],
+    deps = [
+        "//automotive:deprecated",
+        "//automotive/maliput/multilane",
+        "//common:essential",
+        "@gtest//:without_main",
     ],
 )
 
@@ -24,7 +43,12 @@ drake_cc_library(
     testonly = 1,
     srcs = ["multilane_types_compare.cc"],
     hdrs = ["multilane_types_compare.h"],
+    copts = [
+        "-Wno-cpp",
+        "-Wno-deprecated-declarations",
+    ],
     deps = [
+        "//automotive:deprecated",
         "//automotive/maliput/api/test_utilities",
         "//automotive/maliput/multilane",
         "//common:essential",
@@ -38,7 +62,12 @@ drake_cc_library(
     testonly = 1,
     srcs = ["multilane_brute_force_integral.cc"],
     hdrs = ["multilane_brute_force_integral.h"],
+    copts = [
+        "-Wno-cpp",
+        "-Wno-deprecated-declarations",
+    ],
     deps = [
+        "//automotive:deprecated",
         "//automotive/maliput/multilane:lanes",
         "//common:essential",
     ],

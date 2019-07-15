@@ -6,12 +6,16 @@
 #include <string>
 #include <utility>
 
+#include <fmt/format.h>
+
 #include "drake/common/autodiff.h"
 #include "drake/common/default_scalars.h"
+#include "drake/common/text_logging.h"
 #include "drake/geometry/geometry_frame.h"
 #include "drake/geometry/geometry_instance.h"
 #include "drake/geometry/geometry_roles.h"
 #include "drake/geometry/proximity_engine.h"
+#include "drake/geometry/render/render_engine.h"
 #include "drake/geometry/utilities.h"
 
 namespace drake {
@@ -21,11 +25,16 @@ using internal::GeometryStateCollisionFilterAttorney;
 using internal::InternalFrame;
 using internal::InternalGeometry;
 using internal::ProximityEngine;
+using math::RigidTransform;
+using math::RigidTransformd;
 using std::make_pair;
 using std::make_unique;
 using std::move;
 using std::swap;
 using std::to_string;
+using systems::sensors::ImageDepth32F;
+using systems::sensors::ImageLabel16I;
+using systems::sensors::ImageRgba8U;
 
 //-----------------------------------------------------------------------------
 
@@ -145,6 +154,29 @@ int GeometryState<T>::GetNumAnchoredGeometries() const {
 }
 
 template <typename T>
+std::set<std::pair<GeometryId, GeometryId>>
+GeometryState<T>::GetCollisionCandidates() const {
+  std::set<std::pair<GeometryId, GeometryId>> pairs;
+  for (const auto& pairA : geometries_) {
+    const GeometryId idA = pairA.first;
+    const InternalGeometry& geometryA = pairA.second;
+    if (!geometryA.has_proximity_role()) continue;
+    for (const auto& pairB : geometries_) {
+      const GeometryId idB = pairB.first;
+      if (idB < idA) continue;  // Only consider the pair (A, B) and not (B, A).
+      const InternalGeometry& geometryB = pairB.second;
+      if (!geometryB.has_proximity_role()) continue;
+      // This relies on CollisionFiltered() to handle if A == B, if they
+      // are both anchored, etc.
+      if (!CollisionFiltered(idA, idB)) {
+        pairs.insert({idA, idB});
+      }
+    }
+  }
+  return pairs;
+}
+
+template <typename T>
 bool GeometryState<T>::source_is_registered(SourceId source_id) const {
   return source_frame_id_map_.find(source_id) != source_frame_id_map_.end();
 }
@@ -177,6 +209,12 @@ bool GeometryState<T>::BelongsToSource(FrameId frame_id,
   GetValueOrThrow(source_id, source_frame_id_map_);
   // If valid, test the frame.
   return get_source_id(frame_id) == source_id;
+}
+
+template <typename T>
+const std::string& GeometryState<T>::GetOwningSourceName(FrameId id) const {
+  SourceId source_id = get_source_id(id);
+  return source_names_.at(source_id);
 }
 
 template <typename T>
@@ -275,18 +313,33 @@ bool GeometryState<T>::BelongsToSource(GeometryId geometry_id,
 }
 
 template <typename T>
+const std::string& GeometryState<T>::GetOwningSourceName(GeometryId id) const {
+  SourceId source_id = get_source_id(id);
+  return source_names_.at(source_id);
+}
+
+template <typename T>
 FrameId GeometryState<T>::GetFrameId(GeometryId geometry_id) const {
   const auto& geometry = GetValueOrThrow(geometry_id, geometries_);
   return geometry.frame_id();
 }
 
 template <typename T>
-const std::string& GeometryState<T>::get_name(GeometryId geometry_id) const {
+const std::string& GeometryState<T>::GetName(GeometryId geometry_id) const {
   const InternalGeometry* geometry = GetGeometry(geometry_id);
   if (geometry != nullptr) return geometry->name();
 
   throw std::logic_error("No geometry available for invalid geometry id: " +
       to_string(geometry_id));
+}
+
+template <typename T>
+const Shape& GeometryState<T>::GetShape(GeometryId id) const {
+  const InternalGeometry* geometry = GetGeometry(id);
+  if (geometry != nullptr) return geometry->shape();
+
+  throw std::logic_error("No geometry available for invalid geometry id: " +
+      to_string(id));
 }
 
 template <typename T>
@@ -304,19 +357,30 @@ const Isometry3<double>& GeometryState<T>::GetPoseInParent(
 }
 
 template <typename T>
-const ProximityProperties* GeometryState<T>::get_proximity_properties(
+const ProximityProperties* GeometryState<T>::GetProximityProperties(
     GeometryId id) const {
   const InternalGeometry* geometry = GetGeometry(id);
-  if (geometry != nullptr) return geometry->proximity_properties();
-  return nullptr;
+  if (geometry) return geometry->proximity_properties();
+  throw std::logic_error(
+      fmt::format("Referenced geometry {} has not been registered", id));
 }
 
 template <typename T>
-const IllustrationProperties* GeometryState<T>::get_illustration_properties(
+const IllustrationProperties* GeometryState<T>::GetIllustrationProperties(
     GeometryId id) const {
   const InternalGeometry* geometry = GetGeometry(id);
-  if (geometry != nullptr) return geometry->illustration_properties();
-  return nullptr;
+  if (geometry) return geometry->illustration_properties();
+  throw std::logic_error(
+      fmt::format("Referenced geometry {} has not been registered", id));
+}
+
+template <typename T>
+const PerceptionProperties* GeometryState<T>::GetPerceptionProperties(
+    GeometryId id) const {
+  const InternalGeometry* geometry = GetGeometry(id);
+  if (geometry) return geometry->perception_properties();
+  throw std::logic_error(
+      fmt::format("Referenced geometry {} has not been registered", id));
 }
 
 template <typename T>
@@ -366,9 +430,6 @@ const Isometry3<T>& GeometryState<T>::get_pose_in_world(
 template <typename T>
 const Isometry3<T>& GeometryState<T>::get_pose_in_world(
     GeometryId geometry_id) const {
-  // TODO(SeanCurtis-TRI): This is a BUG! If you pass in the id of an
-  // anchored geometry, this will throw an exception. See
-  // https://github.com/RobotLocomotion/drake/issues/9145.
   FindOrThrow(geometry_id, geometries_, [geometry_id]() {
     return "No world pose available for invalid geometry id: " +
            to_string(geometry_id);
@@ -437,7 +498,7 @@ FrameId GeometryState<T>::RegisterFrame(SourceId source_id, FrameId parent_id,
 
   DRAKE_ASSERT(X_PF_.size() == frame_index_to_id_map_.size());
   FrameIndex index(X_PF_.size());
-  X_PF_.emplace_back(frame.pose());
+  X_PF_.emplace_back(Isometry3<double>::Identity());
   X_WF_.emplace_back(Isometry3<double>::Identity());
   frame_index_to_id_map_.push_back(frame_id);
   f_set.insert(frame_id);
@@ -495,7 +556,11 @@ GeometryId GeometryState<T>::RegisterGeometry(
   // compactly distributed. Is there a more robust way to do this?
   DRAKE_ASSERT(geometry_index_to_id_map_.size() == X_WG_.size());
   FrameIndex index(static_cast<int>(X_WG_.size()));
-  X_WG_.push_back(Isometry3<T>::Identity());
+  // NOTE: No implicit conversion from Isometry3<double> to Isometry3<AutoDiff>.
+  // However, we can implicitly assign Matrix<double> to Matrix<AutoDiff>.
+  Isometry3<T> X_WG;
+  X_WG.matrix() = geometry->pose().matrix();
+  X_WG_.push_back(X_WG);
   geometry_index_to_id_map_.push_back(geometry_id);
 
   geometries_.emplace(geometry_id,
@@ -512,6 +577,11 @@ GeometryId GeometryState<T>::RegisterGeometry(
   if (geometry->proximity_properties()) {
     AssignRole(source_id, geometry_id,
                std::move(*geometry->mutable_proximity_properties()));
+  }
+
+  if (geometry->perception_properties()) {
+    AssignRole(source_id, geometry_id,
+               std::move(*geometry->mutable_perception_properties()));
   }
 
   return geometry_id;
@@ -593,10 +663,44 @@ bool GeometryState<T>::IsValidGeometryName(
   return NameIsUnique(frame_id, role, name);
 }
 
+namespace {
+// Small class for identifying mesh geometries.
+class MeshIdentifier final : public ShapeReifier {
+ public:
+  bool is_mesh() const { return is_mesh_; }
+
+  // Implementation of ShapeReifier interface.
+  void ImplementGeometry(const Sphere&, void*) final {}
+  void ImplementGeometry(const Cylinder&, void*) final {}
+  void ImplementGeometry(const HalfSpace&, void*) final {}
+  void ImplementGeometry(const Box&, void*) final {}
+  void ImplementGeometry(const Mesh& mesh, void*) final {
+    is_mesh_ = true;
+    drake::log()->warn("Meshes are _not_ supported for proximity: ({})",
+                       mesh.filename());
+  }
+  void ImplementGeometry(const Convex&, void*) final {}
+
+ private:
+  bool is_mesh_{false};
+};
+}  // namespace
+
 template <typename T>
 void GeometryState<T>::AssignRole(SourceId source_id,
                                   GeometryId geometry_id,
                                   ProximityProperties properties) {
+  // TODO(SeanCurtis-TRI): When meshes are supported for proximity roles, remove
+  // this test and the MeshIdentifier class.
+  {
+    const InternalGeometry* g = GetGeometry(geometry_id);
+    if (g) {
+      MeshIdentifier identifier;
+      g->shape().Reify(&identifier);
+      if (identifier.is_mesh()) return;
+    }
+  }
+
   AssignRoleInternal(source_id, geometry_id, std::move(properties),
                      Role::kProximity);
 
@@ -611,8 +715,10 @@ void GeometryState<T>::AssignRole(SourceId source_id,
     ProximityIndex proximity_index =
         geometry_engine_->AddDynamicGeometry(geometry->shape(), index);
     geometry->set_proximity_index(proximity_index);
-    DRAKE_DEMAND(static_cast<int>(X_WG_proximity_.size()) == proximity_index);
-    X_WG_proximity_.push_back(index);
+    DRAKE_DEMAND(
+        static_cast<int>(dynamic_proximity_index_to_internal_map_.size()) ==
+        proximity_index);
+    dynamic_proximity_index_to_internal_map_.push_back(index);
 
     InternalFrame& frame = frames_[geometry->frame_id()];
 
@@ -667,10 +773,108 @@ void GeometryState<T>::AssignRole(SourceId source_id,
 template <typename T>
 void GeometryState<T>::AssignRole(SourceId source_id,
                                   GeometryId geometry_id,
+                                  PerceptionProperties properties) {
+  AssignRoleInternal(source_id, geometry_id, std::move(properties),
+                     Role::kPerception);
+
+  InternalGeometry* geometry = GetMutableGeometry(geometry_id);
+  // This *must* be non-null, otherwise the role assignment would have failed.
+  DRAKE_DEMAND(geometry != nullptr);
+
+  for (auto& pair : render_engines_) {
+    const std::string& renderer_name = pair.first;
+    auto& engine = pair.second;
+    optional<RenderIndex> index =
+        engine->RegisterVisual(geometry->index(), geometry->shape(),
+                               *geometry->perception_properties(),
+                               RigidTransformd(geometry->X_FG()),
+                               geometry->is_dynamic());
+    // If index is nullopt, then engine has chosen to *not* register the
+    // geometry (See docs on RenderEngine::RegisterVisual()).
+    if (index) geometry->set_render_index(renderer_name, *index);
+  }
+}
+
+template <typename T>
+void GeometryState<T>::AssignRole(SourceId source_id,
+                                  GeometryId geometry_id,
                                   IllustrationProperties properties) {
   AssignRoleInternal(source_id, geometry_id, std::move(properties),
                      Role::kIllustration);
   // NOTE: No need to assign to any engines.
+}
+
+template <typename T>
+int GeometryState<T>::RemoveRole(SourceId source_id, FrameId frame_id,
+                                 Role role) {
+  int count = 0;
+
+  // Note: attempting any operation with invalid ids is "bad", even if it were
+  // to be a no-op. Callers shouldn't try to manipulate things they don't own.
+  const InternalFrame& frame = ValidateAndGetFrame(source_id, frame_id);
+
+  // One can't "remove" the unassigned role.
+  if (role == Role::kUnassigned) return 0;
+
+  for (GeometryId geometry_id : frame.child_geometries()) {
+    // If the frame is the world frame, then the specific geometry needs to be
+    // tested to see if it belongs to the source. Otherwise, by definition, the
+    // geometry must belong to the same source as the parent frame.
+    if (frame_id != InternalFrame::world_frame_id() ||
+        BelongsToSource(geometry_id, source_id)) {
+      if (RemoveRoleUnchecked(geometry_id, role)) ++count;
+    }
+  }
+  return count;
+}
+
+template <typename T>
+int GeometryState<T>::RemoveRole(SourceId source_id, GeometryId geometry_id,
+                                 Role role) {
+  if (!BelongsToSource(geometry_id, source_id)) {
+    throw std::logic_error(
+        "Trying to remove the role " + to_string(role) + " from the geometry " +
+            to_string(geometry_id) + " from source " + to_string(source_id) +
+            ", but the geometry doesn't belong to that source.");
+  }
+
+  // One can't "remove" the unassigned role state.
+  if (role == Role::kUnassigned) return 0;
+
+  return RemoveRoleUnchecked(geometry_id, role) ? 1 : 0;
+}
+
+template <typename T>
+int GeometryState<T>::RemoveFromRenderer(const std::string& renderer_name,
+                                         SourceId source_id, FrameId frame_id) {
+  int count = 0;
+
+  const InternalFrame& frame = ValidateAndGetFrame(source_id, frame_id);
+
+  for (GeometryId geometry_id : frame.child_geometries()) {
+    // If the frame is the world frame, then the specific geometry needs to be
+    // tested to see if it belongs to the source. Otherwise, by definition, the
+    // geometry must belong to the same source as the parent frame.
+    if (frame_id != InternalFrame::world_frame_id() ||
+        BelongsToSource(geometry_id, source_id)) {
+      if (RemoveFromRendererUnchecked(renderer_name, geometry_id)) ++count;
+    }
+  }
+  return count;
+}
+
+template <typename T>
+int GeometryState<T>::RemoveFromRenderer(const std::string& renderer_name,
+                                         SourceId source_id,
+                                         GeometryId geometry_id) {
+  if (!BelongsToSource(geometry_id, source_id)) {
+    throw std::logic_error(
+        "Trying to remove geometry " + to_string(geometry_id) + " from the "
+        "renderer '" + renderer_name + "', but the geometry doesn't belong to "
+        "given source " + to_string(source_id) + ".");
+  }
+
+  return RemoveFromRendererUnchecked(renderer_name, geometry_id) ? 1 : 0;
 }
 
 template <typename T>
@@ -702,6 +906,74 @@ void GeometryState<T>::ExcludeCollisionsBetween(const GeometrySet& setA,
   CollectIndices(setB, &dynamic2, &anchored2);
   geometry_engine_->ExcludeCollisionsBetween(dynamic1, anchored1, dynamic2,
                                              anchored2);
+}
+
+template <typename T>
+void GeometryState<T>::AddRenderer(
+    std::string name, std::unique_ptr<render::RenderEngine> renderer) {
+  if (geometries_.size() > 0) {
+    throw std::logic_error(
+        fmt::format("AddRenderer(): Error adding renderer '{}'; geometries "
+                    "have already been registered",
+                    name));
+  }
+  if (render_engines_.count(name) > 0) {
+    throw std::logic_error(fmt::format(
+        "AddRenderer(): A renderer with the name '{}' already exists", name));
+  }
+  render_engines_[move(name)] = move(renderer);
+}
+
+template <typename T>
+std::vector<std::string> GeometryState<T>::RegisteredRendererNames() const {
+  std::vector<std::string> names;
+  names.reserve(render_engines_.size());
+  for (const auto& name_engine_pair : render_engines_) {
+    names.push_back(name_engine_pair.first);
+  }
+  return names;
+}
+
+template <typename T>
+void GeometryState<T>::RenderColorImage(const render::CameraProperties& camera,
+                                        FrameId parent_frame,
+                                        const RigidTransformd& X_PC,
+                                        bool show_window,
+                                        ImageRgba8U* color_image_out) const {
+  const RigidTransformd X_WC = GetDoubleWorldPose(parent_frame) * X_PC;
+  const render::RenderEngine& engine =
+      GetRenderEngineOrThrow(camera.renderer_name);
+  // TODO(SeanCurtis-TRI): Invoke UpdateViewpoint() as part of a calc cache
+  //  entry. Challenge: how to do that with a parameter passed here?
+  const_cast<render::RenderEngine&>(engine).UpdateViewpoint(X_WC);
+  engine.RenderColorImage(camera, show_window, color_image_out);
+}
+
+template <typename T>
+void GeometryState<T>::RenderDepthImage(
+    const render::DepthCameraProperties& camera,
+    FrameId parent_frame, const RigidTransformd& X_PC,
+    ImageDepth32F* depth_image_out) const {
+  const RigidTransformd X_WC = GetDoubleWorldPose(parent_frame) * X_PC;
+  const render::RenderEngine& engine =
+      GetRenderEngineOrThrow(camera.renderer_name);
+  // See note in RenderColorImage() about this const cast.
+  const_cast<render::RenderEngine&>(engine).UpdateViewpoint(X_WC);
+  engine.RenderDepthImage(camera, depth_image_out);
+}
+
+template <typename T>
+void GeometryState<T>::RenderLabelImage(const render::CameraProperties& camera,
+                                        FrameId parent_frame,
+                                        const RigidTransformd& X_PC,
+                                        bool show_window,
+                                        ImageLabel16I* label_image_out) const {
+  const RigidTransformd X_WC = GetDoubleWorldPose(parent_frame) * X_PC;
+  const render::RenderEngine& engine =
+      GetRenderEngineOrThrow(camera.renderer_name);
+  // See note in RenderColorImage() about this const cast.
+  const_cast<render::RenderEngine&>(engine).UpdateViewpoint(X_WC);
+  engine.RenderLabelImage(camera, show_window, label_image_out);
 }
 
 template <typename T>
@@ -748,12 +1020,13 @@ void GeometryState<T>::CollectIndices(
 }
 
 template <typename T>
-void GeometryState<T>::SetFramePoses(const FramePoseVector<T>& poses) {
+void GeometryState<T>::SetFramePoses(
+    const SourceId source_id, const FramePoseVector<T>& poses) {
   // TODO(SeanCurtis-TRI): Down the road, make this validation depend on
   // ASSERT_ARMED.
-  ValidateFrameIds(poses);
+  ValidateFrameIds(source_id, poses);
   const Isometry3<T> world_pose = Isometry3<T>::Identity();
-  for (auto frame_id : source_root_frame_map_[poses.source_id()]) {
+  for (auto frame_id : source_root_frame_map_[source_id]) {
     UpdatePosesRecursively(frames_[frame_id], world_pose, poses);
   }
 }
@@ -761,8 +1034,8 @@ void GeometryState<T>::SetFramePoses(const FramePoseVector<T>& poses) {
 template <typename T>
 template <typename ValueType>
 void GeometryState<T>::ValidateFrameIds(
+    const SourceId source_id,
     const FrameKinematicsVector<ValueType>& kinematics_data) const {
-  SourceId source_id = kinematics_data.source_id();
   auto& frames = GetFramesForSource(source_id);
   const int ref_frame_count = static_cast<int>(frames.size());
   if (ref_frame_count != kinematics_data.size()) {
@@ -785,7 +1058,18 @@ void GeometryState<T>::ValidateFrameIds(
 
 template <typename T>
 void GeometryState<T>::FinalizePoseUpdate() {
-  geometry_engine_->UpdateWorldPoses(X_WG_, X_WG_proximity_);
+  geometry_engine_->UpdateWorldPoses(X_WG_,
+                                     dynamic_proximity_index_to_internal_map_);
+  // TODO(SeanCurtis-TRI): Kill this horrible copy once Isometry3 is removed
+  // and X_WG_ is RigidTransform typed.
+  std::vector<RigidTransform<T>> Xrt_WG;
+  std::transform(X_WG_.begin(), X_WG_.end(), std::back_inserter(Xrt_WG),
+                 [](const Isometry3<T>& pose_in) {
+                   return RigidTransform<T>(pose_in);
+                 });
+  for (auto& pair : render_engines_) {
+    pair.second->UpdatePoses(Xrt_WG);
+  }
 }
 
 template <typename T>
@@ -795,11 +1079,21 @@ SourceId GeometryState<T>::get_source_id(FrameId frame_id) const {
 }
 
 template <typename T>
+SourceId GeometryState<T>::get_source_id(GeometryId id) const {
+  const InternalGeometry* geometry = GetGeometry(id);
+  if (geometry == nullptr) {
+    throw std::logic_error("Geometry id " + to_string(id) +
+                           " does not map to a registered geometry");
+  }
+  return geometry->source_id();
+}
+
+template <typename T>
 void GeometryState<T>::RemoveGeometryUnchecked(GeometryId geometry_id,
                                                RemoveGeometryOrigin caller) {
   const InternalGeometry& geometry = GetValueOrThrow(geometry_id, geometries_);
 
-  // TODO(SeanCurtis-TRI): When this get invoked by RemoveFrame(), this
+  // TODO(SeanCurtis-TRI): When this gets invoked by RemoveFrame(), this
   // recursive action will not be necessary, as all child geometries will
   // automatically get removed. I've put it into a block so for future
   // reference; simply add an if statement to determine if this is coming from
@@ -813,43 +1107,9 @@ void GeometryState<T>::RemoveGeometryUnchecked(GeometryId geometry_id,
     frame.remove_child(geometry_id);
   }
 
-  // We want to maintain a contiguous block of valid GeometryIndex values (such
-  // that geometries_ doesn't have gaps). If we remove geometries from the
-  // middle, we want to fill the middle. We move the last to the hole
-  // (minimizing moves).
-  GeometryIndex last_index(geometry_index_to_id_map_.size() - 1);
-  GeometryIndex removed_index = geometry.index();
-  if (removed_index != last_index) {
-    // Move things around in geometry
-    geometries_[geometry_index_to_id_map_.back()].set_index(removed_index);
-    geometry_index_to_id_map_[removed_index] =
-        geometry_index_to_id_map_[last_index];
-
-    // Any engine that relies on a GeometryIndex to access GeometryId needs to
-    // be informed that a geometry has moved -- from last_index to
-    // removed_index.
-    InternalGeometry& moved_geometry =
-        geometries_[geometry_index_to_id_map_[removed_index]];
-    geometry_engine_->UpdateGeometryIndex(moved_geometry.proximity_index(),
-                                          moved_geometry.is_dynamic(),
-                                          removed_index);
-  }
-
-  if (geometry.has_proximity_role()) {
-    ProximityIndex proximity_index = geometry.proximity_index();
-    optional<GeometryIndex> moved_index = geometry_engine_->RemoveGeometry(
-        proximity_index, geometry.is_dynamic());
-    if (moved_index) {
-      // The geometry engine moved a geometry into the removed
-      // `proximity_index`. Update the state's knowledge of this.
-      GeometryId moved_id = geometry_index_to_id_map_[*moved_index];
-      if (geometry.is_dynamic()) {
-        swap(X_WG_[proximity_index],
-             X_WG_[geometries_[moved_id].proximity_index()]);
-      }
-      geometries_[moved_id].set_proximity_index(proximity_index);
-    }
-  }
+  RemoveProximityRole(geometry_id);
+  RemovePerceptionRole(geometry_id);
+  RemoveIllustrationRole(geometry_id);
 
   if (caller == RemoveGeometryOrigin::kGeometry) {
     // Only the geometry that this function is *directly* invoked on needs to
@@ -860,6 +1120,30 @@ void GeometryState<T>::RemoveGeometryUnchecked(GeometryId geometry_id,
       auto& parent_geometry =
           GetMutableValueOrThrow(*parent_id, &geometries_);
       parent_geometry.remove_child(geometry_id);
+    }
+  }
+
+  // We want to maintain a contiguous block of valid GeometryIndex values (such
+  // that geometries_ doesn't have gaps). If we remove geometries from the
+  // middle, we want to fill the middle. We move the last to the hole
+  // (minimizing moves).
+  GeometryIndex last_index(geometry_index_to_id_map_.size() - 1);
+  GeometryIndex removed_index = geometry.index();
+  if (removed_index != last_index) {
+    // Move things around in geometry.
+    geometries_[geometry_index_to_id_map_.back()].set_index(removed_index);
+    geometry_index_to_id_map_[removed_index] =
+        geometry_index_to_id_map_[last_index];
+
+    // Any engine that relies on a GeometryIndex to access GeometryId needs to
+    // be informed that a geometry has moved -- from last_index to
+    // removed_index.
+    InternalGeometry& moved_geometry =
+        geometries_[geometry_index_to_id_map_[removed_index]];
+    if (moved_geometry.has_proximity_role()) {
+      geometry_engine_->UpdateGeometryIndex(moved_geometry.proximity_index(),
+                                            moved_geometry.is_dynamic(),
+                                            removed_index);
     }
   }
 
@@ -974,6 +1258,174 @@ void GeometryState<T>::AssignRoleInternal(SourceId source_id,
     ThrowIfNameExistsInRole(geometry->frame_id(), role, geometry->name());
   }
   geometry->SetRole(std::move(properties));
+}
+
+template <typename T>
+bool GeometryState<T>::RemoveRoleUnchecked(GeometryId geometry_id, Role role) {
+  switch (role) {
+    case Role::kUnassigned:
+      // Can't remove unassigned; it's a no op.
+      return false;
+    case Role::kProximity:
+      return RemoveProximityRole(geometry_id);
+    case Role::kIllustration:
+      return RemoveIllustrationRole(geometry_id);
+    case Role::kPerception:
+      return RemovePerceptionRole(geometry_id);
+  }
+  return false;
+}
+
+template <typename T>
+bool GeometryState<T>::RemoveFromRendererUnchecked(
+    const std::string& renderer_name, GeometryId id) {
+  internal::InternalGeometry* geometry = GetMutableGeometry(id);
+  optional<RenderIndex> render_index = geometry->render_index(renderer_name);
+
+  // This geometry is not registered with the named render engine.
+  if (!render_index) return false;
+
+  // It is registered with the render engine; do the work to remove it.
+  render::RenderEngine* engine = render_engines_[renderer_name].get_mutable();
+  // TODO(SeanCurtis-TRI): This is one example of using indices and coordinating
+  // them between engine and geometry state (happens with proximity engine as
+  // well). While created with the best of intentions, it is becoming clear that
+  // it has turned into an inscrutable mess. The logic is difficult to parse and
+  // there is no shown benefit. The action here is to remove the indices and
+  // two-way coupling between GeometryState and the engines and merely make
+  // the engines fully aware of and to key on the GeometryIds and allow it to
+  // manage its memory internally in any way it sees fit.
+  geometry->ClearRenderIndex(renderer_name);
+  optional<GeometryIndex> moved_geometry_index =
+      engine->RemoveGeometry(*render_index);
+  if (moved_geometry_index) {
+    GeometryId moved_id = geometry_index_to_id_map_[*moved_geometry_index];
+    InternalGeometry& moved_geometry = geometries_.at(moved_id);
+    optional<RenderIndex> old_render_index =
+        moved_geometry.render_index(renderer_name);
+    // This must be the case, or else the renderer would _not_ have been
+    // able to move this geometry.
+    DRAKE_DEMAND(old_render_index.has_value());
+    moved_geometry.ClearRenderIndex(renderer_name);
+    moved_geometry.set_render_index(renderer_name, *render_index);
+  }
+  return true;
+}
+
+template <typename T>
+bool GeometryState<T>::RemoveProximityRole(GeometryId geometry_id) {
+  internal::InternalGeometry* geometry = GetMutableGeometry(geometry_id);
+  DRAKE_DEMAND(geometry != nullptr);
+
+  // Geometry is not registered with the proximity engine.
+  if (!geometry->has_proximity_role()) return false;
+
+  // Geometry *is* registered; do the work to remove it.
+  ProximityIndex proximity_index = geometry->proximity_index();
+  // TODO(SeanCurtis-TRI): This is one example of using indices and coordinating
+  // them between engine and geometry state (happens with render engines as
+  // well). While created with the best of intentions, it is becoming clear that
+  // it has turned into an inscrutable mess. The logic is difficult to parse and
+  // there is no shown benefit. The action here is to eliminate the indices and
+  // corresponding two-way coupling between GeometryState and the various
+  // engines. Instead, for all geometries, the only identifiers passed between
+  // GeometryState and the various engines are the geometries' GeometryIds.
+  optional<GeometryIndex> moved_index =
+      geometry_engine_->RemoveGeometry(proximity_index, geometry->is_dynamic());
+  if (moved_index) {
+    // The geometry engine moved a geometry into the removed
+    // `proximity_index`. Update the state's knowledge of this.
+    GeometryId moved_id = geometry_index_to_id_map_[*moved_index];
+    if (geometry->is_dynamic()) {
+      const ProximityIndex moved_proximity_index =
+          geometries_[moved_id].proximity_index();
+      swap(X_WG_[proximity_index], X_WG_[moved_proximity_index]);
+      swap(dynamic_proximity_index_to_internal_map_[proximity_index],
+           dynamic_proximity_index_to_internal_map_[moved_proximity_index]);
+    }
+    geometries_[moved_id].set_proximity_index(proximity_index);
+  }
+  if (geometry->is_dynamic()) {
+    // We've removed a dynamic geometry -- it was either the last or it has
+    // been moved to be last -- so, we pop the map to reflect the removed
+    // state.
+    dynamic_proximity_index_to_internal_map_.pop_back();
+  }
+  geometry->RemoveProximityRole();
+  return true;
+}
+
+template <typename T>
+bool GeometryState<T>::RemoveIllustrationRole(GeometryId geometry_id) {
+  internal::InternalGeometry* geometry = GetMutableGeometry(geometry_id);
+  DRAKE_DEMAND(geometry != nullptr);
+
+  // Geometry has no illustration role.
+  if (!geometry->has_illustration_role()) return false;
+
+  geometry->RemoveIllustrationRole();
+  return true;
+}
+
+template <typename T>
+bool GeometryState<T>::RemovePerceptionRole(GeometryId geometry_id) {
+  internal::InternalGeometry* geometry = GetMutableGeometry(geometry_id);
+  DRAKE_DEMAND(geometry != nullptr);
+
+  // Geometry has no perception role.
+  if (!geometry->has_perception_role()) return false;
+
+  // Geometry has a perception role; do the work to remove it from whichever
+  // render engines it happens to present in.
+  for (auto& name_engine_pair : render_engines_) {
+    const std::string& engine_name = name_engine_pair.first;
+    RemoveFromRendererUnchecked(engine_name, geometry_id);
+  }
+  geometry->RemovePerceptionRole();
+  return true;
+}
+
+template <typename T>
+const InternalFrame& GeometryState<T>::ValidateAndGetFrame(
+    SourceId source_id, FrameId frame_id) const {
+  // Handle the special case of the world frame; source_id will *not* own it.
+  if (frame_id == InternalFrame::world_frame_id()) {
+    FindOrThrow(source_id, source_frame_id_map_, [source_id]() {
+      return get_missing_id_message(source_id);
+    });
+    return frames_.at(frame_id);
+  } else {
+    // The generic test that the frame_id is owned by the source_id.
+    const FrameIdSet& set =
+        GetValueOrThrow(source_id, source_frame_id_map_);
+    FindOrThrow(frame_id, set, [frame_id, source_id]() {
+      return "Referenced frame " + to_string(frame_id) + " for source " +
+          to_string(source_id) +
+          ", but the frame doesn't belong to the source.";
+    });
+  }
+  return frames_.at(frame_id);
+}
+
+template <typename T>
+const render::RenderEngine& GeometryState<T>::GetRenderEngineOrThrow(
+    const std::string& renderer_name) const {
+  auto iter = render_engines_.find(renderer_name);
+  if (iter != render_engines_.end()) {
+    return *iter->second;
+  }
+
+  throw std::logic_error(
+      fmt::format("No renderer exists with name: '{}'", renderer_name));
+}
+
+template <typename T>
+RigidTransformd GeometryState<T>::GetDoubleWorldPose(FrameId frame_id) const {
+  if (frame_id == InternalFrame::world_frame_id()) {
+    return RigidTransformd::Identity();
+  }
+  const internal::InternalFrame& frame = GetValueOrThrow(frame_id, frames_);
+  return RigidTransformd(internal::convert_to_double(X_WF_[frame.index()]));
 }
 
 }  // namespace geometry

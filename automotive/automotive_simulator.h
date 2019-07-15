@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "drake/automotive/curve2.h"
+#include "drake/automotive/deprecated.h"
 #include "drake/automotive/gen/maliput_railcar_state.h"
 #include "drake/automotive/gen/trajectory_car_state.h"
 #include "drake/automotive/idm_controller.h"
@@ -42,7 +43,8 @@ namespace automotive {
 ///
 /// They are already available to link against in the containing library.
 template <typename T>
-class AutomotiveSimulator {
+class DRAKE_DEPRECATED_AUTOMOTIVE
+    AutomotiveSimulator {
  public:
   DRAKE_NO_COPY_NO_MOVE_NO_ASSIGN(AutomotiveSimulator)
 
@@ -51,7 +53,8 @@ class AutomotiveSimulator {
   AutomotiveSimulator();
 
   /// A constructor that configures this object to use a DrakeLcmInterface
-  /// instance. If nullptr, no visualization is produced.
+  /// instance. If nullptr, no visualization is produced.  Do NOT call
+  /// StartRecieveThread on this lcm object.
   explicit AutomotiveSimulator(std::unique_ptr<lcm::DrakeLcmInterface> lcm);
 
   ~AutomotiveSimulator();
@@ -369,7 +372,8 @@ class AutomotiveSimulator {
   void InitializeMaliputRailcars();
 
   // For both building and simulation.
-  std::unique_ptr<lcm::DrakeLcmInterface> lcm_{};
+  std::unique_ptr<lcm::DrakeLcmInterface> owned_lcm_{};
+  lcm::DrakeLcmInterface* lcm_{};
   std::unique_ptr<const maliput::api::RoadGeometry> road_{};
 
   // === Start for building. ===

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "drake/automotive/deprecated.h"
 #include "drake/automotive/gen/dynamic_bicycle_car_input.h"
 #include "drake/automotive/gen/dynamic_bicycle_car_params.h"
 #include "drake/automotive/gen/dynamic_bicycle_car_state.h"
@@ -69,7 +70,8 @@ namespace automotive {
 /// @ingroup automotive_plants
 
 template <typename T>
-class DynamicBicycleCar final : public systems::LeafSystem<T> {
+class DRAKE_DEPRECATED_AUTOMOTIVE
+    DynamicBicycleCar final : public systems::LeafSystem<T> {
  public:
   DRAKE_NO_COPY_NO_MOVE_NO_ASSIGN(DynamicBicycleCar);
 
@@ -118,15 +120,15 @@ class DynamicBicycleCar final : public systems::LeafSystem<T> {
   // Evaluates the input port and returns the scalar value of the steering
   // angle.
   const T get_steer(const systems::Context<T>& context) const {
-    return this->EvalVectorInput(context, 0)
-        ->GetAtIndex(DynamicBicycleCarInputIndices::kSteerCd);
+    return get_input_port().Eval(context)[
+        DynamicBicycleCarInputIndices::kSteerCd];
   }
 
   // Evaluates the input port and returns the scalar value of the longitudinal
   // force.
   const T get_longitudinal_force(const systems::Context<T>& context) const {
-    return this->EvalVectorInput(context, 0)
-        ->GetAtIndex(DynamicBicycleCarInputIndices::kFCpX);
+    return get_input_port().Eval(context)[
+        DynamicBicycleCarInputIndices::kFCpX];
   }
 
   // Copies the state out to the output port.

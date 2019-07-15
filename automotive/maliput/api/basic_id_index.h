@@ -2,6 +2,7 @@
 
 #include <unordered_map>
 
+#include "drake/automotive/deprecated.h"
 #include "drake/automotive/maliput/api/branch_point.h"
 #include "drake/automotive/maliput/api/junction.h"
 #include "drake/automotive/maliput/api/lane.h"
@@ -16,7 +17,8 @@ namespace api {
 
 /// Basic general-purpose concrete implementation of the
 /// RoadGeometry::IdIndex interface.
-class BasicIdIndex : public RoadGeometry::IdIndex {
+class DRAKE_DEPRECATED_AUTOMOTIVE
+    BasicIdIndex : public RoadGeometry::IdIndex {
  public:
   DRAKE_NO_COPY_NO_MOVE_NO_ASSIGN(BasicIdIndex);
 
@@ -58,6 +60,7 @@ class BasicIdIndex : public RoadGeometry::IdIndex {
 
  private:
   const Lane* DoGetLane(const LaneId& id) const final;
+  const std::unordered_map<LaneId, const Lane*>& DoGetLanes() const override;
   const Segment* DoGetSegment(const SegmentId& id) const final;
   const Junction* DoGetJunction(const JunctionId& id) const final;
   const BranchPoint* DoGetBranchPoint(const BranchPointId& id) const final;

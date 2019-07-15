@@ -4,7 +4,6 @@
 
 #include "drake/math/autodiff_gradient.h"
 #include "drake/multibody/plant/multibody_plant.h"
-#include "drake/multibody/tree/multibody_tree_context.h"
 #include "drake/systems/framework/context.h"
 
 namespace drake {
@@ -20,26 +19,23 @@ bool AreAutoDiffVecXdEqual(const Eigen::Ref<const AutoDiffVecXd>& a,
                            const Eigen::Ref<const AutoDiffVecXd>& b);
 
 /**
- * Check if the generalized positions in @p mbt_context are the same as @p q.
- * If they are not the same, then reset @p mbt_context's generalized positions
- * to q. Otherwise, leave @p mbt_context unchanged.
- * The intention is to avoid dirtying the computation cache, given it is
- * ticket-based rather than hash-based.
- */
-void UpdateContextConfiguration(const Eigen::Ref<const VectorX<AutoDiffXd>>& q,
-                                MultibodyTreeContext<AutoDiffXd>* mbt_context);
-
-/**
  * Check if the generalized positions in @p context are the same as @p q.
  * If they are not the same, then reset @p context's generalized positions
  * to @p q. Otherwise, leave @p context unchanged.
  * The intention is to avoid dirtying the computation cache, given it is
  * ticket-based rather than hash-based.
  */
-void UpdateContextConfiguration(
-    drake::systems::Context<double>* context,
-    const MultibodyPlant<double>& plant,
-    const Eigen::Ref<const VectorX<double>>& q);
+void UpdateContextConfiguration(drake::systems::Context<double>* context,
+                                const MultibodyPlant<double>& plant,
+                                const Eigen::Ref<const VectorX<double>>& q);
+
+void UpdateContextConfiguration(drake::systems::Context<double>* context,
+                                const MultibodyPlant<double>& plant,
+                                const Eigen::Ref<const VectorX<AutoDiffXd>>& q);
+
+void UpdateContextConfiguration(systems::Context<AutoDiffXd>* context,
+                                const MultibodyPlant<AutoDiffXd>& plant,
+                                const Eigen::Ref<const AutoDiffVecXd>& q);
 
 /**
  * Normalize an Eigen vector of doubles. This function is used in the
@@ -63,8 +59,12 @@ NormalizeVector(const Eigen::MatrixBase<DerivedA>& a) {
  * it points.
  * @throws std::invalid_argument if `plant` is nullptr.
  */
-const MultibodyPlant<double>& RefFromPtrOrThrow(
-    const MultibodyPlant<double>* const plant);
+template <typename T>
+const MultibodyPlant<T>& RefFromPtrOrThrow(
+    const MultibodyPlant<T>* const plant) {
+  if (plant == nullptr) throw std::invalid_argument("plant is nullptr.");
+  return *plant;
+}
 
 }  // namespace internal
 }  // namespace multibody

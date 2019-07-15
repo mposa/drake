@@ -4,6 +4,7 @@
 #include <memory>
 #include <vector>
 
+#include "drake/automotive/deprecated.h"
 #include "drake/automotive/maliput/api/basic_id_index.h"
 #include "drake/automotive/maliput/api/branch_point.h"
 #include "drake/automotive/maliput/api/junction.h"
@@ -21,7 +22,8 @@ namespace dragway {
 ///
 /// To understand the characteristics of the geometry, consult the
 /// dragway::Segment and dragway::Lane detailed class overview docs.
-class RoadGeometry final : public api::RoadGeometry {
+class DRAKE_DEPRECATED_AUTOMOTIVE
+    RoadGeometry final : public api::RoadGeometry {
  public:
   DRAKE_NO_COPY_NO_MOVE_NO_ASSIGN(RoadGeometry)
 
@@ -60,7 +62,7 @@ class RoadGeometry final : public api::RoadGeometry {
   ~RoadGeometry() final = default;
 
  private:
-  const api::RoadGeometryId do_id() const final { return id_; }
+  api::RoadGeometryId do_id() const final { return id_; }
 
   int do_num_junctions() const final { return 1; }
 
