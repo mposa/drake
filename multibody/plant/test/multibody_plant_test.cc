@@ -434,6 +434,23 @@ GTEST_TEST(ActuationPortsTest, CheckActuation) {
       plant.CalcTimeDerivatives(*context, continuous_state.get()));
 }
 
+GTEST_TEST(MultibodyPlantTest, CheckGravityInForces) {
+  MultibodyPlant<double> plant(0.0);
+  const std::string cylinder_path = FindResourceOrThrow(
+      "drake/multibody/benchmarks/free_body/uniform_solid_cylinder.urdf");
+  Parser(&plant).AddModelFromFile(cylinder_path);
+  plant.mutable_gravity_field().set_gravity_vector(-9.81 * Vector3d::UnitZ());
+  plant.Finalize();
+  
+  auto context = plant.CreateDefaultContext();
+  MultibodyForces<double> forces(plant);
+  plant.CalcForceElementsContribution(*context, &forces);
+  VectorXd tau_g = plant.CalcGravityGeneralizedForces(*context);
+
+  EXPECT_TRUE(CompareMatrices(tau_g, forces.generalized_forces()));
+}
+
+
 GTEST_TEST(MultibodyPlant, UniformGravityFieldElementTest) {
   MultibodyPlant<double> plant(0.0);
 
